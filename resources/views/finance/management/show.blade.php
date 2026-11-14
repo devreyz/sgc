@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', 'Detalhes - '.$config['label'])
 @section('page-title', $config['label'])

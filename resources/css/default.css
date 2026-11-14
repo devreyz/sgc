@@ -1,0 +1,6 @@
+:root, html{
+  -webkit-user-select: none; /* Safari, Chrome, Opera e Edge antigos */
+  -moz-user-select: none;    /* Firefox */
+  -ms-user-select: none;     /* Internet Explorer e Edge */
+  user-select: none;         /* Padrão atual */
+}

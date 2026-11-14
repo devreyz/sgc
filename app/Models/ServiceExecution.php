@@ -13,7 +13,20 @@ class ServiceExecution extends Model
     use BelongsToTenant;
     protected $fillable = ['service_order_id','service_version_id','service_provider_id','associate_id','status','revision','lock_version','quantity','unit','values','derived_values','catalog_snapshot','snapshot_hash','started_at','started_by','submitted_at','submitted_by','validated_at','validated_by','rejected_at','reviewed_by','review_reason','start_operation_key','submit_operation_key','review_operation_key'];
     protected function casts(): array { return ['quantity'=>'decimal:4','values'=>'array','derived_values'=>'array','catalog_snapshot'=>'array','started_at'=>'datetime','submitted_at'=>'datetime','validated_at'=>'datetime','rejected_at'=>'datetime']; }
-    protected static function booted(): void { static::updating(function(self $execution): void { if($execution->getOriginal('status')==='validated')throw ValidationException::withMessages(['execution'=>'Execução validada é imutável.']); }); static::deleting(fn()=>throw ValidationException::withMessages(['execution'=>'Execuções não são excluídas; use cancelamento.'])); }
+    protected static function booted(): void
+    {
+        static::updating(function (self $execution): void {
+            if ($execution->getOriginal('validated_at') !== null || $execution->getOriginal('status') === 'validated') {
+                $cancelling = $execution->getOriginal('status') === 'validated'
+                    && $execution->status === 'cancelled'
+                    && ! array_diff(array_keys($execution->getDirty()), ['status', 'lock_version', 'updated_at']);
+                if (! $cancelling) {
+                    throw ValidationException::withMessages(['execution' => 'Execução validada é imutável.']);
+                }
+            }
+        });
+        static::deleting(fn () => throw ValidationException::withMessages(['execution' => 'Execuções não são excluídas; use cancelamento.']));
+    }
     public function order(): BelongsTo { return $this->belongsTo(ServiceOrder::class, 'service_order_id'); }
     public function version(): BelongsTo { return $this->belongsTo(ServiceVersion::class, 'service_version_id'); }
     public function provider(): BelongsTo { return $this->belongsTo(ServiceProvider::class, 'service_provider_id'); }

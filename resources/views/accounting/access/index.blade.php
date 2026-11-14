@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 @section('title','Acessos da contabilidade')
 @section('page-title','Portal Contábil')
 @section('page-subtitle',$tenant->name)

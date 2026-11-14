@@ -5,7 +5,7 @@
 $file = __DIR__ . '/../resources/views/delivery/project-producers.blade.php';
 
 $content = <<<'BLADE'
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', 'Produtores do Projeto')
 @section('page-title', 'Produtores do Projeto')

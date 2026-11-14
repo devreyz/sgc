@@ -68,7 +68,7 @@ class ServiceCompositionCalculator
                 throw ValidationException::withMessages(['provider_rate' => 'Não existe remuneração válida para este prestador. Cadastre um override ou tarifa padrão da versão.']);
             }
             $amount = $this->amount($method, $providerQuantity, $rate, $percentage, $customerBase);
-            $payable[] = $this->line('payable', 'base', $compensationSource === 'provider_service_version' ? 'provider_override' : 'catalog', 'provider_compensation', 'Remuneração do prestador', $providerQuantity, $executionConfig['provider_unit'] ?? $version->unit, $rate, $amount, 'add', [
+            $payable[] = $this->line('payable', 'base', $compensationSource === 'service_version_default' ? 'catalog' : 'provider_override', 'provider_compensation', 'Remuneração do prestador', $providerQuantity, $executionConfig['provider_unit'] ?? $version->unit, $rate, $amount, 'add', [
                 'method' => $method,
                 'rate' => $rate,
                 'percentage' => $percentage,

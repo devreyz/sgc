@@ -117,7 +117,7 @@ class AssociateProjectWorkspaceSimulationContractTest extends TestCase
 
     public function test_mobile_bottom_navigation_requires_an_active_item(): void
     {
-        $layout = file_get_contents(resource_path('views/layouts/bento.blade.php'));
+        $layout = file_get_contents(resource_path('views/layouts/campo.blade.php'));
 
         self::assertStringContainsString('$hasActiveBentoNavigation', $layout);
         self::assertStringContainsString('.app-nav-layer.has-no-active-item', $layout);

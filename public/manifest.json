@@ -2,53 +2,23 @@
   "id": "/",
   "name": "SGC — Sistema de Gestão Cooperativa",
   "short_name": "SGC",
-  "start_url": "/",
+  "start_url": "/app",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#101923",
-  "theme_color": "#22B573",
+  "background_color": "#173c2e",
+  "theme_color": "#173c2e",
   "icons": [
     {
-      "src": "assets/icons/icon-48.webp",
+      "purpose": "any maskable",
       "type": "image/png",
-      "sizes": "48x48",
-      "purpose": "any maskable"
+      "src": "/assets/icons/campo-light-192.png",
+      "sizes": "192x192"
     },
     {
-      "src": "assets/icons/icon-72.webp",
+      "purpose": "any maskable",
       "type": "image/png",
-      "sizes": "72x72",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "assets/icons/icon-96.webp",
-      "type": "image/png",
-      "sizes": "96x96",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "assets/icons/icon-128.webp",
-      "type": "image/png",
-      "sizes": "128x128",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "assets/icons/icon-192.webp",
-      "type": "image/png",
-      "sizes": "192x192",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "assets/icons/icon-256.webp",
-      "type": "image/png",
-      "sizes": "256x256",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "assets/icons/icon-512.webp",
-      "type": "image/png",
-      "sizes": "512x512",
-      "purpose": "any maskable"
+      "src": "/assets/icons/campo-light-512.png",
+      "sizes": "512x512"
     }
   ]
 }

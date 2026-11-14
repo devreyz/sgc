@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', 'Prestação de contas')
 @section('page-title', 'Prestação de contas de serviços')
@@ -855,6 +855,11 @@
     </section>
 
     <section class="rp-result">
+        @if($summary['undated_count'] ?? 0)
+            <p role="status">{{ $summary['undated_count'] }} ordem(ns) validada(s) sem data ficaram fora do total por período.
+                <a href="{{ route('services.management.index', ['tenant' => $tenantSlug, 'undated' => 1, 'status' => 'validated']) }}">Ver ordens sem data</a>
+            </p>
+        @endif
         <header class="rp-result-head">
             <div class="rp-result-title">
                 <span

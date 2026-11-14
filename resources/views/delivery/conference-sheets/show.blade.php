@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', $record->formatted_number)
 @section('page-title', 'Folha de Conferência')

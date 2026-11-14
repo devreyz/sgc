@@ -24,6 +24,9 @@ class ServiceObligationAdjustmentService
 
                 return $existing;
             }$obligation = ServiceObligation::query()->where('tenant_id', $obligation->tenant_id)->whereKey($obligation->id)->lockForUpdate()->firstOrFail();
+            if ($obligation->status === 'cancelled') {
+                throw ValidationException::withMessages(['status' => 'Uma obrigação anulada não aceita ajustes.']);
+            }
             $amount = round($amount, 2);
             if ($amount == 0) {
                 throw ValidationException::withMessages(['amount' => 'O ajuste não pode ser zero.']);

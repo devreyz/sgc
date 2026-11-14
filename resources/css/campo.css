@@ -1,0 +1,619 @@
+/*
+ * SGC CAMPO — CSS global de produção (Campo Claro + Grafite & Ouro)
+ * Pode substituir resources/css/theme.css no import de resources/css/app.css.
+ * NÃO deve ser carregado em paralelo com theme.css (mesmos tokens).
+ * Mantém aliases legados --ui-*, --color-*, --app-* e --ws-*.
+ * Complementa design-system.css; não substitui suas classes .ui-*.
+ *
+ * SGC UI theme
+ * -----------------------------------------------------------------------------
+ * Fonte única dos tokens visuais do SGC.
+ *
+ * SGC Campo: tema claro Campo e escuro Grafite & Ouro.
+ * Mapeamento semântico retrocompatível: --ui-*, --color-*, --app-* e --ws-*.
+ * As classes e os fluxos das views continuam os mesmos.
+ */
+
+@theme {
+    --font-sans: Inter, 'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --color-brand-50: var(--ui-color-primary-soft);
+    --color-brand-100: var(--ui-color-primary-muted);
+    --color-brand-500: var(--ui-color-primary);
+    --color-brand-600: var(--ui-color-primary-strong);
+    --color-brand-700: var(--ui-color-primary-deep);
+
+    --color-ui-canvas: var(--ui-color-canvas);
+    --color-ui-surface: var(--ui-color-surface);
+    --color-ui-soft: var(--ui-color-surface-soft);
+    --color-ui-muted-surface: var(--ui-color-surface-muted);
+    --color-ui-border: var(--ui-color-border);
+    --color-ui-border-strong: var(--ui-color-border-strong);
+    --color-ui-text: var(--ui-color-text);
+    --color-ui-secondary: var(--ui-color-text-secondary);
+    --color-ui-muted: var(--ui-color-text-muted);
+
+    --color-ui-info: var(--ui-color-info);
+    --color-ui-success: var(--ui-color-success);
+    --color-ui-warning: var(--ui-color-warning);
+    --color-ui-danger: var(--ui-color-danger);
+    --color-ui-violet: var(--ui-color-violet);
+    --color-ui-cyan: var(--ui-color-cyan);
+    --color-ui-neutral: var(--ui-color-neutral);
+
+    --radius-ui-xs: var(--ui-radius-xs);
+    --radius-ui-sm: var(--ui-radius-sm);
+    --radius-ui: var(--ui-radius-md);
+    --radius-ui-lg: var(--ui-radius-lg);
+    --radius-ui-xl: var(--ui-radius-xl);
+
+    --shadow-ui-xs: var(--ui-shadow-xs);
+    --shadow-ui-sm: var(--ui-shadow-sm);
+    --shadow-ui: var(--ui-shadow-md);
+    --shadow-ui-lg: var(--ui-shadow-lg);
+}
+
+:root,
+[data-theme='sgc'] {
+    /* -------------------------------------------------------------------------
+       Identidade e tons semânticos
+       ------------------------------------------------------------------------- */
+
+    --ui-brand: #173c2e;
+
+    --ui-color-primary: var(--ui-brand);
+    --ui-color-primary-strong: #214d3a;
+    --ui-color-primary-deep: #102d23;
+    --ui-color-primary-soft: #e7f0e7;
+    --ui-color-primary-muted: #dce9dd;
+    --ui-color-primary-border: #bfd5c4;
+
+    --ui-color-info: #3478d4;
+    --ui-color-info-strong: #285fa9;
+    --ui-color-info-soft: #eef4ff;
+    --ui-color-info-border: #d4e2f8;
+
+    --ui-color-success: #219653;
+    --ui-color-success-strong: #177c43;
+    --ui-color-success-soft: #edf8f1;
+    --ui-color-success-border: #cde8d6;
+
+    --ui-color-warning: #c38418;
+    --ui-color-warning-strong: #975f0f;
+    --ui-color-warning-soft: #fff7e8;
+    --ui-color-warning-border: #efdcb8;
+
+    --ui-color-danger: #cf5050;
+    --ui-color-danger-strong: #a43d3d;
+    --ui-color-danger-soft: #fff1f1;
+    --ui-color-danger-border: #f1cccc;
+
+    --ui-color-violet: #8a4bd2;
+    --ui-color-violet-strong: #6f37b5;
+    --ui-color-violet-soft: #f5effc;
+    --ui-color-violet-border: #e5d8f5;
+
+    --ui-color-cyan: #168eae;
+    --ui-color-cyan-strong: #11758f;
+    --ui-color-cyan-soft: #edf8fb;
+    --ui-color-cyan-border: #d2eaf0;
+
+    --ui-color-neutral: #64748b;
+    --ui-color-neutral-strong: #526171;
+    --ui-color-neutral-soft: #f2f5f7;
+    --ui-color-neutral-border: #dfe5e9;
+
+    /* -------------------------------------------------------------------------
+       Superfícies e texto
+       ------------------------------------------------------------------------- */
+
+    --ui-color-canvas: #f4f4ef;
+    --ui-color-canvas-deep: #efefe8;
+    --ui-color-surface: #fffefb;
+    --ui-color-surface-soft: #f0f0e9;
+    --ui-color-surface-muted: #e7eae2;
+    --ui-color-surface-raised: #fffefb;
+
+    --ui-color-border: #d9e0d7;
+    --ui-color-border-strong: #b9c7bc;
+
+    --ui-color-text: #1d2922;
+    --ui-color-text-secondary: #647167;
+    --ui-color-text-muted: #879087;
+    --ui-color-focus: #386a8b;
+    --ui-color-overlay: rgb(15 26 20 / 0.58);
+
+    /* -------------------------------------------------------------------------
+       Tipografia
+       ------------------------------------------------------------------------- */
+
+    --ui-font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        'Segoe UI', sans-serif;
+
+    --ui-font-size-2xs: 0.625rem;
+    --ui-font-size-xs: 0.6875rem;
+    --ui-font-size-sm: 0.75rem;
+    --ui-font-size-md: 0.875rem;
+    --ui-font-size-lg: 1rem;
+    --ui-font-size-xl: 1.25rem;
+    --ui-font-size-2xl: clamp(1.55rem, 3vw, 2.25rem);
+
+    --ui-line-compact: 1.2;
+    --ui-line-normal: 1.45;
+    --ui-line-relaxed: 1.6;
+
+    --ui-weight-medium: 600;
+    --ui-weight-semibold: 700;
+    --ui-weight-bold: 800;
+    --ui-weight-black: 850;
+
+    /* -------------------------------------------------------------------------
+       Ritmo e geometria
+       O padrão visual das páginas de associado usa 8–12px na maior parte das
+       superfícies e 12px nos shells principais.
+       ------------------------------------------------------------------------- */
+
+    --ui-space-1: 0.25rem;
+    --ui-space-2: 0.375rem;
+    --ui-space-3: 0.5rem;
+    --ui-space-4: 0.625rem;
+    --ui-space-5: 0.75rem;
+    --ui-space-6: 1rem;
+    --ui-space-7: 1.25rem;
+    --ui-space-8: 1.5rem;
+    --ui-space-9: 2rem;
+    --ui-space-10: 2.5rem;
+
+    --ui-radius-xs: 0.375rem;
+    --ui-radius-sm: 0.5rem;
+    --ui-radius-md: 0.5625rem;
+    --ui-radius-lg: 0.8125rem;
+    --ui-radius-xl: 0.875rem;
+    --ui-radius-2xl: 1rem;
+    --ui-radius-pill: 999px;
+
+    --ui-shadow-xs: 0 2px 8px rgb(25 35 28 / 0.03);
+    --ui-shadow-sm: 0 6px 18px rgb(25 35 28 / 0.04);
+    --ui-shadow-md: 0 10px 28px rgb(25 35 28 / 0.065);
+    --ui-shadow-lg: 0 22px 56px rgb(8 24 15 / 0.16);
+    --ui-shadow-focus: 0 0 0 3px color-mix(in srgb, var(--ui-color-focus) 14%, transparent);
+
+    --ui-control-height-sm: 2rem;
+    --ui-control-height: 2.375rem;
+    --ui-control-height-lg: 2.625rem;
+
+    --ui-icon-size-sm: 2rem;
+    --ui-icon-size: 2.4375rem;
+    --ui-icon-size-lg: 2.625rem;
+
+    --ui-section-header-height: 3.875rem;
+    --ui-row-height: 3.625rem;
+
+    --ui-content-narrow: 52rem;
+    --ui-content: 86.25rem;
+    --ui-content-wide: 105rem;
+
+    --ui-page-gap: 0.78rem;
+    --ui-section-padding: 0.7rem;
+
+    --ui-transition-fast: 140ms ease;
+    --ui-transition: 200ms ease;
+
+    --ui-z-sticky: 40;
+    --ui-z-overlay: 1000;
+    --ui-z-modal: 1200;
+
+    /* -------------------------------------------------------------------------
+       Compatibilidade com views legadas já alinhadas visualmente.
+       Isso permite migrar sem reescrever telas que ainda usam --color-*.
+       ------------------------------------------------------------------------- */
+
+    --color-text: var(--ui-color-text);
+    --color-text-secondary: var(--ui-color-text-secondary);
+    --color-text-muted: var(--ui-color-text-muted);
+    --color-border: var(--ui-color-border);
+    --color-border-strong: var(--ui-color-border-strong);
+    --color-surface: var(--ui-color-surface);
+    --color-surface-soft: var(--ui-color-surface-soft);
+    --shadow-sm: var(--ui-shadow-sm);
+}
+
+/* Grafite & Ouro: neutros frios, dourado pontual; sem verde como fundo geral. */
+html[data-theme='dark'],
+[data-theme='dark'] {
+    color-scheme: dark;
+    --ui-brand: #e7c87d;
+    --ui-color-primary: #e7c87d;
+    --ui-color-primary-strong: #d6b46b;
+    --ui-color-primary-deep: #b58d48;
+    --ui-color-primary-soft: #353022;
+    --ui-color-primary-muted: #403728;
+    --ui-color-primary-border: #5b4c35;
+
+    --ui-color-canvas: #111418;
+    --ui-color-canvas-deep: #101317;
+    --ui-color-surface: #191e24;
+    --ui-color-surface-soft: #212830;
+    --ui-color-surface-muted: #2b343d;
+    --ui-color-surface-raised: #232b34;
+    --ui-color-border: #323c47;
+    --ui-color-border-strong: #495564;
+    --ui-color-text: #edf2f6;
+    --ui-color-text-secondary: #afbac6;
+    --ui-color-text-muted: #94a2ae;
+    --ui-color-focus: #e7c87d;
+    --ui-color-overlay: rgb(0 0 0 / 0.72);
+
+    --ui-color-info: #95c0e3;
+    --ui-color-info-strong: #b6d7ef;
+    --ui-color-info-soft: #233545;
+    --ui-color-info-border: #345069;
+    --ui-color-success: #8dd0a3;
+    --ui-color-success-strong: #b2e1c0;
+    --ui-color-success-soft: #1f3227;
+    --ui-color-success-border: #335641;
+    --ui-color-warning: #e8bf79;
+    --ui-color-warning-strong: #f3d29c;
+    --ui-color-warning-soft: #3d301d;
+    --ui-color-warning-border: #5b4625;
+    --ui-color-danger: #e9a197;
+    --ui-color-danger-strong: #fac0ba;
+    --ui-color-danger-soft: #442827;
+    --ui-color-danger-border: #69413f;
+    --ui-color-violet: #c3b5e8;
+    --ui-color-violet-strong: #d6ccf0;
+    --ui-color-violet-soft: #302b43;
+    --ui-color-violet-border: #4d4564;
+    --ui-color-cyan: #8fd3df;
+    --ui-color-cyan-strong: #b5e5ec;
+    --ui-color-cyan-soft: #223b42;
+    --ui-color-cyan-border: #38555b;
+    --ui-color-neutral: #b1bfcc;
+    --ui-color-neutral-strong: #dce4eb;
+    --ui-color-neutral-soft: #27303a;
+    --ui-color-neutral-border: #394653;
+
+    --ui-shadow-xs: 0 1px 4px rgb(0 0 0 / .1);
+    --ui-shadow-sm: 0 6px 18px rgb(0 0 0 / .13);
+    --ui-shadow-md: 0 12px 30px rgb(0 0 0 / .18);
+    --ui-shadow-lg: 0 28px 64px rgb(0 0 0 / .35);
+}
+
+[data-density='compact'] {
+    --ui-control-height-sm: 1.75rem;
+    --ui-control-height: 2.125rem;
+    --ui-control-height-lg: 2.375rem;
+    --ui-section-header-height: 3.5rem;
+    --ui-row-height: 3.25rem;
+    --ui-page-gap: 0.625rem;
+    --ui-section-padding: 0.625rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --ui-transition-fast: 0.01ms;
+        --ui-transition: 0.01ms;
+    }
+}
+/* Camada Campo: identidade e ações com contraste em ambos os temas. */
+:root,
+[data-theme='sgc'] {
+    --sgc-rail: #173c2e;
+    --sgc-rail-hover: #214d3a;
+    --sgc-rail-text: #eff5ed;
+    --sgc-rail-muted: #b8cdbf;
+    --sgc-rail-divider: rgb(236 255 231 / 13%);
+    --sgc-accent: #d9f172;
+    --sgc-accent-hover: #c9e660;
+    --sgc-on-accent: #233523;
+    --sgc-on-primary: #ffffff;
+}
+html[data-theme='dark'],
+[data-theme='dark'] {
+    --sgc-rail: #151a20;
+    --sgc-rail-hover: #252c34;
+    --sgc-rail-text: #f2f5f7;
+    --sgc-rail-muted: #a4b0bb;
+    --sgc-rail-divider: rgb(255 255 255 / 9%);
+    --sgc-accent: #e7c87d;
+    --sgc-accent-hover: #f0d693;
+    --sgc-on-accent: #2e2617;
+    --sgc-on-primary: #2e2617;
+}
+
+/* Bridge disponível também em layouts que não herdam o Bento. */
+:root, [data-theme='sgc'] {
+    --color-primary: var(--ui-color-primary);
+    --color-primary-dark: var(--ui-color-primary-strong);
+    --color-primary-deep: var(--ui-color-primary-deep);
+    --color-primary-light: var(--ui-color-primary-muted);
+    --color-primary-50: var(--ui-color-primary-soft);
+    --color-secondary: var(--ui-color-info);
+    --color-success: var(--ui-color-success);
+    --color-danger: var(--ui-color-danger);
+    --color-warning: var(--ui-color-warning);
+    --color-info: var(--ui-color-info);
+    --color-bg: var(--ui-color-canvas);
+    --color-surface-muted: var(--ui-color-surface-muted);
+    --app-primary: var(--ui-color-primary);
+    --app-primary-600: var(--ui-color-primary-strong);
+    --app-primary-700: var(--ui-color-primary-deep);
+    --app-primary-soft: var(--ui-color-primary-soft);
+    --app-primary-muted: var(--ui-color-primary-muted);
+    --app-bg: var(--ui-color-canvas);
+    --app-surface: var(--ui-color-surface);
+    --app-surface-soft: var(--ui-color-surface-soft);
+    --app-surface-muted: var(--ui-color-surface-muted);
+    --app-border: var(--ui-color-border);
+    --app-border-strong: var(--ui-color-border-strong);
+    --app-text: var(--ui-color-text);
+    --app-text-secondary: var(--ui-color-text-secondary);
+    --app-text-muted: var(--ui-color-text-muted);
+    --ws-primary: var(--ui-color-primary);
+    --ws-surface: var(--ui-color-surface);
+    --ws-soft: var(--ui-color-surface-soft);
+    --ws-border: var(--ui-color-border);
+    --ws-text: var(--ui-color-text);
+    --ws-secondary: var(--ui-color-text-secondary);
+}
+
+
+/* ============================================================================
+   COMPONENTES CAMPO — opcionais e isolados
+   Todos os seletores usam prefixo `campo-` para não alterar views legadas.
+   O design-system.css continua responsável pelos componentes `ui-*`.
+   ============================================================================ */
+
+@layer components {
+  .campo-page {
+    display: grid;
+    width: min(100%, var(--ui-content, 86.25rem));
+    min-width: 0;
+    gap: var(--ui-page-gap, .78rem);
+    margin-inline: auto;
+    padding-block: var(--ui-space-6, 1rem) var(--ui-space-8, 1.5rem);
+    color: var(--ui-color-text);
+  }
+
+  .campo-page--wide { --ui-content: var(--ui-content-wide, 105rem); }
+  .campo-page--narrow { --ui-content: var(--ui-content-narrow, 52rem); }
+
+  .campo-page-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    min-width: 0;
+    margin-bottom: .35rem;
+  }
+
+  .campo-page-head__content { min-width: 0; }
+  .campo-page-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: .6rem;
+    margin-bottom: .35rem;
+    color: var(--ui-color-text-secondary);
+    font-size: .69rem;
+    font-weight: 800;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+  .campo-page-kicker::before {
+    content: '';
+    width: 1.3rem;
+    height: 2px;
+    background: var(--sgc-accent);
+  }
+  .campo-page-title {
+    margin: 0;
+    color: var(--ui-color-text);
+    font-family: 'Arial Narrow', Inter, var(--ui-font-sans, system-ui), sans-serif;
+    font-size: clamp(1.75rem, 3.15vw, 3.2rem);
+    font-weight: 900;
+    letter-spacing: -.052em;
+    line-height: 1.08;
+    overflow-wrap: anywhere;
+  }
+  .campo-page-description {
+    margin: .5rem 0 0;
+    color: var(--ui-color-text-secondary);
+    font-size: .85rem;
+    line-height: 1.55;
+  }
+  .campo-page-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+
+  .campo-panel {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--ui-color-border);
+    border-radius: var(--ui-radius-xl, .875rem);
+    background: var(--ui-color-surface);
+    box-shadow: var(--ui-shadow-xs);
+  }
+  .campo-panel__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .8rem;
+    min-width: 0;
+    padding: 1rem 1.15rem;
+    border-bottom: 1px solid var(--ui-color-border);
+  }
+  .campo-panel__title {
+    margin: 0;
+    color: var(--ui-color-text);
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: -.025em;
+  }
+  .campo-panel__description {
+    margin: .25rem 0 0;
+    color: var(--ui-color-text-secondary);
+    font-size: .77rem;
+    line-height: 1.45;
+  }
+  .campo-panel__body { padding: 1rem 1.15rem; }
+  .campo-panel__foot { padding: .8rem 1.15rem; border-top: 1px solid var(--ui-color-border); }
+
+  .campo-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    min-height: 42px;
+    padding: .6rem .92rem;
+    border: 1px solid var(--ui-color-border-strong);
+    border-radius: .6rem;
+    background: var(--ui-color-surface);
+    color: var(--ui-color-text);
+    font: inherit;
+    font-size: .8rem;
+    font-weight: 750;
+    line-height: 1.3;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background var(--ui-transition-fast), border-color var(--ui-transition-fast), color var(--ui-transition-fast);
+  }
+  .campo-button:hover { background: var(--ui-color-surface-soft); }
+  .campo-button:focus-visible { outline: 2px solid var(--ui-color-focus); outline-offset: 2px; }
+  .campo-button:disabled, .campo-button[aria-disabled='true'] { opacity: .5; cursor: not-allowed; }
+  .campo-button--primary {
+    background: var(--sgc-rail);
+    border-color: var(--sgc-rail);
+    color: var(--sgc-rail-text);
+  }
+  .campo-button--primary:hover {
+    background: var(--sgc-rail-hover);
+    border-color: var(--sgc-rail-hover);
+  }
+  .campo-button--accent {
+    background: var(--sgc-accent);
+    border-color: var(--sgc-accent);
+    color: var(--sgc-on-accent);
+  }
+  .campo-button--accent:hover { background: var(--sgc-accent-hover); border-color: var(--sgc-accent-hover); }
+  .campo-button--quiet { border-color: transparent; background: transparent; }
+  .campo-button--small { min-height: 34px; padding: .42rem .7rem; font-size: .75rem; }
+
+  .campo-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .6rem;
+    min-width: 0;
+    padding: .75rem .85rem;
+    border: 1px solid var(--ui-color-border);
+    border-radius: .75rem;
+    background: var(--ui-color-surface);
+  }
+  .campo-toolbar__grow { flex: 1 1 14rem; min-width: 0; }
+
+  .campo-form-field { display: grid; gap: .3rem; min-width: 0; }
+  .campo-label { color: var(--ui-color-text-secondary); font-size: .78rem; font-weight: 750; }
+  .campo-control {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    padding: .6rem .72rem;
+    border: 1px solid var(--ui-color-border-strong);
+    border-radius: .55rem;
+    background: var(--ui-color-surface);
+    color: var(--ui-color-text);
+    font: inherit;
+    font-size: .83rem;
+  }
+  .campo-control::placeholder { color: var(--ui-color-text-muted); }
+  .campo-control:focus-visible {
+    border-color: var(--ui-color-focus);
+    outline: 2px solid color-mix(in srgb, var(--ui-color-focus) 25%, transparent);
+    outline-offset: 1px;
+  }
+  .campo-control:disabled { opacity: .6; cursor: not-allowed; }
+  textarea.campo-control { min-height: 105px; resize: vertical; }
+  .campo-help { color: var(--ui-color-text-muted); font-size: .72rem; line-height: 1.45; }
+  .campo-error { color: var(--ui-color-danger); font-size: .73rem; line-height: 1.4; }
+
+  .campo-table-scroll { overflow-x: auto; max-width: 100%; }
+  .campo-table { width: 100%; border-collapse: collapse; background: var(--ui-color-surface); text-align: left; }
+  .campo-table th {
+    padding: .76rem .9rem;
+    background: var(--ui-color-surface-soft);
+    color: var(--ui-color-text-secondary);
+    font-size: .7rem;
+    font-weight: 800;
+    letter-spacing: .075em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .campo-table td { padding: .82rem .9rem; border-top: 1px solid var(--ui-color-border); font-size: .82rem; }
+  .campo-table tbody tr:hover { background: var(--ui-color-surface-soft); }
+  .campo-table__numeric { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .campo-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: .38rem;
+    max-width: 100%;
+    padding: .28rem .52rem;
+    border-radius: .45rem;
+    background: var(--ui-color-surface-soft);
+    color: var(--ui-color-text-secondary);
+    font-size: .7rem;
+    font-weight: 750;
+    line-height: 1.3;
+  }
+  .campo-tag::before { content: ''; flex: none; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .campo-tag--success { background: var(--ui-color-success-soft); color: var(--ui-color-success); }
+  .campo-tag--warning { background: var(--ui-color-warning-soft); color: var(--ui-color-warning); }
+  .campo-tag--danger { background: var(--ui-color-danger-soft); color: var(--ui-color-danger); }
+  .campo-tag--info { background: var(--ui-color-info-soft); color: var(--ui-color-info); }
+
+  .campo-note {
+    display: flex;
+    align-items: flex-start;
+    gap: .7rem;
+    padding: .9rem 1rem;
+    border: 1px solid var(--ui-color-border);
+    border-radius: .7rem;
+    background: var(--ui-color-surface-soft);
+    color: var(--ui-color-text-secondary);
+    font-size: .8rem;
+    line-height: 1.55;
+  }
+
+  .campo-empty { display: grid; justify-items: center; gap: .5rem; padding: 2.2rem 1.1rem; text-align: center; }
+  .campo-empty__title { color: var(--ui-color-text); font-size: .97rem; font-weight: 800; }
+  .campo-empty__text { color: var(--ui-color-text-secondary); font-size: .8rem; }
+
+  .campo-metric {
+    display: grid;
+    align-content: start;
+    gap: .2rem;
+    min-width: 0;
+    padding: .95rem;
+    border: 1px solid var(--ui-color-border);
+    border-radius: .72rem;
+    background: var(--ui-color-surface);
+  }
+  .campo-metric__label { font-size: .73rem; color: var(--ui-color-text-secondary); }
+  .campo-metric__value { color: var(--ui-color-text); font-size: clamp(1.4rem, 2.2vw, 2rem); font-weight: 850; line-height: 1.14; font-variant-numeric: tabular-nums; letter-spacing: -.045em; }
+  .campo-metric__detail { color: var(--ui-color-text-muted); font-size: .72rem; }
+}
+
+@media (max-width: 767px) {
+  .campo-page-head { flex-direction: column; align-items: stretch; }
+  .campo-page-actions { width: 100%; }
+  .campo-page-actions > .campo-button { flex: 1 1 auto; }
+  .campo-panel__head { align-items: flex-start; padding: .88rem; }
+  .campo-panel__body { padding: .88rem; }
+  .campo-toolbar { align-items: stretch; }
+  .campo-toolbar__grow { flex-basis: 100%; }
+  .campo-table th, .campo-table td { padding-inline: .7rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .campo-button { transition: none; }
+}

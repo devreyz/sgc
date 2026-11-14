@@ -1,19 +1,27 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-theme="light">
 <head>
+    <script src="{{ asset('assets/overlay-back.js') }}"></script>
+    @auth
+        <script>
+            try { localStorage.setItem('sgc-has-signed-in', '1'); } catch {}
+        </script>
+    @endauth
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="app-version" content="{{ config('app.version') }}">
-    <meta name="theme-color" content="#f4f4ef">
+    <meta name="theme-color" content="#173c2e">
+    <link rel="manifest" href="/manifest.json?v=campo">
     <script>
         /* Aplicar tema antes da renderização para impedir clarão entre páginas. */
         (function () {
             try {
                 var choice = localStorage.getItem('sgc-campo-theme') || localStorage.getItem('sgc-theme');
-                var dark = choice === 'dark' || (!choice && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                var dark = choice === 'dark';
                 document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-                document.querySelector('meta[name="theme-color"]').content = dark ? '#111418' : '#f4f4ef';
+                document.querySelector('meta[name="theme-color"]').content = dark ? '#151a20' : '#173c2e';
+                if (dark) document.querySelector('link[rel="manifest"]').href = '/manifest-dark.json?v=campo';
             } catch (error) { document.documentElement.dataset.theme = 'light'; }
         }());
     </script>
@@ -25,11 +33,14 @@
 
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800" rel="stylesheet">
-    <link rel="manifest" href="/manifest.json">
-    <link rel="icon" href="/assets/favicon.ico" sizes="any">
-    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicon-180.png">
+    <link rel="icon" href="/assets/favicon.ico?v=campo-light" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png?v=campo-light">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png?v=campo-light">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicon-180.png?v=campo-mark">
+
+    <style>
+        html:not([data-theme="dark"]) .sgc-brand-dark, [data-theme="dark"] .sgc-brand-light { display: none !important; }
+    </style>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
@@ -531,12 +542,6 @@
             width: 20px;
             height: 20px;
             font-size: 1.25rem;
-        }
-
-        .app-home-button > img {
-            width: 25px;
-            height: 25px;
-            object-fit: contain;
         }
 
         .notification-header-link {
@@ -1566,7 +1571,7 @@
             border: 1px solid var(--app-border-strong) !important;
             border-radius: var(--app-radius-md) !important;
             outline: none;
-            background: rgba(255, 255, 255, .98) !important;
+            background: var(--app-surface) !important;
             color: var(--app-text) !important;
             box-shadow: none;
         }
@@ -3104,7 +3109,49 @@
             backdrop-filter: none;
             transform: none;
         }
-        .app-home-button { background: var(--app-surface); }
+        .app-home-button { overflow: hidden; padding: 0; background: var(--sgc-rail); }
+        .app-home-button > img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            min-width: 0;
+            object-fit: cover;
+            transform: scale(1.26);
+            transition: transform 180ms ease, opacity 180ms ease;
+        }
+        .app-home-button .app-home-cue {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            background: var(--sgc-rail);
+            color: var(--sgc-accent);
+            opacity: 0;
+            pointer-events: none;
+            transform: translateX(6px);
+            transition: transform 180ms ease, opacity 180ms ease;
+        }
+        .app-home-button:is(:focus-visible, :active, .is-leaving) .app-home-cue { opacity: 1; transform: translateX(0); }
+        .app-home-button:is(:active, .is-leaving) > img { transform: scale(1.08); opacity: 0; }
+        .app-home-button.is-leaving :is(img, .app-home-cue) { transition-duration: 75ms; }
+        .app-home-button .app-home-cue > i {
+            display: grid;
+            place-items: center;
+            width: 1em;
+            height: 1em;
+            font-size: clamp(1.375rem, 3vw, 1.625rem);
+            line-height: 1;
+        }
+        .app-home-button.is-leaving .app-home-cue i { animation: home-arrow-return 120ms ease-out both; }
+        @keyframes home-arrow-return {
+            0%, 100% { transform: translateX(0); }
+            55% { transform: translateX(-3px); }
+        }
+        @media (hover: hover) {
+            .app-home-button:hover .app-home-cue { opacity: 1; transform: translateX(0); }
+            .app-home-button:hover > img { transform: scale(1.1); opacity: 0; }
+        }
+        .app-home-button:focus-visible { outline: 2px solid var(--ui-color-focus); outline-offset: 2px; }
         .app-home-button:hover, .app-header-action:hover, .app-profile-button:hover,
         .app-home-button:focus-visible, .app-header-action:focus-visible, .app-profile-button:focus-visible {
             border-color: var(--app-border-strong);
@@ -3160,10 +3207,38 @@
         .stat-card { background: var(--app-surface); border-color: var(--app-border); }
         .user-menu-overlay { background: var(--ui-color-overlay); }
         .user-menu-sheet { background: var(--app-surface); border-color: var(--app-border); backdrop-filter: none; }
-        .user-menu-header { background: var(--app-surface-soft); }
+        .user-menu-header { background: var(--sgc-rail); color: var(--sgc-rail-text); }
         .user-menu-header::before { background: var(--sgc-accent); }
-        .user-menu-header .user-menu-info :is(h3, p) { color: var(--app-text); }
-        .user-menu-profile, .user-menu-content, .user-menu-footer { background: var(--app-surface); color: var(--app-text); }
+        .user-menu-header .user-menu-close { color: var(--sgc-rail-text); background: var(--sgc-rail-hover); border-color: var(--sgc-rail-divider); }
+        .user-menu-header .user-menu-info h3 { color: var(--sgc-rail-text); }
+        .user-menu-header .user-menu-info p { color: var(--sgc-rail-muted); }
+        .user-menu-content, .user-menu-footer { background: var(--app-surface); color: var(--app-text); }
+        .user-menu-profile { background: transparent; color: inherit; }
+        .user-menu-avatar { object-fit: cover; border-color: var(--sgc-rail-divider); box-shadow: none; }
+        .user-menu-header .user-menu-kicker { color: var(--sgc-accent); }
+        .campo-avatar {
+            position: relative;
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            line-height: 1;
+            background: var(--avatar-background, var(--ui-color-primary-soft));
+            color: var(--avatar-foreground, var(--ui-color-primary));
+        }
+        .campo-avatar[data-avatar-tone="success"] { --avatar-background: var(--ui-color-success-soft); --avatar-foreground: var(--ui-color-success-strong); }
+        .campo-avatar[data-avatar-tone="info"] { --avatar-background: var(--ui-color-info-soft); --avatar-foreground: var(--ui-color-info-strong); }
+        .campo-avatar[data-avatar-tone="violet"] { --avatar-background: var(--ui-color-violet-soft); --avatar-foreground: var(--ui-color-violet-strong); }
+        .campo-avatar[data-avatar-tone="cyan"] { --avatar-background: var(--ui-color-cyan-soft); --avatar-foreground: var(--ui-color-cyan-strong); }
+        .campo-avatar[data-avatar-tone="warning"] { --avatar-background: var(--ui-color-warning-soft); --avatar-foreground: var(--ui-color-warning-strong); }
+        .campo-avatar > img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+        }
+        .campo-avatar > img.is-loaded { opacity: 1; }
         .user-menu-item { color: var(--app-text); }
         .user-menu-item:hover { background: var(--app-surface-soft); }
         .tenant-switch-button.active { border-color: var(--ui-color-primary-border); background: var(--app-primary-soft); box-shadow: none; }
@@ -3223,16 +3298,22 @@
             .app-header__content { min-height: 62px; }
             .app-header__actions { gap: 5px; }
             .app-header-action, .sgc-theme-toggle { width: 37px; height: 37px; }
+            .sgc-theme-toggle { flex-basis: 37px; }
+            .app-profile-button { width: 37px; height: 37px; max-width: 37px; flex: 0 0 37px; padding: 0; }
+            .app-profile-button .app-avatar { width: 100%; height: 100%; border: 0; border-radius: inherit; }
+            .app-header .app-home-button {
+                border-color: var(--ui-color-primary-border);
+            }
             .nav-tabs {
                 position: fixed; z-index: calc(var(--app-layer-navigation) + 50);
                 top: auto; left: 0; right: 0; bottom: 0;
                 width: 100%; max-width: none;
                 min-height: calc(var(--app-mobile-nav-height) + var(--safe-bottom));
-                display: flex; gap: 0; align-items: stretch;
+                display: flex; gap: 4px; align-items: stretch;
                 padding: 5px max(4px, var(--safe-right)) calc(5px + var(--safe-bottom)) max(4px, var(--safe-left));
-                margin: 0; border: 0; border-top: 1px solid var(--app-border);
+                margin: 0; border: 0; border-top: 1px solid var(--sgc-rail-divider);
                 border-radius: 0; box-shadow: 0 -4px 15px rgb(0 0 0 / .06);
-                background: var(--app-surface);
+                background: var(--sgc-rail);
                 overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
                 scrollbar-width: none; scroll-snap-type: x proximity;
             }
@@ -3240,8 +3321,8 @@
             .nav-tabs .nav-tab,
             .nav-tabs .nav-tab[data-nav-key="create"],
             .nav-tabs .nav-tab[data-nav-key="register"] {
-                flex: 1 0 max(61px, calc(20% - 2px)); min-width: 61px; min-height: 52px;
-                border: 0; border-radius: 8px; background: transparent; color: var(--app-text-muted);
+                flex: 1 0 max(61px, calc((100% - 16px) / 5)); min-width: 61px; min-height: 52px;
+                border: 0; border-radius: 8px; background: transparent; color: var(--sgc-rail-muted);
                 padding: 4px 5px; gap: 3px; font-size: 9px; scroll-snap-align: center;
             }
             .nav-tabs .app-nav-icon,
@@ -3250,13 +3331,14 @@
             .nav-tabs .nav-tab.active,
             .nav-tabs .nav-tab[data-nav-key="create"].active,
             .nav-tabs .nav-tab[data-nav-key="register"].active {
-                color: var(--app-text); background: var(--app-surface-soft);
+                color: var(--sgc-on-accent); background: var(--sgc-accent);
             }
-            .nav-tabs .nav-tab.active .app-nav-icon { color: var(--app-primary-600); }
+            .nav-tabs .nav-tab.active .app-nav-icon { color: inherit; }
             .nav-tabs .nav-tab.active .app-nav-label { color: inherit; }
-            .nav-tabs .nav-tab:hover, .nav-tabs .nav-tab:focus-visible {
-                background: var(--app-surface-soft); color: var(--app-text);
+            .nav-tabs .nav-tab:not(.active):is(:hover, :focus-visible) {
+                background: var(--sgc-rail-hover); color: var(--sgc-rail-text);
             }
+            .nav-tabs .nav-tab:focus-visible { outline: 2px solid currentColor; outline-offset: -3px; }
             body.has-app-nav .bento-container { margin: 0 auto; }
             body.has-active-app-nav .bento-container,
             body.has-app-nav .bento-container {
@@ -3354,7 +3436,7 @@
                 class="request-loader-mark"
                 aria-hidden="true"
             >
-                <img src="{{ asset('assets/sgc-symbol.png') }}" alt="">
+                @include('components.sgc-brand')
             </span>
 
             <span class="global-request-loader-copy">
@@ -3374,7 +3456,8 @@
         <div class="app-header__content">
             <div class="app-header__left">
                 <a href="{{ route('home') }}" class="app-home-button" aria-label="Ir para o início" title="Início">
-                    <img src="{{ asset('assets/sgc-symbol.png') }}" alt="" aria-hidden="true">
+                    @include('components.sgc-brand')
+                    <span class="app-home-cue" aria-hidden="true"><i class="ph ph-arrow-left"></i></span>
                 </a>
 
                 <div class="app-header__titles">
@@ -3397,27 +3480,56 @@
                         <span class="notification-count" data-notification-count hidden>0</span>
                     </a>
                 @endif
-                <button type="button" class="app-profile-button" id="userMenuToggle" aria-controls="userMenuSheet" aria-expanded="false">
+                <button type="button" class="app-profile-button" id="userMenuToggle" aria-label="Abrir menu da conta" aria-controls="userMenuSheet" aria-expanded="false">
                     <span class="app-profile-copy">
                         <span class="app-profile-name">{{ $authenticatedMemberName }}</span>
                         <span class="app-profile-role">@yield('user-role', 'Minha conta')</span>
                     </span>
 
-                    @if($avatarUrl)
-                        <img src="{{ $avatarUrl }}" alt="{{ $authenticatedMemberName }}" class="app-avatar">
-                    @else
-                        <span class="app-avatar" aria-hidden="true">{{ mb_strtoupper(mb_substr($authenticatedMemberName, 0, 1)) }}</span>
-                    @endif
+                    <x-campo-avatar class="app-avatar" :photo="$avatarUrl" :name="$authenticatedMemberName" :seed="$authenticatedUser?->id ?? $authenticatedMemberName" />
                 </button>
             </div>
         </div>
     </header>
 
+    <script>
+        (() => {
+            const home = document.querySelector('.app-home-button');
+            const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+            home?.addEventListener('click', event => {
+                if (event.defaultPrevented || event.pointerType !== 'touch' || reducedMotion.matches
+                    || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+
+                event.preventDefault();
+                if (home.classList.contains('is-leaving')) return;
+
+                home.classList.add('is-leaving');
+                window.setTimeout(() => window.location.assign(home.href), 120);
+            });
+
+            window.addEventListener('pageshow', () => home?.classList.remove('is-leaving'));
+        })();
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('[data-avatar-photo]').forEach(photo => {
+                const showPhoto = () => {
+                    if (photo.naturalWidth > 0) photo.classList.add('is-loaded');
+                };
+
+                photo.addEventListener('load', showPhoto);
+                photo.addEventListener('error', () => photo.classList.remove('is-loaded'));
+                if (photo.complete) showPhoto();
+            });
+        });
+    </script>
     <div class="user-menu-overlay" id="userMenuOverlay" aria-hidden="true"></div>
 
     <aside
         class="user-menu-sheet"
         id="userMenuSheet"
+        role="dialog"
+        aria-modal="true"
         aria-label="Menu da conta"
         aria-hidden="true"
     >
@@ -3428,23 +3540,14 @@
             type="button"
             class="user-menu-close"
             id="userMenuClose"
+            data-back-close
             aria-label="Fechar menu"
         >
             <i class="ph ph-x" aria-hidden="true"></i>
         </button>
 
         <div class="user-menu-profile">
-            @if($avatarUrl)
-                <img
-                    src="{{ $avatarUrl }}"
-                    alt="{{ $authenticatedMemberName }}"
-                    class="user-menu-avatar"
-                >
-            @else
-                <span class="user-menu-avatar" aria-hidden="true">
-                    {{ mb_strtoupper(mb_substr($authenticatedMemberName, 0, 1)) }}
-                </span>
-            @endif
+            <x-campo-avatar class="user-menu-avatar" :photo="$avatarUrl" :name="$authenticatedMemberName" :seed="$authenticatedUser?->id ?? $authenticatedMemberName" />
 
             <div class="user-menu-info">
                 <div class="user-menu-kicker">
@@ -3776,7 +3879,10 @@
             }
 
             menuToggle?.addEventListener('click', () => setMenuState(true));
-            menuClose?.addEventListener('click', () => setMenuState(false));
+            menuClose?.addEventListener('click', () => {
+                setMenuState(false);
+                menuToggle?.focus({preventScroll: true});
+            });
             menuOverlay?.addEventListener('click', () => setMenuState(false));
 
             document.addEventListener('keydown', (event) => {
@@ -3882,7 +3988,9 @@
                     const icon = button.querySelector('[data-sgc-theme-icon]');
                     if (icon) icon.className = 'ph ' + (isDark ? 'ph-sun' : 'ph-moon');
                 });
-                if (meta) meta.content = isDark ? '#111418' : '#f4f4ef';
+                if (meta) meta.content = isDark ? '#151a20' : '#173c2e';
+                const manifest = document.querySelector('link[rel="manifest"]');
+                if (manifest) manifest.href = isDark ? '/manifest-dark.json?v=campo' : '/manifest.json?v=campo';
             }
             controls.forEach(button => button.addEventListener('click', () => {
                 root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';

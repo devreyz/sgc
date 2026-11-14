@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', 'Central da organização')
 
@@ -741,12 +741,18 @@
     body.hub-app-navigation.has-app-nav .bento-container { padding-bottom: calc(78px + env(safe-area-inset-bottom,0px)) !important; }
     .hub-page { gap: 14px; padding-bottom: calc(80px + env(safe-area-inset-bottom,0px)); }
     .hub-page > .ui-page-head { min-height: 0; align-items: flex-start; padding: 21px 18px; flex-direction: column; gap: 13px; border-radius: 11px; }
-    .hub-page > .ui-page-head .ui-page-head__start { gap: 12px; }
-    .hub-page .hub-brand-logo { width: 50px; height: 50px; flex-basis: 50px; border-radius: 9px; }
+    .hub-page > .ui-page-head .ui-page-head__start { width: 100%; gap: 12px; align-items: flex-start; }
+    .hub-page .hub-brand-logo { width: 44px; height: 44px; flex-basis: 44px; border-radius: 9px; }
     .hub-page > .ui-page-head .ui-page-head__copy::before { margin-bottom: 5px; font-size: .55rem; letter-spacing: .12em; }
-    .hub-page > .ui-page-head .ui-page-head__title { font-size: clamp(1.35rem,5vw,2.1rem); }
-    .hub-page .ui-page-head__meta { gap: 5px 12px; margin-top: 8px; }
-    .hub-page .ui-page-head__meta > span { font-size: .66rem; }
+    .hub-page > .ui-page-head .ui-page-head__title {
+        font-size: clamp(1.125rem, 4.4vw, 1.625rem);
+        line-height: 1.16;
+        letter-spacing: -.035em;
+        white-space: normal;
+    }
+    .hub-page .ui-page-head__meta { gap: 6px 12px; margin-top: 10px; }
+    .hub-page .ui-page-head__meta > span { min-width: 0; font-size: .72rem; white-space: normal; overflow-wrap: anywhere; }
+    .hub-page .ui-page-head__meta i { flex-shrink: 0; }
     .hub-page .hub-page-head-site { min-height: 34px; padding: 6px 11px; font-size: .68rem; }
     .hub-page .hub-overview-note { align-items: flex-start; }
     .hub-page .hub-overview-note__title { font-size: .95rem; }
@@ -777,21 +783,22 @@
         left: 0;
         display: grid;
         grid-template-columns: repeat(4,minmax(0,1fr));
-        gap: 0;
+        gap: 4px;
         width: 100%;
         min-height: calc(66px + env(safe-area-inset-bottom,0px));
-        padding: 5px max(5px,env(safe-area-inset-right,0px)) max(6px,env(safe-area-inset-bottom,0px)) max(5px,env(safe-area-inset-left,0px));
-        background: var(--hub-nav-bg,#fffefb);
+        padding: 5px max(5px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(5px,env(safe-area-inset-left,0px));
+        background: var(--sgc-rail);
         border: 0;
-        border-top: 1px solid var(--hub-nav-line,#dce2d8);
+        border-top: 1px solid var(--sgc-rail-divider);
         border-radius: 0;
         box-shadow: 0 -5px 18px rgb(10 26 15 / .055);
     }
-    .hub-bottom-item { display: grid; min-width: 0; min-height: 53px; align-content: center; justify-items: center; gap: 3px; padding: 5px 2px; background: transparent; border: 0; border-radius: 7px; color: var(--hub-nav-muted,#748278); cursor: pointer; }
+    .hub-bottom-item { display: grid; min-width: 0; min-height: 53px; align-content: center; justify-items: center; gap: 3px; padding: 5px 2px; background: transparent; border: 0; border-radius: 8px; color: var(--sgc-rail-muted); cursor: pointer; }
     .hub-bottom-item i { font-size: 1.35rem; line-height: 1; }
     .hub-bottom-item span { font-size: .66rem; font-weight: 750; white-space: nowrap; overflow: hidden; max-width: 100%; text-overflow: ellipsis; }
-    .hub-bottom-item.is-active { background: transparent; color: var(--hub-nav-active,#245d43); }
-    .hub-bottom-item.is-active::after { content: ''; display: block; width: 19px; height: 3px; border-radius: 3px; margin-top: 1px; background: var(--hub-nav-active,#245d43); }
+    .hub-bottom-item:focus-visible { outline: 2px solid var(--sgc-rail-text); outline-offset: -3px; }
+    .hub-bottom-item.is-active { background: var(--sgc-accent); color: var(--sgc-on-accent); }
+    .hub-bottom-item.is-active:focus-visible { outline-color: var(--sgc-on-accent); }
 }
 @media (max-width: 540px) {
     .hub-page .hub-portals-list { grid-template-columns: 1fr; }
@@ -804,15 +811,6 @@
     .hub-page .hub-page-head-site span { display: initial; }
 }
 @media (prefers-reduced-motion: reduce) { .hub-page *, .hub-bottom-nav * { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
-/* Theme handling on nav, which is outside .hub-page */
-@media (max-width: 820px) {
-    :where(html[data-theme='dark'],html.dark,body.dark,html[data-theme='graphite-gold'],html[data-theme='grafite-ouro']) .hub-bottom-nav {
-        --hub-nav-bg: #191e24;
-        --hub-nav-line: #35404a;
-        --hub-nav-muted: #aab9c5;
-        --hub-nav-active: #e7c87d;
-    }
-}
 </style>
 
 
@@ -827,7 +825,7 @@
                 <img
                     src="{{ !empty($currentTenant?->logo)
                         ? asset('storage/' . $currentTenant->logo)
-                        : asset('assets/sgc-symbol.png') }}"
+                        : asset('assets/sgc-brand-light.png') }}"
                     alt=""
                 >
             </span>
@@ -840,21 +838,21 @@
                 <div class="ui-page-head__meta">
                     <span>
                         <i class="ph ph-user-circle" aria-hidden="true"></i>
-                        {{ $displayName }}
+                        <span>{{ $displayName }}</span>
                     </span>
 
                     <span>
                         <i class="ph ph-squares-four" aria-hidden="true"></i>
-                        <strong class="hub-head-meta-count" data-visible-count>
-                            {{ $availablePanelsCount }}
-                        </strong>
-                        {{ $availablePanelsCount === 1 ? 'portal disponível' : 'portais disponíveis' }}
+                        <span>
+                            <strong class="hub-head-meta-count" data-visible-count>{{ $availablePanelsCount }}</strong>
+                            {{ $availablePanelsCount === 1 ? 'portal disponível' : 'portais disponíveis' }}
+                        </span>
                     </span>
 
                     @if($tenantLocation)
                         <span>
                             <i class="ph ph-map-pin" aria-hidden="true"></i>
-                            {{ $tenantLocation }}
+                            <span>{{ $tenantLocation }}</span>
                         </span>
                     @endif
                 </div>
@@ -1266,7 +1264,7 @@
                                 <img
                                     src="{{ !empty($currentTenant?->logo)
                                         ? asset('storage/' . $currentTenant->logo)
-                                        : asset('assets/sgc-symbol.png') }}"
+                                        : asset('assets/sgc-brand-light.png') }}"
                                     alt=""
                                 >
                             </span>

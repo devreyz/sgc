@@ -10,7 +10,7 @@ $base = __DIR__ . '/../resources/views/delivery';
 // 1. DASHBOARD
 // ─────────────────────────────────────────────
 $dashboard = <<<'BLADE'
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', 'Painel de Entregas')
 @section('page-title', 'Painel de Entregas')

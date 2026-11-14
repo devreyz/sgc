@@ -78,6 +78,10 @@ class ServiceObligation extends Model
 
     public function getBalanceAttribute(): float
     {
+        if ($this->status === 'cancelled') {
+            return 0.0;
+        }
+
         return max(0, round($this->total_amount - $this->paid_amount, 2));
     }
 

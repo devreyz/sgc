@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', $version->service->name)
 @section(
@@ -1288,6 +1288,52 @@
 </style>
 
 <main class="catalog-config">
+    @if($version->status === 'published' && (int) $version->service->current_version_id === (int) $version->id
+        && ($version->receivable_enabled || $version->payable_enabled))
+        <details class="cc-price-editor" @if($errors->hasAny(['customer_rate', 'default_provider_rate', 'provider_percentage', 'provider_rates', 'version'])) open @endif>
+            <summary class="cc-action">Reajustar preços</summary>
+            <form method="post" action="{{ route('services.catalog.prices.update', [$tenantSlug, $version]) }}">
+                @csrf
+                @method('PATCH')
+                @if($errors->any())
+                    <ul role="alert">
+                        @foreach($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                @endif
+                @if(session('success'))<p role="status">{{ session('success') }}</p>@endif
+                <p>As novas ordens usam os preços salvos aqui. Para corrigir uma ordem aberta, use a edição da própria ordem.</p>
+                @if($version->receivable_enabled)
+                    <label>{{ $version->customer_pricing_method === 'percent_of_base' ? 'Base da cobrança (R$)' : 'Tarifa de cobrança (R$)' }}
+                        <input type="number" name="customer_rate" step=".0001" min=".0001" value="{{ old('customer_rate', $version->customer_rate) }}">
+                    </label>
+                @endif
+                @if($version->payable_enabled)
+                    @if($version->provider_pricing_method === 'percent_of_base')
+                        <label>Percentual do prestador (%)
+                            <input type="number" name="provider_percentage" step=".0001" min=".0001" max="100" value="{{ old('provider_percentage', $version->provider_percentage) }}">
+                        </label>
+                    @else
+                        <label>Tarifa padrão do prestador (R$)
+                            <input type="number" name="default_provider_rate" step=".0001" min=".0001" value="{{ old('default_provider_rate', $version->default_provider_rate) }}">
+                        </label>
+                    @endif
+                    @if($version->providerRates->contains('active', true))
+                        <label><input type="checkbox" name="use_default_for_all" value="1" @checked(old('use_default_for_all'))> Aplicar a tarifa padrão também aos prestadores com tarifa própria</label>
+                    @endif
+                @endif
+                <button class="cc-action primary">Salvar preços</button>
+            </form>
+        </details>
+        <style>
+            .cc-price-editor { padding: 1rem; border: 1px solid var(--ui-color-border); border-radius: 1rem; background: var(--ui-color-surface); }
+            .cc-price-editor summary { width: fit-content; cursor: pointer; }
+            .cc-price-editor form { display: grid; gap: .8rem; max-width: 36rem; margin-top: .8rem; }
+            .cc-price-editor label:has(input[type="number"]) { display: grid; gap: .35rem; }
+            .cc-price-editor button { justify-self: start; }
+        </style>
+    @endif
     <header class="cc-head">
         <div class="cc-head-top">
             <div class="cc-head-main">

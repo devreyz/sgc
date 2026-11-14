@@ -29,16 +29,39 @@ use Illuminate\View\View;
 
 class ServiceProviderPortalController extends Controller
 {
-    public function index(Request $request, Tenant $tenant): View
+    public function index(Request $request, Tenant $tenant): View|\Illuminate\Http\Response
     {
         [$provider, $operator] = $this->access($request, $tenant);
         $base = ServiceOrder::query()->where('tenant_id', $tenant->id)->when(! $operator, fn ($query) => $query->where('service_provider_id', $provider->id))->with(['service', 'execution.obligations']);
-        $today = (clone $base)->whereDate('scheduled_at', today())->orderBy('scheduled_at')->get();
-        $upcoming = (clone $base)->whereDate('scheduled_at', '>', today())->orderBy('scheduled_at')->limit(8)->get();
-        $pending = (clone $base)->whereIn('operational_status', ['in_progress', 'submitted', 'rejected'])->orderBy('scheduled_at')->get();
-        $payables = ServiceObligation::query()->where('tenant_id', $tenant->id)->when(! $operator, fn ($query) => $query->where('service_provider_id', $provider->id))->where('direction', 'payable')->get();
+        $date = DB::raw('COALESCE(scheduled_at, scheduled_date)');
+        $today = today();
+        $requestedDate = $request->query('agenda_date');
+        $selectedDay = $today->copy();
+        if (is_string($requestedDate) && preg_match('/^\d{4}-\d{2}-\d{2}$/D', $requestedDate)
+            && checkdate((int) substr($requestedDate, 5, 2), (int) substr($requestedDate, 8, 2), (int) substr($requestedDate, 0, 4))) {
+            $selectedDay = $today->copy()->setDate((int) substr($requestedDate, 0, 4), (int) substr($requestedDate, 5, 2), (int) substr($requestedDate, 8, 2));
+        }
+        $start = $selectedDay->copy()->startOfMonth();
+        $end = $start->copy()->addMonth();
+        $agenda = (clone $base)
+            ->where($date, '>=', $start->toDateString())->where($date, '<', $end->toDateString())
+            ->orderBy($date)->orderBy('id')->get();
+        $agendaDays = $agenda->groupBy(fn (ServiceOrder $order) => ($order->scheduled_at ?? $order->scheduled_date)->toDateString());
+        $agendaWindow = [
+            'previous' => $start->copy()->subMonth()->toDateString(),
+            'next' => $end->toDateString(),
+        ];
+        $tenantSlug = $tenant->slug;
+        $statuses = app(\App\Services\Services\ServiceHumanStatusResolver::class);
+        $calendarData = compact('agendaDays', 'start', 'end', 'today', 'selectedDay', 'agendaWindow', 'tenantSlug', 'statuses');
 
-        return view('provider.services-dashboard', compact('provider', 'operator', 'today', 'upcoming', 'pending') + ['due' => $payables->sum('total_amount'), 'paid' => $payables->sum('paid_amount'), 'balance' => $payables->sum('balance')]);
+        if ($request->query('agenda_fragment') === '1') {
+            return response()->view('provider._agenda-month', $calendarData)->header('Cache-Control', 'private, no-store');
+        }
+        $pending = (clone $base)->whereIn('operational_status', ['in_progress', 'submitted', 'rejected'])->orderBy('scheduled_at')->get();
+        $payables = ServiceObligation::query()->where('tenant_id', $tenant->id)->when(! $operator, fn ($query) => $query->where('service_provider_id', $provider->id))->where('direction', 'payable')->where('status', '!=', 'cancelled')->get();
+
+        return view('provider.services-dashboard', $calendarData + compact('provider', 'operator', 'pending') + ['due' => $payables->sum('total_amount'), 'paid' => $payables->sum('paid_amount'), 'balance' => $payables->sum('balance')]);
     }
 
     public function orders(Request $request, Tenant $tenant): View
@@ -95,6 +118,21 @@ class ServiceProviderPortalController extends Controller
         }
 
         return view('provider.services-show', compact('provider', 'operator', 'order', 'financialPreview'));
+    }
+
+    public function previewExecution(Request $request, Tenant $tenant, int $order, ServiceExecutionWorkflow $workflow): JsonResponse
+    {
+        [$provider, $operator] = $this->access($request, $tenant);
+        $order = $this->order($tenant, $provider, $operator, $order);
+        abort_unless($order->execution?->status === 'in_progress', 409);
+        $data = $request->validate(['values' => 'array|max:200', 'values.*' => 'nullable|string|max:10000']);
+        $values = $this->portalValues($order, $data['values'] ?? [], ['execution', 'finish'], $operator);
+        $totals = $workflow->preview($order->execution, $values);
+
+        return response()->json([
+            'receivable' => $totals['receivable_total'],
+            'payable' => $totals['payable_total'],
+        ]);
     }
 
     public function start(Request $request, Tenant $tenant, int $order, ServiceExecutionWorkflow $workflow, ServiceEvidenceService $evidence): RedirectResponse|JsonResponse
@@ -168,7 +206,7 @@ class ServiceProviderPortalController extends Controller
     {
         [$provider, $operator] = $this->access($request, $tenant);
         $query = ServiceObligation::query()->where('tenant_id', $tenant->id)->when(! $operator, fn ($query) => $query->where('service_provider_id', $provider->id))->where('direction', 'payable');
-        $due = (float) (clone $query)->selectRaw('COALESCE(SUM(principal_amount + adjustment_amount), 0) AS aggregate')->value('aggregate');
+        $due = (float) (clone $query)->where('status', '!=', 'cancelled')->selectRaw('COALESCE(SUM(principal_amount + adjustment_amount), 0) AS aggregate')->value('aggregate');
         $paid = (float) DB::table('service_payment_allocations as allocation')
             ->join('service_obligations as obligation', 'obligation.id', '=', 'allocation.service_obligation_id')
             ->join('service_payment_events as payment', 'payment.id', '=', 'allocation.service_payment_event_id')

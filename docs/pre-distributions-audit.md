@@ -2,7 +2,7 @@
 
 ## Estado auditado em 05/11/2026
 
-Laravel ^12.61.1, PHP ^8.2, Filament ^3.2, Spatie Permission (via Shield), Activitylog e DomPDF já instalados. As telas operacionais usam Blade (`layouts.bento`), componentes Blade e JavaScript; não é necessário introduzir Volt nem outra dependência.
+Laravel ^12.61.1, PHP ^8.2, Filament ^3.2, Spatie Permission (via Shield), Activitylog e DomPDF já instalados. As telas operacionais usam Blade (`layouts.campo`), componentes Blade e JavaScript; não é necessário introduzir Volt nem outra dependência.
 
 ### Relacionamentos e pontos de integração
 

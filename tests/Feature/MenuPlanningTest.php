@@ -233,7 +233,7 @@ class MenuPlanningTest extends TestCase
         $route->setParameter('tenant', \App\Models\Tenant::findOrFail(1)); $route->setParameter('project', 10); $route->setParameter('menu', $menu->id);
         $request->setRouteResolver(fn () => $route); $this->app->instance('request', $request);
         $layout = storage_path('framework/testing/menu-layout'); if (! is_dir($layout.'/layouts')) { mkdir($layout.'/layouts', 0777, true); }
-        file_put_contents($layout.'/layouts/bento.blade.php', "@yield('content')"); app('view')->getFinder()->setPaths([$layout, resource_path('views')]);
+        file_put_contents($layout.'/layouts/campo.blade.php', "@yield('content')"); app('view')->getFinder()->setPaths([$layout, resource_path('views')]);
         view()->share('errors', new \Illuminate\Support\ViewErrorBag);
         $response = app(\App\Http\Controllers\Delivery\ProjectMenuController::class)->show($request);
         $this->assertSame(200, $response->status());

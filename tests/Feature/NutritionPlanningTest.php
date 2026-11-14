@@ -276,7 +276,7 @@ class NutritionPlanningTest extends TestCase
         $this->app->instance('request', $request);
         $layoutPath = storage_path('framework/testing/nutrition-layout');
         if (! is_dir($layoutPath.'/layouts')) { mkdir($layoutPath.'/layouts', 0777, true); }
-        file_put_contents($layoutPath.'/layouts/bento.blade.php', "@yield('content')");
+        file_put_contents($layoutPath.'/layouts/campo.blade.php', "@yield('content')");
         app('view')->getFinder()->setPaths([$layoutPath, resource_path('views')]);
         view()->share('errors', new \Illuminate\Support\ViewErrorBag);
         $response = app(\App\Http\Controllers\Delivery\ProjectPlanningController::class)->index($request);

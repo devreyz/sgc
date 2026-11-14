@@ -11,7 +11,7 @@ class HubController extends Controller
     public function index(Request $request)
     {
         if (! Auth::check()) {
-            if (str_contains((string) $request->userAgent(), 'SGCAndroid/')) {
+            if ($request->query('apresentacao') !== '1' && str_contains((string) $request->userAgent(), 'SGCAndroid/')) {
                 return response()->view('app.portal')->withHeaders([
                     'Cache-Control' => 'no-store, no-cache, must-revalidate, private',
                 ]);

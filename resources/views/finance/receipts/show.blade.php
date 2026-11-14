@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', $receipt->formatted_number)
 @section('page-title', 'Recibo de Recebimento')

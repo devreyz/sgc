@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', 'Editar Ordem de Serviço')
 @section('page-title', 'Editar Ordem #' . $order->number)

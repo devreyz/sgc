@@ -1,8 +1,8 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', 'Nova ordem')
 @section('page-title', 'Nova ordem')
-@section('user-role', ($operator ?? false) ? 'Operação de serviços' : 'Prestador')
+@section('user-role', ($managementEntry ?? false) ? 'Gestão de serviços' : (($operator ?? false) ? 'Operação de serviços' : 'Prestador'))
 
 @php
     $routeTenant = request()->route('tenant');
@@ -11,17 +11,25 @@
         ? ($routeTenant->slug ?? null)
         : $routeTenant;
 
+    $managementEntry = (bool) ($managementEntry ?? false);
     $bentoNavigation = \App\Support\PortalNavigation::make(
-        'provider',
-        'orders',
+        $managementEntry ? 'services' : 'provider',
+        $managementEntry ? 'new' : 'orders',
         $tenantSlug
     );
 
     $isOperator = (bool) ($operator ?? false);
 
+    $agendaDate = request()->query('agenda_date');
+    $scheduledDefault = now();
+    if (is_string($agendaDate) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/D', $agendaDate, $parts)
+        && checkdate((int) $parts[2], (int) $parts[3], (int) $parts[1])) {
+        $scheduledDefault->setDate((int) $parts[1], (int) $parts[2], (int) $parts[3]);
+    }
+
     $scheduledValue = old(
         'scheduled_at',
-        now()->format('Y-m-d\TH:i')
+        $managementEntry ? '' : $scheduledDefault->format('Y-m-d\TH:i')
     );
 
     $scheduledDateValue = substr(
@@ -47,1379 +55,292 @@
 @endonce
 
 <style>
-    .svc-create {
-        --svc-green: var(--ws-green, #219653);
-        --svc-green-soft: #edf8f2;
-        --svc-green-border: #cce8d7;
-
-        --svc-blue: var(--ws-blue, #3478d4);
-        --svc-blue-soft: #edf4ff;
-        --svc-blue-border: #cfe0f7;
-
-        --svc-violet: var(--ws-purple, #8a4bd2);
-        --svc-violet-soft: #f5efff;
-        --svc-violet-border: #e1d2f4;
-
-        --svc-amber: var(--ws-amber, #c38418);
-        --svc-amber-soft: #fff7e8;
-        --svc-amber-border: #f0dcae;
-
-        --svc-red: var(--ws-red, #cf5050);
-        --svc-red-soft: #fff0f0;
-        --svc-red-border: #efcaca;
-
-        --svc-cyan: #168eae;
-        --svc-cyan-soft: #ecf8fb;
-        --svc-cyan-border: #cae8ef;
-
-        --svc-text: #17211d;
-        --svc-text-2: #59655f;
-        --svc-muted: #89938e;
-        --svc-border: #dde5e0;
-        --svc-soft: #f7faf8;
-
-        display: grid;
-        grid-column: 1 / -1;
-        width: min(100%, 900px);
-        margin-inline: auto;
-        gap: .72rem;
-        min-width: 0;
-        color: var(--svc-text);
-    }
-
-    .svc-create *,
-    .svc-create *::before,
-    .svc-create *::after {
-        box-sizing: border-box;
-    }
-
-    .svc-create a {
-        text-decoration: none;
-    }
-
-    /* =========================================================
-       HEADER — MESMA LINGUAGEM DO DASHBOARD
-       ========================================================= */
-
-    .svc-create-head {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: .8rem;
-        align-items: center;
-        min-width: 0;
-        padding: .78rem .86rem;
-        border: 1px solid var(--svc-border);
-        border-radius: 12px;
-        background: #fff;
-    }
-
-    .svc-create-head-main {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: 42px minmax(0, 1fr);
-        gap: .62rem;
-        align-items: center;
-    }
-
-    .svc-create-head-icon {
-        display: grid;
-        width: 42px;
-        height: 42px;
-        place-items: center;
-        border-radius: 10px;
-        background: var(--svc-violet-soft);
-        color: var(--svc-violet);
-        font-size: 1.05rem;
-    }
-
-    .svc-create-head-copy {
-        min-width: 0;
-    }
-
-    .svc-create-head-copy small {
-        display: block;
-        color: var(--svc-muted);
-        font-size: .62rem;
-        font-weight: 750;
-        letter-spacing: .03em;
-        text-transform: uppercase;
-    }
-
-    .svc-create-head-copy h1 {
-        margin: .07rem 0 0;
-        color: var(--svc-text);
-        font-size: clamp(1.02rem, 2vw, 1.24rem);
-        font-weight: 860;
-        line-height: 1.15;
-    }
-
-    .svc-create-head-copy p {
-        margin: .14rem 0 0;
-        color: var(--svc-text-2);
-        font-size: .72rem;
-        line-height: 1.4;
-    }
-
-    .svc-back {
-        display: inline-flex;
-        min-height: 38px;
-        gap: .3rem;
-        align-items: center;
-        justify-content: center;
-        padding: .4rem .58rem;
-        border: 1px solid var(--svc-border);
-        border-radius: 8px;
-        background: #fff;
-        color: var(--svc-text-2);
-        font-size: .72rem;
-        font-weight: 760;
-        white-space: nowrap;
-    }
-
-    /* =========================================================
-       ERROS
-       ========================================================= */
-
-    .svc-errors {
-        display: grid;
-        grid-template-columns: 34px minmax(0, 1fr);
-        gap: .5rem;
-        align-items: start;
-        padding: .62rem .68rem;
-        border: 1px solid var(--svc-red-border);
-        border-radius: 10px;
-        background: var(--svc-red-soft);
-    }
-
-    .svc-errors-icon {
-        display: grid;
-        width: 34px;
-        height: 34px;
-        place-items: center;
-        border-radius: 8px;
-        background: #fff;
-        color: var(--svc-red);
-        font-size: .86rem;
-    }
-
-    .svc-errors strong {
-        display: block;
-        color: var(--svc-red);
-        font-size: .76rem;
-        font-weight: 820;
-    }
-
-    .svc-errors ul {
-        margin: .2rem 0 0;
-        padding-left: 1rem;
-        color: var(--svc-text-2);
-        font-size: .69rem;
-        line-height: 1.45;
-    }
-
-    /* =========================================================
-       PROGRESSO
-       ========================================================= */
-
-    .svc-steps {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        min-width: 0;
-        overflow: hidden;
-        border: 1px solid var(--svc-border);
-        border-radius: 10px;
-        background: #fff;
-    }
-
-    .svc-step {
-        --tone: var(--svc-muted);
-        --soft: var(--svc-soft);
-
-        position: relative;
-        display: grid;
-        min-width: 0;
-        grid-template-columns: 30px minmax(0, 1fr);
-        gap: .34rem;
-        align-items: center;
-        min-height: 48px;
-        padding: .44rem .54rem;
-        border: 0;
-        border-right: 1px solid var(--svc-border);
-        background: transparent;
-        color: var(--svc-muted);
-        cursor: default;
-        font: inherit;
-        text-align: left;
-    }
-
-    .svc-step:last-child {
-        border-right: 0;
-    }
-
-    .svc-step.current {
-        --tone: var(--svc-blue);
-        --soft: var(--svc-blue-soft);
-
-        color: var(--svc-text);
-        background: #fbfdff;
-    }
-
-    .svc-step.done {
-        --tone: var(--svc-green);
-        --soft: var(--svc-green-soft);
-
-        color: var(--svc-text);
-        cursor: pointer;
-    }
-
-    .svc-step.done:hover {
-        background: #fbfdfc;
-    }
-
-    .svc-step-icon {
-        display: grid;
-        width: 30px;
-        height: 30px;
-        place-items: center;
-        border-radius: 7px;
-        background: var(--soft);
-        color: var(--tone);
-        font-size: .73rem;
-    }
-
-    .svc-step-copy {
-        min-width: 0;
-    }
-
-    .svc-step-copy small,
-    .svc-step-copy strong {
-        display: block;
-    }
-
-    .svc-step-copy small {
-        color: var(--svc-muted);
-        font-size: .5rem;
-        font-weight: 720;
-    }
-
-    .svc-step-copy strong {
-        margin-top: .02rem;
-        overflow: hidden;
-        color: inherit;
-        font-size: .66rem;
-        font-weight: 800;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    /* =========================================================
-       FORM / UMA ETAPA POR VEZ
-       ========================================================= */
-
-    .svc-form {
-        display: block;
-        min-width: 0;
-        margin: 0;
-    }
-
-    .svc-panel {
-        min-width: 0;
-        overflow: hidden;
-        border: 1px solid var(--svc-border);
-        border-radius: 12px;
-        background: #fff;
-    }
-
-    .svc-panel[hidden] {
-        display: none !important;
-    }
-
-    .svc-panel-head {
-        --tone: var(--svc-blue);
-        --soft: var(--svc-blue-soft);
-
-        display: grid;
-        grid-template-columns: 36px minmax(0, 1fr);
-        gap: .55rem;
-        align-items: center;
-        padding: .7rem .76rem;
-        border-bottom: 1px solid var(--svc-border);
-    }
-
-    .svc-panel.service .svc-panel-head {
-        --tone: var(--svc-violet);
-        --soft: var(--svc-violet-soft);
-    }
-
-    .svc-panel.person .svc-panel-head {
-        --tone: var(--svc-green);
-        --soft: var(--svc-green-soft);
-    }
-
-    .svc-panel.schedule .svc-panel-head {
-        --tone: var(--svc-blue);
-        --soft: var(--svc-blue-soft);
-    }
-
-    .svc-panel.finish .svc-panel-head {
-        --tone: var(--svc-cyan);
-        --soft: var(--svc-cyan-soft);
-    }
-
-    .svc-panel-icon {
-        display: grid;
-        width: 36px;
-        height: 36px;
-        place-items: center;
-        border-radius: 9px;
-        background: var(--soft);
-        color: var(--tone);
-        font-size: .86rem;
-    }
-
-    .svc-panel-title {
-        min-width: 0;
-    }
-
-    .svc-panel-title h2 {
-        margin: 0;
-        color: var(--svc-text);
-        font-size: .9rem;
-        font-weight: 840;
-    }
-
-    .svc-panel-title p {
-        margin: .06rem 0 0;
-        color: var(--svc-muted);
-        font-size: .68rem;
-        line-height: 1.35;
-    }
-
-    .svc-panel-body {
-        display: grid;
-        min-width: 0;
-        gap: .9rem;
-        padding: .9rem .8rem 1rem;
-    }
-
-    .svc-fields {
-        display: grid;
-        min-width: 0;
-        gap: .82rem;
-    }
-
-    .svc-field {
-        display: grid;
-        min-width: 0;
-        gap: .32rem;
-    }
-
-    .svc-label {
-        display: flex;
-        min-width: 0;
-        gap: .28rem;
-        align-items: center;
-        color: var(--svc-text);
-        font-size: .75rem;
-        font-weight: 760;
-        line-height: 1.35;
-    }
-
-    .svc-label i {
-        flex: 0 0 auto;
-        color: var(--svc-muted);
-        font-size: .76rem;
-    }
-
-    .svc-note {
-        color: var(--svc-muted);
-        font-size: .62rem;
-        font-weight: 650;
-    }
-
-    .svc-note.required {
-        color: var(--svc-amber);
-    }
-
-    .svc-help {
-        color: var(--svc-muted);
-        font-size: .64rem;
-        line-height: 1.4;
-    }
-
-    /* =========================================================
-       INPUT NORMAL
-       ========================================================= */
-
-    .svc-input {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: 38px minmax(0, 1fr);
-        gap: .2rem;
-        align-items: center;
-        min-height: 48px;
-        padding: .28rem .38rem .28rem .3rem;
-        border: 1px solid transparent;
-        border-radius: 9px;
-        background: #f3f6f4;
-    }
-
-    .svc-input:focus-within {
-        border-color: var(--svc-blue);
-        background: #fff;
-        box-shadow: 0 0 0 3px var(--svc-blue-soft);
-    }
-
-    .svc-input.filled {
-        border-color: #e2e8e4;
-        background: #fff;
-    }
-
-    .svc-input-icon {
-        display: grid;
-        width: 32px;
-        height: 32px;
-        place-items: center;
-        border-radius: 7px;
-        background: var(--svc-blue-soft);
-        color: var(--svc-blue);
-        font-size: .8rem;
-    }
-
-    .svc-input.person .svc-input-icon {
-        background: var(--svc-green-soft);
-        color: var(--svc-green);
-    }
-
-    .svc-input.location .svc-input-icon {
-        background: var(--svc-red-soft);
-        color: var(--svc-red);
-    }
-
-    .svc-input input,
-    .svc-input textarea {
-        width: 100%;
-        min-width: 0;
-        min-height: 38px;
-        padding: .44rem .48rem;
-        border: 0;
-        outline: 0;
-        background: transparent;
-        color: var(--svc-text);
-        font: inherit;
-        font-size: .78rem;
-    }
-
-    .svc-input textarea {
-        min-height: 92px;
-        resize: vertical;
-    }
-
-    /* =========================================================
-       SELECT CUSTOM
-       ========================================================= */
-
-    .svc-native-select,
-    .svc-native-temporal {
-        position: absolute !important;
-        width: 1px !important;
-        height: 1px !important;
-        margin: -1px !important;
-        padding: 0 !important;
-        overflow: hidden !important;
-        clip: rect(0 0 0 0) !important;
-        white-space: nowrap !important;
-        border: 0 !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-    }
-
-    .svc-select-trigger,
-    .svc-temporal-trigger {
-        --tone: var(--svc-blue);
-        --soft: var(--svc-blue-soft);
-
-        display: grid;
-        width: 100%;
-        min-width: 0;
-        min-height: 48px;
-        grid-template-columns: 36px minmax(0, 1fr) 26px;
-        gap: .36rem;
-        align-items: center;
-        padding: .3rem .4rem .3rem .3rem;
-        border: 1px solid transparent;
-        border-radius: 9px;
-        background: #f3f6f4;
-        color: var(--svc-text);
-        cursor: pointer;
-        font: inherit;
-        text-align: left;
-    }
-
-    .svc-select-trigger[data-tone="violet"] {
-        --tone: var(--svc-violet);
-        --soft: var(--svc-violet-soft);
-    }
-
-    .svc-select-trigger[data-tone="green"] {
-        --tone: var(--svc-green);
-        --soft: var(--svc-green-soft);
-    }
-
-    .svc-select-trigger.filled,
-    .svc-temporal-trigger.filled {
-        border-color: #e2e8e4;
-        background: #fff;
-    }
-
-    .svc-select-trigger.invalid,
-    .svc-temporal-trigger.invalid {
-        border-color: var(--svc-red);
-        background: var(--svc-red-soft);
-    }
-
-    .svc-select-trigger:focus-visible,
-    .svc-temporal-trigger:focus-visible {
-        outline: 2px solid var(--tone);
-        outline-offset: 2px;
-    }
-
-    .svc-trigger-icon {
-        display: grid;
-        width: 32px;
-        height: 32px;
-        place-items: center;
-        border-radius: 7px;
-        background: var(--soft);
-        color: var(--tone);
-        font-size: .8rem;
-    }
-
-    .svc-trigger-copy {
-        min-width: 0;
-    }
-
-    .svc-trigger-value,
-    .svc-trigger-meta {
-        display: block;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .svc-trigger-value {
-        color: var(--svc-text);
-        font-size: .78rem;
-        font-weight: 750;
-    }
-
-    .svc-trigger-value.placeholder {
-        color: var(--svc-muted);
-        font-weight: 650;
-    }
-
-    .svc-trigger-meta {
-        margin-top: .03rem;
-        color: var(--svc-muted);
-        font-size: .62rem;
-    }
-
-    .svc-trigger-caret {
-        display: grid;
-        width: 26px;
-        height: 26px;
-        place-items: center;
-        color: var(--svc-muted);
-        font-size: .7rem;
-    }
-
-    .svc-custom-error {
-        display: inline-flex;
-        gap: .24rem;
-        align-items: center;
-        color: var(--svc-red);
-        font-size: .64rem;
-        font-weight: 720;
-    }
-
-    /* =========================================================
-       DATA / HORÁRIO
-       ========================================================= */
-
-    .svc-when {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: .62rem;
-    }
-
-    .svc-temporal-trigger.date {
-        --tone: var(--svc-blue);
-        --soft: var(--svc-blue-soft);
-    }
-
-    .svc-temporal-trigger.time {
-        --tone: var(--svc-cyan);
-        --soft: var(--svc-cyan-soft);
-    }
-
-    /* =========================================================
-       FINAL / RESUMO
-       ========================================================= */
-
-    .svc-dynamic-fields {
-        display: grid;
-        min-width: 0;
-        gap: .8rem;
-    }
-
-    .svc-dynamic-fields > label,
-    .svc-dynamic-fields > div {
-        display: grid;
-        min-width: 0;
-        gap: .32rem;
-    }
-
-    .svc-dynamic-fields label {
-        color: var(--svc-text);
-        font-size: .75rem;
-        font-weight: 750;
-        line-height: 1.4;
-    }
-
-    .svc-dynamic-fields input:not([type="checkbox"]):not([type="radio"]),
-    .svc-dynamic-fields textarea {
-        width: 100%;
-        min-width: 0;
-        min-height: 46px;
-        padding: .52rem .6rem;
-        border: 1px solid transparent;
-        border-radius: 9px;
-        outline: 0;
-        background: #f3f6f4;
-        color: var(--svc-text);
-        font: inherit;
-        font-size: .78rem;
-    }
-
-    .svc-dynamic-fields input:focus,
-    .svc-dynamic-fields textarea:focus {
-        border-color: var(--svc-blue);
-        background: #fff;
-        box-shadow: 0 0 0 3px var(--svc-blue-soft);
-    }
-
-    .svc-dynamic-fields small {
-        color: var(--svc-muted);
-        font-size: .64rem;
-        line-height: 1.4;
-    }
-
-    .svc-dynamic-fields input[type="checkbox"],
-    .svc-dynamic-fields input[type="radio"] {
-        width: 18px;
-        height: 18px;
-        accent-color: var(--svc-green);
-    }
-
-    [data-version-fields][hidden] {
-        display: none !important;
-    }
-
-    .svc-review {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        overflow: hidden;
-        border: 1px solid var(--svc-border);
-        border-radius: 9px;
-        background: #fff;
-    }
-
-    .svc-review-item {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: 30px minmax(0, 1fr);
-        gap: .4rem;
-        align-items: center;
-        padding: .52rem .58rem;
-    }
-
-    .svc-review-item:nth-child(odd) {
-        border-right: 1px solid var(--svc-border);
-    }
-
-    .svc-review-item:nth-child(n + 3) {
-        border-top: 1px solid var(--svc-border);
-    }
-
-    .svc-review-icon {
-        display: grid;
-        width: 30px;
-        height: 30px;
-        place-items: center;
-        border-radius: 7px;
-        background: var(--svc-soft);
-        color: var(--svc-text-2);
-        font-size: .72rem;
-    }
-
-    .svc-review-copy {
-        min-width: 0;
-    }
-
-    .svc-review-copy small,
-    .svc-review-copy strong {
-        display: block;
-    }
-
-    .svc-review-copy small {
-        color: var(--svc-muted);
-        font-size: .52rem;
-        font-weight: 720;
-    }
-
-    .svc-review-copy strong {
-        margin-top: .03rem;
-        overflow: hidden;
-        color: var(--svc-text);
-        font-size: .68rem;
-        font-weight: 780;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    /* =========================================================
-       NAVEGAÇÃO DO WIZARD
-       ========================================================= */
-
-    .svc-panel-actions {
-        display: flex;
-        gap: .48rem;
-        align-items: center;
-        justify-content: flex-end;
-        padding: .65rem .78rem;
-        border-top: 1px solid var(--svc-border);
-        background: #fbfdfc;
-    }
-
-    .svc-action {
-        display: inline-flex;
-        min-height: 39px;
-        gap: .3rem;
-        align-items: center;
-        justify-content: center;
-        padding: .4rem .62rem;
-        border: 1px solid var(--svc-border);
-        border-radius: 8px;
-        background: #fff;
-        color: var(--svc-text-2);
-        cursor: pointer;
-        font: inherit;
-        font-size: .72rem;
-        font-weight: 780;
-    }
-
-    .svc-action.primary {
-        border-color: var(--svc-blue);
-        background: var(--svc-blue);
-        color: #fff;
-    }
-
-    .svc-action.create {
-        border-color: var(--svc-green);
-        background: var(--svc-green);
-        color: #fff;
-    }
-
-    .svc-action[disabled] {
-        cursor: wait;
-        opacity: .72;
-    }
-
-    @keyframes svc-spin {
-        to {
-            transform: rotate(360deg);
-        }
-    }
-
-    .svc-action.loading i {
-        animation: svc-spin .8s linear infinite;
-    }
-
-    /* =========================================================
-       DIALOGS
-       ========================================================= */
-
-    .svc-dialog {
-        width: min(94vw, 540px);
-        max-width: 540px;
-        max-height: min(84dvh, 700px);
-        margin: auto;
-        padding: 0;
-        overflow: hidden;
-        border: 0;
-        border-radius: 14px;
-        background: #fff;
-        color: var(--svc-text);
-    }
-
-    .svc-dialog::backdrop {
-        background: rgba(12, 24, 16, .58);
-    }
-
-    .svc-dialog-layout {
-        display: grid;
-        max-height: min(84dvh, 700px);
-        grid-template-rows: auto minmax(0, 1fr) auto;
-    }
-
-    .svc-dialog-head {
-        display: flex;
-        min-width: 0;
-        gap: .65rem;
-        align-items: center;
-        justify-content: space-between;
-        padding: .72rem .78rem;
-        border-bottom: 1px solid var(--svc-border);
-    }
-
-    .svc-dialog-head-copy {
-        min-width: 0;
-    }
-
-    .svc-dialog-head-copy small {
-        display: block;
-        color: var(--svc-muted);
-        font-size: .61rem;
-        font-weight: 720;
-    }
-
-    .svc-dialog-head-copy strong {
-        display: block;
-        margin-top: .04rem;
-        color: var(--svc-text);
-        font-size: .86rem;
-        font-weight: 830;
-    }
-
-    .svc-dialog-close {
-        display: grid;
-        width: 38px;
-        height: 38px;
-        flex: 0 0 auto;
-        place-items: center;
-        border: 0;
-        border-radius: 8px;
-        background: var(--svc-soft);
-        color: var(--svc-text-2);
-        cursor: pointer;
-        font-size: .88rem;
-    }
-
-    .svc-picker-body {
-        display: grid;
-        min-height: 0;
-        grid-template-rows: auto minmax(0, 1fr);
-    }
-
-    .svc-picker-search {
-        display: grid;
-        grid-template-columns: 38px minmax(0, 1fr);
-        align-items: center;
-        margin: .68rem .72rem .4rem;
-        overflow: hidden;
-        border: 1px solid var(--svc-border);
-        border-radius: 9px;
-        background: var(--svc-soft);
-    }
-
-    .svc-picker-search i {
-        display: grid;
-        width: 38px;
-        place-items: center;
-        color: var(--svc-muted);
-        font-size: .8rem;
-    }
-
-    .svc-picker-search input {
-        min-width: 0;
-        min-height: 42px;
-        padding: .48rem .54rem;
-        border: 0;
-        outline: 0;
-        background: transparent;
-        color: var(--svc-text);
-        font: inherit;
-        font-size: .76rem;
-    }
-
-    .svc-picker-options {
-        display: grid;
-        min-height: 0;
-        align-content: start;
-        overflow-y: auto;
-        padding: 0 .72rem .72rem;
-    }
-
-    .svc-picker-option {
-        display: grid;
-        width: 100%;
-        min-width: 0;
-        grid-template-columns: 36px minmax(0, 1fr) 25px;
-        gap: .45rem;
-        align-items: center;
-        min-height: 50px;
-        padding: .45rem .08rem;
-        border: 0;
-        border-bottom: 1px solid var(--svc-border);
-        background: transparent;
-        color: var(--svc-text);
-        cursor: pointer;
-        font: inherit;
-        text-align: left;
-    }
-
-    .svc-picker-option:last-child {
-        border-bottom: 0;
-    }
-
-    .svc-picker-option.selected {
-        background: var(--svc-green-soft);
-    }
-
-    .svc-picker-option-icon {
-        display: grid;
-        width: 34px;
-        height: 34px;
-        place-items: center;
-        border-radius: 8px;
-        background: var(--svc-blue-soft);
-        color: var(--svc-blue);
-        font-size: .8rem;
-    }
-
-    .svc-picker-option-copy {
-        min-width: 0;
-    }
-
-    .svc-picker-option-copy strong,
-    .svc-picker-option-copy small {
-        display: block;
-        min-width: 0;
-    }
-
-    .svc-picker-option-copy strong {
-        color: var(--svc-text);
-        font-size: .76rem;
-        font-weight: 780;
-    }
-
-    .svc-picker-option-copy small {
-        margin-top: .04rem;
-        color: var(--svc-muted);
-        font-size: .63rem;
-        line-height: 1.35;
-    }
-
-    .svc-picker-option-check {
-        color: var(--svc-green);
-        font-size: .82rem;
-    }
-
-    .svc-picker-empty {
-        padding: 1.2rem .5rem;
-        color: var(--svc-muted);
-        font-size: .7rem;
-        text-align: center;
-    }
-
-    /* Calendar */
-    .svc-calendar-body {
-        padding: .72rem;
-        overflow-y: auto;
-    }
-
-    .svc-calendar-nav {
-        display: grid;
-        grid-template-columns: 38px minmax(0, 1fr) 38px;
-        gap: .4rem;
-        align-items: center;
-        margin-bottom: .62rem;
-    }
-
-    .svc-calendar-nav button {
-        display: grid;
-        width: 38px;
-        height: 38px;
-        place-items: center;
-        border: 0;
-        border-radius: 8px;
-        background: var(--svc-soft);
-        color: var(--svc-text-2);
-        cursor: pointer;
-        font-size: .8rem;
-    }
-
-    .svc-calendar-month {
-        color: var(--svc-text);
-        font-size: .8rem;
-        font-weight: 800;
-        text-align: center;
-    }
-
-    .svc-calendar-week,
-    .svc-calendar-grid {
-        display: grid;
-        grid-template-columns: repeat(7, minmax(0, 1fr));
-        gap: .27rem;
-    }
-
-    .svc-calendar-week {
-        margin-bottom: .3rem;
-    }
-
-    .svc-calendar-week span {
-        color: var(--svc-muted);
-        font-size: .6rem;
-        font-weight: 720;
-        text-align: center;
-    }
-
-    .svc-calendar-week span:first-child {
-        color: #a45b5b;
-    }
-
-    .svc-calendar-day {
-        display: grid;
-        aspect-ratio: 1;
-        min-width: 0;
-        place-items: center;
-        border: 0;
-        border-radius: 8px;
-        background: transparent;
-        color: var(--svc-text);
-        cursor: pointer;
-        font: inherit;
-        font-size: .72rem;
-        font-weight: 700;
-    }
-
-    .svc-calendar-day.sunday:not(.selected) {
-        background: #fbf2f2;
-        color: #9f5454;
-    }
-
-    .svc-calendar-day.sunday.outside:not(.selected) {
-        background: transparent;
-        color: #c59a9a;
-    }
-
-    .svc-calendar-day.today:not(.selected) {
-        background: var(--svc-green-soft);
-        color: #1d7248;
-        box-shadow: inset 0 0 0 1px var(--svc-green-border);
-        font-weight: 840;
-    }
-
-    .svc-calendar-day.selected {
-        background: var(--svc-blue);
-        color: #fff;
-        box-shadow: none;
-    }
-
-    .svc-calendar-day.outside:not(.selected):not(.sunday) {
-        color: #bcc4c0;
-    }
-
-    .svc-dialog-foot {
-        display: flex;
-        gap: .5rem;
-        align-items: center;
-        justify-content: flex-end;
-        padding: .62rem .72rem;
-        border-top: 1px solid var(--svc-border);
-    }
-
-    .svc-dialog-button {
-        display: inline-flex;
-        min-height: 38px;
-        align-items: center;
-        justify-content: center;
-        padding: .38rem .6rem;
-        border: 0;
-        border-radius: 8px;
-        background: var(--svc-soft);
-        color: var(--svc-text-2);
-        cursor: pointer;
-        font: inherit;
-        font-size: .7rem;
-        font-weight: 760;
-    }
-
-    .svc-dialog-button.primary {
-        background: var(--svc-green);
-        color: #fff;
-    }
-
-    /* Time */
-    .svc-time-body {
-        overflow: hidden;
-        padding: .72rem;
-    }
-
-    .svc-time-preview {
-        display: grid;
-        place-items: center;
-        margin-bottom: .68rem;
-        padding: .56rem;
-        border-radius: 9px;
-        background: var(--svc-cyan-soft);
-        color: #126f88;
-        font-size: 1.06rem;
-        font-weight: 850;
-        font-variant-numeric: tabular-nums;
-    }
-
-    .svc-time-columns {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: .68rem;
-    }
-
-    .svc-time-column {
-        display: grid;
-        min-width: 0;
-        gap: .3rem;
-    }
-
-    .svc-time-column-title {
-        color: var(--svc-muted);
-        font-size: .64rem;
-        font-weight: 750;
-        text-align: center;
-    }
-
-    .svc-time-wheel {
-        height: 240px;
-        overflow-y: auto;
-        padding: .26rem;
-        border-radius: 10px;
-        background: #f4f7f5;
-        scroll-behavior: smooth;
-        scroll-snap-type: y proximity;
-        overscroll-behavior: contain;
-    }
-
-    .svc-time-option {
-        width: 100%;
-        min-height: 43px;
-        margin: 0 0 .16rem;
-        border: 0;
-        border-radius: 8px;
-        background: transparent;
-        color: var(--svc-text-2);
-        cursor: pointer;
-        scroll-snap-align: center;
-        font: inherit;
-        font-size: .76rem;
-        font-weight: 720;
-        font-variant-numeric: tabular-nums;
-    }
-
-    .svc-time-option.selected {
-        background: var(--svc-blue-soft);
-        color: #255fae;
-        box-shadow: inset 0 0 0 1px var(--svc-blue-border);
-        font-weight: 840;
-    }
-
-    /* =========================================================
-       RESPONSIVO
-       ========================================================= */
-
-    @media (max-width: 700px) {
-        .svc-create {
-            gap: .58rem;
-        }
-
-        .svc-create-head {
-            grid-template-columns: 1fr auto;
-            padding: .64rem .68rem;
-        }
-
-        .svc-create-head-main {
-            grid-template-columns: 36px minmax(0, 1fr);
-        }
-
-        .svc-create-head-icon {
-            width: 36px;
-            height: 36px;
-        }
-
-        .svc-create-head-copy p {
-            display: none;
-        }
-
-        .svc-back {
-            width: 38px;
-            padding: 0;
-        }
-
-        .svc-back span {
-            display: none;
-        }
-
-        .svc-steps {
-            grid-template-columns: repeat(4, 1fr);
-        }
-
-        .svc-step {
-            grid-template-columns: 1fr;
-            justify-items: center;
-            gap: .12rem;
-            padding: .36rem .14rem;
-            text-align: center;
-        }
-
-        .svc-step-copy small {
-            display: none;
-        }
-
-        .svc-step-copy strong {
-            max-width: 100%;
-            font-size: .56rem;
-        }
-
-        .svc-panel-body {
-            padding: .8rem .68rem .9rem;
-        }
-
-        .svc-when {
-            grid-template-columns: 1fr;
-        }
-
-        .svc-panel-actions {
-            position: sticky;
-            z-index: 20;
-            bottom: 0;
-            padding:
-                .56rem
-                .68rem
-                max(.56rem, env(safe-area-inset-bottom));
-        }
-
-        .svc-panel-actions .svc-action {
-            min-height: 43px;
-        }
-
-        .svc-panel-actions .svc-action.primary,
-        .svc-panel-actions .svc-action.create {
-            flex: 1 1 auto;
-        }
-
-        .svc-review {
-            grid-template-columns: 1fr;
-        }
-
-        .svc-review-item:nth-child(odd) {
-            border-right: 0;
-        }
-
-        .svc-review-item:nth-child(n + 2) {
-            border-top: 1px solid var(--svc-border);
-        }
-
-        .svc-input input,
-        .svc-input textarea,
-        .svc-dynamic-fields input:not([type="checkbox"]):not([type="radio"]),
-        .svc-dynamic-fields textarea,
-        .svc-picker-search input {
-            font-size: 16px;
-        }
-
-        .svc-dialog {
-            width: calc(100vw - 1rem);
-            max-height: calc(100dvh - 1rem);
-        }
-
-        .svc-dialog-layout {
-            max-height: calc(100dvh - 1rem);
-        }
-
-        .svc-picker-option {
-            min-height: 56px;
-        }
-
-        .svc-time-wheel {
-            height: min(43dvh, 270px);
-        }
-    }
-
-    /* =========================================================
-       CORES DOS MODAIS
-       Os dialogs ficam fora de .svc-create no DOM, então
-       precisam receber os mesmos tokens de cor.
-       ========================================================= */
-
-    .svc-dialog {
-        --svc-green: var(--ws-green, #219653);
-        --svc-green-soft: #edf8f2;
-        --svc-green-border: #cce8d7;
-
-        --svc-blue: var(--ws-blue, #3478d4);
-        --svc-blue-soft: #edf4ff;
-        --svc-blue-border: #cfe0f7;
-
-        --svc-violet: var(--ws-purple, #8a4bd2);
-        --svc-violet-soft: #f5efff;
-        --svc-violet-border: #e1d2f4;
-
-        --svc-amber: var(--ws-amber, #c38418);
-        --svc-amber-soft: #fff7e8;
-        --svc-amber-border: #f0dcae;
-
-        --svc-red: var(--ws-red, #cf5050);
-        --svc-red-soft: #fff0f0;
-        --svc-red-border: #efcaca;
-
-        --svc-cyan: #168eae;
-        --svc-cyan-soft: #ecf8fb;
-        --svc-cyan-border: #cae8ef;
-
-        --svc-text: #17211d;
-        --svc-text-2: #59655f;
-        --svc-muted: #89938e;
-        --svc-border: #dde5e0;
-        --svc-soft: #f7faf8;
-    }
-
-    .svc-dialog-button.primary {
-        border: 1px solid var(--svc-green);
-        background: var(--svc-green);
-        color: #fff;
-    }
-
-    #svc-calendar-today {
-        border: 1px solid var(--svc-green-border);
-        background: var(--svc-green-soft);
-        color: #1f754b;
-    }
-
-    #svc-calendar-today:hover {
-        border-color: var(--svc-green);
-    }
-
-    .svc-calendar-day.today:not(.selected) {
-        background: var(--svc-green-soft);
-        color: #1f754b;
-        box-shadow: inset 0 0 0 1px var(--svc-green-border);
-    }
-
-    .svc-calendar-day.today.sunday:not(.selected) {
-        background: var(--svc-green-soft);
-        color: #1f754b;
-        box-shadow: inset 0 0 0 1px var(--svc-green-border);
-    }
+/* SGC Campo | Nova ordem — regras locais, sem sobrescrever o tema global */
+.svc-create,
+.svc-dialog {
+  --svc-canvas: var(--ui-color-canvas, #f4f4ef);
+  --svc-surface: var(--ui-color-surface, #fffefb);
+  --svc-soft: var(--ui-color-surface-soft, #f0f0e9);
+  --svc-line: var(--ui-color-border, #d9e0d7);
+  --svc-line-strong: var(--ui-color-border-strong, #b9c7bc);
+  --svc-ink: var(--ui-color-text, #1d2922);
+  --svc-secondary: var(--ui-color-text-secondary, #647167);
+  --svc-muted: var(--ui-color-text-muted, #879087);
+  --svc-accent: var(--sgc-accent, #d9f172);
+  --svc-accent-text: var(--sgc-on-accent, #233523);
+  --svc-rail: var(--sgc-rail, #173c2e);
+  --svc-rail-text: #ffffff;
+  --svc-danger: var(--ui-color-danger-strong, #a43d3d);
+  --svc-danger-soft: var(--ui-color-danger-soft, #fff1f1);
+  --svc-danger-line: var(--ui-color-danger-border, #f1cccc);
+  --svc-focus: var(--ui-color-focus, #386a8b);
+  --svc-elevation: 0 6px 22px rgba(22, 36, 26, .035);
+  color: var(--svc-ink);
+  font-family: var(--ui-font-sans, inherit);
+  color-scheme: light;
+}
+[data-theme="dark"] .svc-create,
+[data-theme="dark"] .svc-dialog {
+  --svc-canvas: var(--ui-color-canvas, #111418);
+  --svc-surface: var(--ui-color-surface, #191e24);
+  --svc-soft: var(--ui-color-surface-soft, #212830);
+  --svc-line: var(--ui-color-border, #323c47);
+  --svc-line-strong: var(--ui-color-border-strong, #485360);
+  --svc-ink: var(--ui-color-text, #edf2f6);
+  --svc-secondary: var(--ui-color-text-secondary, #afbac6);
+  --svc-muted: var(--ui-color-text-muted, #91a0ad);
+  --svc-accent: var(--sgc-accent, #e7c87d);
+  --svc-accent-text: var(--sgc-on-accent, #2e2617);
+  --svc-rail: var(--sgc-rail, #151a20);
+  --svc-rail-text: #edf2f6;
+  --svc-danger: #f19c9c;
+  --svc-danger-soft: #35272d;
+  --svc-danger-line: #70414c;
+  --svc-focus: #e7c87d;
+  --svc-elevation: 0 12px 26px rgba(0, 0, 0, .10);
+  color-scheme: dark;
+}
+.svc-create *, .svc-create *::before, .svc-create *::after,
+.svc-dialog *, .svc-dialog *::before, .svc-dialog *::after { box-sizing: border-box; }
+.svc-create { display:grid; grid-column:1/-1; width:min(100%,1216px); min-width:0; gap:1.1rem; margin:0 auto; padding-bottom:1.5rem; }
+.svc-create :is(h1,h2,p), .svc-dialog :is(h2,p) { margin:0; }
+.svc-create a { color:inherit; text-decoration:none; }
+.svc-create :is(button,input,textarea,select), .svc-dialog :is(button,input,textarea,select) { font:inherit; }
+.svc-create :is(a,button,input,textarea,select):focus-visible,
+.svc-dialog :is(button,input,textarea,select):focus-visible { outline:2px solid var(--svc-focus); outline-offset:3px; }
+.svc-create [hidden], .svc-dialog [hidden] { display:none !important; }
+
+/* Cabeçalho enxuto, contínuo com as demais páginas Campo */
+.svc-create-head { display:flex; gap:1rem; align-items:center; justify-content:space-between; min-width:0; }
+.svc-create-head-main { display:flex; gap:.85rem; align-items:center; min-width:0; }
+.svc-create-head-icon { display:grid; flex:none; place-items:center; width:48px; height:48px; border:1px solid var(--svc-line); border-radius:14px; background:var(--svc-surface); color:var(--svc-rail); font-size:1.25rem; }
+[data-theme="dark"] .svc-create-head-icon { color:var(--svc-accent); }
+.svc-create-head-copy { min-width:0; }
+.svc-create-head-copy small { display:block; margin-bottom:.15rem; color:var(--svc-secondary); font-size:.72rem; font-weight:750; letter-spacing:.08em; text-transform:uppercase; }
+.svc-create-head-copy h1 { color:var(--svc-ink); font-size:clamp(1.45rem,2.6vw,1.95rem); font-weight:820; letter-spacing:-.035em; line-height:1.17; }
+.svc-create-head-copy p { margin-top:.22rem; color:var(--svc-secondary); font-size:.84rem; line-height:1.42; }
+.svc-back { display:inline-flex; flex:none; align-items:center; justify-content:center; gap:.45rem; min-height:44px; padding:.55rem .85rem; border:1px solid var(--svc-line); border-radius:11px; background:var(--svc-surface); color:var(--svc-secondary)!important; font-size:.83rem; font-weight:720; transition:background .15s,border-color .15s; }
+.svc-back:hover { background:var(--svc-soft); border-color:var(--svc-line-strong); }
+
+.svc-errors { display:grid; grid-template-columns:38px minmax(0,1fr); align-items:start; gap:.7rem; padding:.9rem 1rem; border:1px solid var(--svc-danger-line); border-radius:13px; background:var(--svc-danger-soft); }
+.svc-errors-icon { display:grid; place-items:center; width:38px; height:38px; border-radius:10px; color:var(--svc-danger); background:var(--svc-surface); }
+.svc-errors strong { color:var(--svc-danger); font-size:.88rem; }
+.svc-errors ul { margin:.4rem 0 0; padding-left:1.2rem; color:var(--svc-ink); font-size:.83rem; line-height:1.6; }
+
+/* Navegação de quatro etapas: lateral no desktop e linear no mobile */
+.svc-create-workspace { display:grid; grid-template-columns:minmax(0,258px) minmax(0,1fr); align-items:start; gap:1.15rem; min-width:0; }
+.svc-workflow-sidebar { position:sticky; top:1rem; display:grid; align-content:start; gap:1rem; padding:1.05rem .75rem .85rem; border:1px solid var(--svc-line); border-radius:16px; background:var(--svc-surface); box-shadow:var(--svc-elevation); min-width:0; }
+.svc-aside-head { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:0 .5rem; }
+.svc-aside-head strong { color:var(--svc-ink); font-size:.82rem; font-weight:790; }
+.svc-aside-head span { color:var(--svc-secondary); font-size:.76rem; font-weight:680; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.svc-progress-bar { height:5px; margin:0 .5rem; overflow:hidden; border-radius:999px; background:var(--svc-soft); }
+.svc-progress-fill { display:block; width:25%; height:100%; border-radius:inherit; background:var(--svc-accent); transition:width .2s ease; }
+.svc-steps { display:grid; min-width:0; gap:.3rem; }
+.svc-step { display:grid; grid-template-columns:37px minmax(0,1fr) 20px; align-items:center; gap:.7rem; width:100%; min-width:0; min-height:61px; padding:.65rem .7rem; border:1px solid transparent; border-radius:11px; background:transparent; color:var(--svc-secondary); font:inherit; text-align:left; cursor:default; transition:background .15s,border-color .15s; }
+.svc-step-icon { display:grid; place-items:center; width:37px; height:37px; flex:none; border-radius:10px; border:1px solid var(--svc-line); background:var(--svc-soft); color:var(--svc-secondary); font-size:1.04rem; }
+.svc-step-copy { min-width:0; }
+.svc-step-copy small { display:block; color:inherit; opacity:.78; font-size:.72rem; font-weight:610; }
+.svc-step-copy strong { display:block; margin-top:.05rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:inherit; font-size:.88rem; font-weight:740; }
+.svc-step::after { content:' '; display:block; width:7px; height:7px; border:1.5px solid var(--svc-line-strong); border-radius:50%; justify-self:center; }
+.svc-step.done { color:var(--svc-ink); cursor:pointer; }
+.svc-step.done .svc-step-icon { background:var(--svc-soft); color:var(--svc-rail); }
+.svc-step.done::after { content:'✓'; display:grid; place-items:center; width:19px; height:19px; border:0; border-radius:50%; background:var(--svc-soft); color:var(--svc-ink); font-size:.75rem; font-weight:800; }
+.svc-step.done:hover { background:var(--svc-soft); }
+.svc-step.current { background:var(--svc-rail); border-color:var(--svc-rail); color:var(--svc-rail-text); }
+.svc-step.current .svc-step-icon { border-color:transparent; background:var(--svc-accent); color:var(--svc-accent-text); }
+.svc-step.current::after { width:7px; height:7px; border:0; background:var(--svc-accent); }
+.svc-step.current small { opacity:.78; }
+[data-theme="dark"] .svc-step.current { background:var(--svc-soft); border-color:var(--svc-accent); color:var(--svc-ink); }
+.svc-aside-note { display:flex; align-items:flex-start; gap:.5rem; padding:.8rem .58rem .2rem; border-top:1px solid var(--svc-line); color:var(--svc-secondary); }
+.svc-aside-note i { margin-top:.12rem; color:var(--svc-secondary); }
+.svc-aside-note span { font-size:.77rem; line-height:1.5; }
+.svc-create-stage { min-width:0; }
+.svc-form { display:block; min-width:0; margin:0; }
+.svc-panel { display:block; min-width:0; overflow:hidden; border:1px solid var(--svc-line); border-radius:16px; background:var(--svc-surface); box-shadow:var(--svc-elevation); }
+.svc-panel[hidden] { display:none !important; }
+.svc-panel-head { position:relative; display:flex; justify-content:space-between; align-items:center; gap:.8rem; min-width:0; padding:1.4rem 1.55rem 1.1rem; border-bottom:1px solid var(--svc-line); }
+.svc-panel-head::after { flex:none; color:var(--svc-muted); font-size:.7rem; font-weight:730; letter-spacing:.08em; }
+.svc-panel.service .svc-panel-head::after { content:'01 / 04'; }
+.svc-panel.person .svc-panel-head::after { content:'02 / 04'; }
+.svc-panel.schedule .svc-panel-head::after { content:'03 / 04'; }
+.svc-panel.finish .svc-panel-head::after { content:'04 / 04'; }
+.svc-panel-icon { display:grid; place-items:center; flex:none; width:47px; height:47px; border:1px solid var(--svc-line); border-radius:13px; background:var(--svc-soft); color:var(--svc-ink); font-size:1.2rem; }
+.svc-panel-title { flex:1; min-width:0; }
+.svc-panel-title h2 { color:var(--svc-ink); font-size:1.25rem; font-weight:805; line-height:1.23; letter-spacing:-.025em; }
+.svc-panel-title p { margin-top:.22rem; color:var(--svc-secondary); font-size:.84rem; line-height:1.5; }
+.svc-panel-body { display:grid; align-content:start; gap:1.2rem; min-width:0; min-height:220px; padding:1.5rem 1.55rem; }
+.svc-fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr)); gap:1.15rem; min-width:0; align-content:start; }
+.svc-field { display:grid; align-content:start; gap:.48rem; min-width:0; position:relative; }
+.svc-label { display:flex; align-items:center; flex-wrap:wrap; gap:.35rem; color:var(--svc-ink); font-size:.84rem; font-weight:760; }
+.svc-label i { color:var(--svc-secondary); font-size:1rem; }
+.svc-note { margin-left:auto; color:var(--svc-muted); font-size:.73rem; font-weight:640; }
+.svc-note.required { color:var(--svc-danger); }
+.svc-help { color:var(--svc-secondary); font-size:.76rem; line-height:1.48; }
+
+/* Controles: 48–54 px, contraste real em ambos os temas */
+.svc-input, .svc-select-trigger, .svc-temporal-trigger { display:grid; grid-template-columns:38px minmax(0,1fr) 20px; gap:.45rem; align-items:center; min-width:0; width:100%; min-height:54px; padding:.4rem .6rem; border:1px solid var(--svc-line); border-radius:11px; background:var(--svc-surface); color:var(--svc-ink); text-align:left; }
+.svc-input { grid-template-columns:38px minmax(0,1fr); }
+.svc-input:focus-within, .svc-select-trigger:focus-visible, .svc-temporal-trigger:focus-visible { border-color:var(--svc-focus); outline:0; box-shadow:0 0 0 3px color-mix(in srgb,var(--svc-focus) 13%,transparent); }
+.svc-input.filled, .svc-select-trigger.filled, .svc-temporal-trigger.filled { background:var(--svc-surface); border-color:var(--svc-line-strong); }
+.svc-select-trigger.invalid, .svc-temporal-trigger.invalid { border-color:var(--svc-danger); background:var(--svc-danger-soft); }
+.svc-input-icon, .svc-trigger-icon { display:grid; place-items:center; width:38px; height:38px; border-radius:9px; background:var(--svc-soft); color:var(--svc-secondary); font-size:1.08rem; }
+.svc-input input, .svc-input textarea { width:100%; min-width:0; min-height:40px; padding:.4rem .12rem; border:0; outline:none; background:transparent; color:var(--svc-ink); font-size:.88rem; }
+.svc-input input::placeholder, .svc-input textarea::placeholder, .svc-picker-search input::placeholder { color:var(--svc-muted); opacity:1; }
+.svc-input textarea { min-height:96px; resize:vertical; }
+.svc-input:has(textarea) { align-items:start; }
+.svc-select-trigger, .svc-temporal-trigger { cursor:pointer; }
+.svc-native-select, .svc-native-temporal { position:absolute!important; width:1px!important; height:1px!important; padding:0!important; margin:-1px!important; overflow:hidden!important; clip:rect(0 0 0 0)!important; white-space:nowrap!important; border:0!important; opacity:0!important; pointer-events:none!important; }
+.svc-trigger-copy { min-width:0; }
+.svc-trigger-value, .svc-trigger-meta { display:block; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.svc-trigger-value { color:var(--svc-ink); font-size:.87rem; font-weight:710; }
+.svc-trigger-value.placeholder { color:var(--svc-muted); font-weight:600; }
+.svc-trigger-meta { margin-top:.08rem; color:var(--svc-secondary); font-size:.74rem; }
+.svc-trigger-caret { display:grid; place-items:center; color:var(--svc-secondary); font-size:.88rem; }
+.svc-select-trigger:disabled, .svc-temporal-trigger:disabled { opacity:.55; cursor:not-allowed; }
+.svc-custom-error { display:flex; align-items:center; gap:.4rem; color:var(--svc-danger); font-size:.76rem; font-weight:720; }
+.svc-when { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
+
+/* Campos variáveis continuam renderizados pelo partial original */
+.svc-dynamic-fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr)); gap:1rem; min-width:0; }
+.svc-dynamic-fields > :is(div,label) { display:grid; align-content:start; gap:.4rem; min-width:0; }
+.svc-dynamic-fields label { color:var(--svc-ink); font-size:.83rem; font-weight:725; }
+.svc-dynamic-fields :is(input:not([type="checkbox"]):not([type="radio"]),textarea,select) { display:block; width:100%; min-width:0; min-height:48px; padding:.65rem .8rem; border:1px solid var(--svc-line); border-radius:10px; background:var(--svc-surface); color:var(--svc-ink); font-size:.87rem; }
+.svc-dynamic-fields textarea { min-height:104px; resize:vertical; }
+.svc-dynamic-fields :is(input,textarea,select):focus-visible { border-color:var(--svc-focus); }
+.svc-dynamic-fields :is(input[type="checkbox"],input[type="radio"]) { width:18px; height:18px; accent-color:var(--svc-rail); }
+.svc-dynamic-fields small { color:var(--svc-secondary); font-size:.76rem; line-height:1.45; }
+[data-version-fields][hidden] { display:none!important; }
+
+/* Conferência final */
+.svc-review { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0; margin:0; overflow:hidden; border:1px solid var(--svc-line); border-radius:12px; background:var(--svc-surface); }
+.svc-review-item { display:grid; grid-template-columns:37px minmax(0,1fr); gap:.65rem; align-items:center; min-width:0; min-height:78px; padding:1rem .95rem; }
+.svc-review-item:nth-child(2n) { border-left:1px solid var(--svc-line); }
+.svc-review-item:nth-child(n+3) { border-top:1px solid var(--svc-line); }
+.svc-review-icon { display:grid; place-items:center; width:37px; height:37px; border-radius:10px; background:var(--svc-soft); color:var(--svc-secondary); font-size:1rem; }
+.svc-review-copy { display:block; min-width:0; }
+.svc-review-copy small { display:block; color:var(--svc-secondary); font-size:.75rem; }
+.svc-review-copy strong { display:block; margin-top:.2rem; color:var(--svc-ink); font-size:.88rem; font-weight:760; overflow-wrap:anywhere; }
+
+/* Barra de ações pertence ao painel, não conflita com bottom-nav global */
+.svc-panel-actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:.65rem; min-height:80px; padding:1rem 1.55rem; border-top:1px solid var(--svc-line); background:var(--svc-soft); }
+.svc-action { display:inline-flex; align-items:center; justify-content:center; gap:.6rem; min-width:120px; min-height:47px; padding:.7rem 1.1rem; border:1px solid var(--svc-line-strong); border-radius:10px; background:var(--svc-surface); color:var(--svc-ink); cursor:pointer; font:inherit; font-size:.86rem; font-weight:765; transition:background .15s,transform .15s; }
+.svc-action:hover { transform:translateY(-1px); background:var(--svc-surface); }
+.svc-action.primary, .svc-action.create { min-width:148px; border-color:var(--svc-accent); background:var(--svc-accent); color:var(--svc-accent-text); }
+.svc-action:is(.primary,.create):hover { filter:brightness(.97); }
+.svc-action[disabled] { opacity:.62; cursor:wait; transform:none; }
+@keyframes svc-spin { to { transform:rotate(360deg); } }
+.svc-action.loading i { animation:svc-spin .75s linear infinite; }
+
+/* Dialogs: folhas neutras, busca visível, toque e teclado */
+.svc-dialog { position:fixed; width:min(calc(100% - 2rem),520px); max-width:520px; max-height:min(82dvh,760px); margin:auto; padding:0; border:1px solid var(--svc-line); border-radius:16px; overflow:hidden; background:var(--svc-surface); color:var(--svc-ink); box-shadow:0 30px 90px rgba(0,0,0,.22); }
+.svc-dialog::backdrop { background:rgba(11,20,17,.56); backdrop-filter:blur(3px); }
+.svc-dialog-layout { display:grid; grid-template-rows:auto minmax(0,1fr) auto; max-height:min(82dvh,760px); overflow:hidden; }
+.svc-dialog-head { display:flex; align-items:center; justify-content:space-between; gap:.9rem; padding:1rem 1.1rem; border-bottom:1px solid var(--svc-line); }
+.svc-dialog-head-copy { min-width:0; }
+.svc-dialog-head-copy small { display:block; color:var(--svc-secondary); font-size:.72rem; }
+.svc-dialog-head-copy strong { display:block; margin-top:.2rem; font-size:1rem; font-weight:800; }
+.svc-dialog-close { display:grid; flex:none; place-items:center; width:42px; height:42px; border:1px solid var(--svc-line); border-radius:10px; background:var(--svc-soft); color:var(--svc-secondary); cursor:pointer; }
+.svc-picker-body { display:grid; min-height:0; grid-template-rows:auto minmax(0,1fr); }
+.svc-picker-search { display:grid; grid-template-columns:42px minmax(0,1fr); align-items:center; min-height:49px; margin:1rem 1rem .55rem; border:1px solid var(--svc-line); border-radius:10px; background:var(--svc-soft); }
+.svc-picker-search i { display:grid; place-items:center; color:var(--svc-muted); }
+.svc-picker-search input { width:100%; min-width:0; min-height:48px; padding:.55rem .75rem .55rem 0; border:0; outline:none; background:transparent; color:var(--svc-ink); font-size:.89rem; }
+.svc-picker-options { display:grid; align-content:start; min-height:0; padding:.25rem 1rem 1rem; overflow-y:auto; }
+.svc-picker-option { display:grid; grid-template-columns:40px minmax(0,1fr) 24px; gap:.65rem; align-items:center; width:100%; min-width:0; min-height:62px; padding:.65rem .45rem; border:0; border-bottom:1px solid var(--svc-line); background:transparent; color:var(--svc-ink); cursor:pointer; font:inherit; text-align:left; }
+.svc-picker-option:hover, .svc-picker-option.selected { background:var(--svc-soft); }
+.svc-picker-option:last-child { border-bottom:0; }
+.svc-picker-option-icon { display:grid; place-items:center; width:40px; height:40px; border-radius:10px; background:var(--svc-soft); color:var(--svc-secondary); }
+.svc-picker-option-copy { min-width:0; }
+.svc-picker-option-copy strong { display:block; color:var(--svc-ink); font-size:.86rem; font-weight:750; overflow-wrap:anywhere; }
+.svc-picker-option-copy small { display:block; margin-top:.12rem; color:var(--svc-secondary); font-size:.75rem; line-height:1.42; }
+.svc-picker-option-check { color:var(--svc-ink); }
+.svc-picker-empty { padding:1.5rem; color:var(--svc-secondary); font-size:.84rem; text-align:center; }
+.svc-dialog-foot { display:flex; justify-content:flex-end; gap:.5rem; padding:.8rem 1rem; border-top:1px solid var(--svc-line); background:var(--svc-soft); }
+.svc-dialog-button { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:.65rem .9rem; border:1px solid var(--svc-line); border-radius:9px; background:var(--svc-surface); color:var(--svc-ink); font-size:.85rem; font-weight:720; cursor:pointer; }
+.svc-dialog-button.primary { background:var(--svc-accent); color:var(--svc-accent-text); border-color:var(--svc-accent); }
+.svc-calendar-body { min-height:0; padding:1rem; overflow-y:auto; }
+.svc-calendar-nav { display:grid; grid-template-columns:44px minmax(0,1fr) 44px; align-items:center; gap:.5rem; margin-bottom:1rem; }
+.svc-calendar-nav button { display:grid; place-items:center; width:44px; height:44px; border:1px solid var(--svc-line); border-radius:10px; background:var(--svc-soft); color:var(--svc-ink); cursor:pointer; }
+.svc-calendar-month { text-align:center; font-size:.92rem; font-weight:790; }
+.svc-calendar-week, .svc-calendar-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:.22rem; }
+.svc-calendar-week { margin-bottom:.35rem; }
+.svc-calendar-week span { padding:.3rem 0; color:var(--svc-secondary); text-align:center; font-size:.73rem; font-weight:700; }
+.svc-calendar-day { display:grid; place-items:center; aspect-ratio:1; min-width:0; min-height:38px; padding:0; border:1px solid transparent; border-radius:9px; background:transparent; color:var(--svc-ink); font-size:.82rem; font-weight:665; cursor:pointer; }
+.svc-calendar-day:hover { background:var(--svc-soft); }
+.svc-calendar-day.outside:not(.selected) { color:var(--svc-muted); opacity:.52; }
+.svc-calendar-day.sunday:not(.selected) { color:var(--svc-secondary); }
+.svc-calendar-day.today:not(.selected) { border-color:var(--svc-line-strong); background:var(--svc-soft); font-weight:820; }
+.svc-calendar-day.selected { background:var(--svc-accent); color:var(--svc-accent-text); font-weight:820; }
+#svc-calendar-today { margin-right:auto; }
+.svc-time-body { min-height:0; padding:1rem; overflow:auto; }
+.svc-time-preview { display:grid; place-items:center; margin-bottom:1rem; min-height:62px; border:1px solid var(--svc-line); border-radius:11px; background:var(--svc-soft); color:var(--svc-ink); font-size:1.45rem; font-weight:800; font-variant-numeric:tabular-nums; }
+.svc-time-columns { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.8rem; }
+.svc-time-column { display:grid; min-width:0; gap:.4rem; }
+.svc-time-column-title { color:var(--svc-secondary); font-size:.77rem; font-weight:720; text-align:center; }
+.svc-time-wheel { height:min(38dvh,260px); min-height:156px; padding:.35rem; overflow-y:auto; border:1px solid var(--svc-line); border-radius:11px; background:var(--svc-soft); overscroll-behavior:contain; scroll-snap-type:y proximity; }
+.svc-time-option { width:100%; min-height:45px; margin:0 0 .18rem; border:0; border-radius:8px; background:transparent; color:var(--svc-secondary); font-size:.85rem; font-weight:720; font-variant-numeric:tabular-nums; scroll-snap-align:center; cursor:pointer; }
+.svc-time-option:hover { background:var(--svc-surface); }
+.svc-time-option.selected { background:var(--svc-accent); color:var(--svc-accent-text); font-weight:820; }
+
+@media (max-width:980px) {
+  .svc-create-workspace { grid-template-columns: minmax(0,1fr); gap:.85rem; }
+  .svc-workflow-sidebar { position:static; gap:.65rem; padding:.85rem; }
+  .svc-steps { grid-template-columns:repeat(4,minmax(0,1fr)); gap:.3rem; }
+  .svc-step { grid-template-columns:1fr; justify-items:center; gap:.3rem; min-height:75px; padding:.45rem .25rem; text-align:center; }
+  .svc-step-icon { width:32px; height:32px; font-size:.94rem; }
+  .svc-step-copy small { display:none; }
+  .svc-step-copy strong { font-size:.76rem; }
+  .svc-step::after { display:none; }
+  .svc-aside-note { display:none; }
+}
+@media (max-width:700px) {
+  .svc-create { gap:.85rem; padding-bottom:calc(5.25rem + env(safe-area-inset-bottom,0px)); }
+  .svc-create-head { gap:.55rem; }
+  .svc-create-head-main { gap:.6rem; }
+  .svc-create-head-icon { width:41px; height:41px; border-radius:11px; font-size:1.06rem; }
+  .svc-create-head-copy small { font-size:.63rem; }
+  .svc-create-head-copy h1 { font-size:1.35rem; }
+  .svc-create-head-copy p { display:none; }
+  .svc-back { width:43px; min-width:43px; padding:0; }
+  .svc-back span { display:none; }
+  .svc-workflow-sidebar { padding:.65rem; border-radius:12px; }
+  .svc-aside-head { padding:0 .2rem; }
+  .svc-progress-bar { margin:0 .2rem; }
+  .svc-step { min-height:64px; padding:.4rem .05rem; }
+  .svc-step-icon { width:29px; height:29px; }
+  .svc-step-copy strong { font-size:.69rem; }
+  .svc-panel { border-radius:12px; }
+  .svc-panel-head { padding:1rem 1rem .9rem; gap:.65rem; }
+  .svc-panel-icon { width:41px; height:41px; border-radius:11px; }
+  .svc-panel-title h2 { font-size:1.11rem; }
+  .svc-panel-title p { font-size:.78rem; }
+  .svc-panel-head::after { font-size:.6rem; }
+  .svc-panel-body { min-height:195px; padding:1.05rem 1rem 1.2rem; }
+  .svc-fields, .svc-dynamic-fields, .svc-when { grid-template-columns:minmax(0,1fr); gap:1rem; }
+  .svc-panel-actions { min-height:auto; padding:.85rem 1rem; }
+  .svc-action { flex:1; min-width:0; }
+  .svc-action:is(.primary,.create) { flex:1.4; min-width:0; }
+  .svc-review { grid-template-columns:1fr; }
+  .svc-review-item:nth-child(n) { border-left:0; border-top:1px solid var(--svc-line); }
+  .svc-review-item:first-child { border-top:0; }
+  .svc-review-item { min-height:70px; padding:.8rem; }
+  .svc-dialog { inset:auto 0 0; width:100%; max-width:none; max-height:92dvh; margin:auto 0 0; border-radius:17px 17px 0 0; border-bottom:0; }
+  .svc-dialog-layout { max-height:92dvh; padding-bottom:env(safe-area-inset-bottom,0px); }
+  .svc-picker-search { margin:.8rem .8rem .5rem; }
+  .svc-picker-options { padding:0 .8rem .8rem; }
+  .svc-picker-option { min-height:60px; }
+  .svc-calendar-body, .svc-time-body { padding:.85rem; }
+  .svc-input input, .svc-input textarea, .svc-dynamic-fields :is(input,select,textarea), .svc-picker-search input { font-size:16px; }
+}
+@media (max-width:360px) {
+  .svc-create-head-icon { display:none; }
+  .svc-step-copy strong { font-size:.63rem; }
+  .svc-step { min-height:59px; }
+  .svc-panel-head::after { display:none; }
+  .svc-calendar-day { min-height:35px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .svc-create *, .svc-dialog * { transition-duration:.01ms!important; animation-duration:.01ms!important; scroll-behavior:auto!important; }
+}
 
 </style>
 
@@ -1434,21 +355,27 @@
             </span>
 
             <div class="svc-create-head-copy">
-                <small>Serviços</small>
-                <h1>Nova ordem</h1>
-                <p>Preencha uma etapa por vez.</p>
+                <small>Serviços / Ordens</small>
+                <h1>Nova ordem de serviço</h1>
+                <p>Escolha o serviço, informe os dados e confirme.</p>
             </div>
         </div>
 
         <a
             class="svc-back"
-            href="{{ route('provider.orders', $tenantSlug) }}"
+            href="{{ route($managementEntry ? 'services.management.index' : 'provider.orders', $tenantSlug) }}"
             aria-label="Voltar às ordens"
         >
             <i class="ph-fill ph-arrow-left"></i>
             <span>Voltar</span>
         </a>
     </header>
+
+    @if($managementEntry)
+        <a class="svc-back" href="{{ route('services.management.create', ['tenant' => $tenantSlug, 'batch' => 1]) }}">
+            <i class="ph ph-stack" aria-hidden="true"></i> Lançar em lote
+        </a>
+    @endif
 
     @if($errors->any())
         <section class="svc-errors" role="alert">
@@ -1471,6 +398,16 @@
         </section>
     @endif
 
+    <div class="svc-create-workspace">
+        <aside class="svc-workflow-sidebar" aria-label="Etapas da nova ordem">
+            <div class="svc-aside-head">
+                <strong>Progresso</strong>
+                <span id="svc-current-step" aria-live="polite">1 de 4</span>
+            </div>
+            <div id="svc-order-progress" class="svc-progress-bar" role="progressbar"
+                 aria-label="Progresso do cadastro" aria-valuemin="0" aria-valuemax="4" aria-valuenow="1">
+                <span id="svc-progress-fill" class="svc-progress-fill"></span>
+            </div>
     <nav
         class="svc-steps"
         aria-label="Etapas da ordem"
@@ -1517,7 +454,7 @@
 
             <span class="svc-step-copy">
                 <small>3 de 4</small>
-                <strong>Agendamento</strong>
+                <strong>Agenda</strong>
             </span>
         </button>
 
@@ -1536,12 +473,18 @@
             </span>
         </button>
     </nav>
+            <div class="svc-aside-note">
+                <i class="ph-fill ph-info" aria-hidden="true"></i>
+                <span>Revise tudo na última etapa antes de criar.</span>
+            </div>
+        </aside>
+        <div class="svc-create-stage">
 
     <form
         id="service-order-create-form"
         class="svc-form"
         method="post"
-        action="{{ route('provider.orders.store', $tenantSlug) }}"
+        action="{{ route($managementEntry ? 'services.management.store' : 'provider.orders.store', $tenantSlug) }}"
         novalidate
     >
         @csrf
@@ -1576,7 +519,7 @@
                             <select
                                 id="service-provider"
                                 name="service_provider_id"
-                                required
+                                @required(!$managementEntry)
                                 data-custom-select
                                 data-picker-title="Escolher prestador"
                                 data-picker-icon="ph-user-gear"
@@ -1587,6 +530,7 @@
                                 @foreach($providers as $item)
                                     <option
                                         value="{{ $item->id }}"
+                                        @if($managementEntry) data-services="{{ implode(',', $item->services->modelKeys()) }}" @endif
                                         data-primary="{{ $item->name }}"
                                         data-search="{{ $item->name }}"
                                         data-option-icon="ph-user-gear"
@@ -1620,6 +564,8 @@
                                 <option
                                     value="{{ $version->id }}"
                                     data-members-only="{{ $version->members_only ? '1' : '0' }}"
+                                    data-service-id="{{ $version->service_id }}"
+                                    data-payable="{{ $version->payable_enabled ? '1' : '0' }}"
                                     data-primary="{{ $version->service->name }}"
                                     data-secondary="Versão {{ $version->version }}{{ $version->members_only ? ' · somente membros' : '' }}"
                                     data-search="{{ $version->service->name }} versão {{ $version->version }}"
@@ -1690,7 +636,7 @@
                             data-picker-icon="ph-users-three"
                             data-picker-tone="green"
                         >
-                            <option value="">Sem membro</option>
+                            <option value="">Beneficiário avulso</option>
 
                             @foreach($associates as $associate)
                                 <option
@@ -1729,6 +675,7 @@
                                 maxlength="191"
                                 autocomplete="name"
                                 placeholder="Nome ou apelido"
+                                aria-describedby="beneficiary-note"
                             >
                         </div>
 
@@ -1736,7 +683,7 @@
                             id="beneficiary-note"
                             class="svc-help"
                         >
-                            Informe apenas se não escolher um membro.
+                            Digite o nome de quem vai receber o serviço, mesmo que não seja membro.
                         </small>
                     </label>
                 </div>
@@ -1778,11 +725,17 @@
 
                 <div class="svc-panel-title">
                     <h2>Agendamento</h2>
-                    <p>Dia, horário e local.</p>
+                    <p>{{ $managementEntry ? 'Agende ou informe a data de execução, se conhecida.' : 'Dia, horário e local.' }}</p>
                 </div>
             </header>
 
             <div class="svc-panel-body">
+                @if($managementEntry)
+                    <label class="svc-field">
+                        <span class="svc-label">Data da execução (opcional)</span>
+                        <input type="date" name="execution_date" value="{{ old('execution_date') }}" max="{{ today()->toDateString() }}">
+                    </label>
+                @endif
                 <input
                     id="scheduled-at"
                     type="hidden"
@@ -1813,6 +766,7 @@
                             id="scheduled-date-trigger"
                             class="svc-temporal-trigger date"
                             type="button"
+                            aria-haspopup="dialog"
                         >
                             <span
                                 class="svc-trigger-icon"
@@ -1855,6 +809,7 @@
                             id="scheduled-time-trigger"
                             class="svc-temporal-trigger time"
                             type="button"
+                            aria-haspopup="dialog"
                         >
                             <span
                                 class="svc-trigger-icon"
@@ -2045,6 +1000,8 @@
             </footer>
         </section>
     </form>
+        </div>
+    </div>
 </div>
 
 <dialog
@@ -2078,6 +1035,7 @@
                 <input
                     id="svc-picker-search"
                     type="search"
+                    aria-label="Buscar opções"
                     placeholder="Buscar"
                     autocomplete="off"
                 >
@@ -2241,6 +1199,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    const managementEntry = {{ \Illuminate\Support\Js::from($managementEntry) }};
     const form =
         document.getElementById('service-order-create-form');
 
@@ -2711,6 +1670,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const options = [
             ...select.options,
         ].filter(option => {
+            if (option.disabled || option.hidden) return false;
             if (!normalized) {
                 return true;
             }
@@ -3609,17 +2569,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const serviceOption =
             selectedOption(serviceSelect);
 
-        const memberRequired =
-            serviceOption
-                ?.dataset
-                .membersOnly === '1';
+        if (managementEntry && providerSelect) {
+            const serviceId = serviceOption?.dataset.serviceId;
+            for (const option of providerSelect.options) {
+                option.disabled = !!(option.value && serviceId && !option.dataset.services.split(',').includes(serviceId));
+            }
+            if (selectedOption(providerSelect)?.disabled) providerSelect.value = '';
+            providerSelect.dataset.customRequired = serviceOption?.dataset.payable || '0';
+        }
+        const memberRequired = serviceOption?.dataset.membersOnly === '1';
+        const hasMember = Boolean(associateSelect?.value);
 
         if (associateSelect) {
-            associateSelect.dataset
-                .customRequired =
-                memberRequired
-                    ? '1'
-                    : '0';
+            if (associateSelect.dataset.enhanced === '1') {
+                associateSelect.dataset.customRequired = memberRequired ? '1' : '0';
+            } else {
+                associateSelect.required = memberRequired;
+            }
         }
 
         if (memberNote) {
@@ -3635,27 +2601,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (beneficiaryInput) {
-            beneficiaryInput.required =
-                !associateSelect?.value;
+            beneficiaryInput.required = !memberRequired && !hasMember;
+            beneficiaryInput.setCustomValidity(
+                beneficiaryInput.required && !beneficiaryInput.value.trim()
+                    ? 'Informe o nome do beneficiário.'
+                    : ''
+            );
         }
 
         if (beneficiaryNote) {
             beneficiaryNote.textContent =
-                associateSelect?.value
-                    ? 'Usaremos o apelido do membro.'
-                    : 'Informe apenas se não escolher um membro.';
-        }
-
-        if (
-            associateSelect?.value
-            && beneficiaryInput
-            && !beneficiaryInput.value
-        ) {
-            beneficiaryInput.value =
-                selectedOption(
-                    associateSelect
-                )?.dataset.name
-                || '';
+                hasMember
+                    ? 'Se deixar em branco, usaremos o nome do membro.'
+                    : memberRequired
+                        ? 'Este serviço é exclusivo para membros. Escolha um membro acima.'
+                        : 'Digite o nome de quem vai receber o serviço, mesmo que não seja membro.';
         }
 
         document
@@ -3869,7 +2829,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 showCustomError(
                     trigger,
-                    'Escolha uma opção.'
+                    select === associateSelect ? 'Este serviço exige um membro ativo.' : 'Escolha uma opção.'
                 );
 
                 firstInvalid ??=
@@ -3930,7 +2890,7 @@ document.addEventListener('DOMContentLoaded', () => {
             === '3'
         ) {
             if (
-                !scheduledDateValue.value
+                !scheduledDateValue.value && (!managementEntry || scheduledTimeValue.value)
             ) {
                 showCustomError(
                     scheduledDateTrigger,
@@ -3942,7 +2902,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (
-                !scheduledTimeValue.value
+                !scheduledTimeValue.value && (!managementEntry || scheduledDateValue.value)
             ) {
                 showCustomError(
                     scheduledTimeTrigger,
@@ -4053,6 +3013,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 );
             }
         });
+
+        // Sincroniza os indicadores visuais sem alterar o fluxo original.
+        const progressLabel = document.getElementById('svc-current-step');
+        const progressBar = document.getElementById('svc-order-progress');
+        const progressFill = document.getElementById('svc-progress-fill');
+        if (progressLabel) progressLabel.textContent = `${currentStep} de 4`;
+        if (progressBar) progressBar.setAttribute('aria-valuenow', String(currentStep));
+        if (progressFill) progressFill.style.width = `${currentStep * 25}%`;
 
         if (currentStep === 4) {
             updateReview();
@@ -4170,8 +3138,7 @@ document.addEventListener('DOMContentLoaded', () => {
     beneficiaryInput?.addEventListener(
         'input',
         () => {
-            updatePlainInputs();
-            updateReview();
+            syncOrderRules();
         }
     );
 

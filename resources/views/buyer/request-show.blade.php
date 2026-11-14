@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', 'Solicitacao #'.$buyerRequest->id)
 @section('page-title', 'Solicitacao #'.$buyerRequest->id)

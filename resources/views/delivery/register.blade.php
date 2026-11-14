@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', 'Registrar Entrega')
 @section('page-title', 'Registrar Entrega')
@@ -3887,39 +3887,23 @@ tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--r
     
     {{-- ─── ENTRY CARD ───────────────────────────────── --}}
     <div class="card entry-card">
-         {{-- ─── PROJECT BAR ──────────────────────────────── --}}
-    <div class="project-bar" id="project-bar">
-        <div class="project-bar-icon">
-            <i data-lucide="folder-open" style="width:18px;height:18px"></i>
-        </div>
-        <div class="project-bar-info">
-            <div class="project-bar-title" id="pb-title">
-                @if($selectedProject) {{ $selectedProject['title'] }} @else Nenhum projeto selecionado @endif
-            </div>
-            <div class="project-bar-sub" id="pb-sub">
-                @if($selectedProject) {{ $selectedProject['customer_name'] }} @else Selecione um projeto para começar @endif
-            </div>
-        </div>
-        @if(!$selectedProject)
-        <button class="project-bar-btn" onclick="openModal('project')" id="pb-btn">
-            Selecionar
-        </button>
-        @else
-        <span id="pb-badge" style="font-size:0.72rem;font-weight:600;padding:0.2rem 0.55rem;border-radius:999px;background:color-mix(in srgb, var(--color-primary) 15%, transparent);color:var(--color-primary-dark);">
-            ATIVO
-        </span>
-        @endif
-    </div>
         <div class="card-header reg-entry-title">
-            <span class="reg-section-icon reg-section-icon-amber" aria-hidden="true">
-                <i data-lucide="package-plus"></i>
-            </span>
-            <span>Nova Entrega</span>
+            <span class="reg-section-icon" aria-hidden="true"><i class="ph-duotone ph-package"></i></span>
+            <div class="reg-entry-context">
+                <strong>Nova entrega</strong>
+                <div class="reg-entry-project">
+                    <span id="pb-title">{{ $selectedProject['title'] ?? 'Nenhum projeto selecionado' }}</span>
+                    <span id="pb-sub" @if(blank($selectedProject['customer_name'] ?? null)) hidden @endif>{{ $selectedProject['customer_name'] ?? '' }}</span>
+                </div>
+            </div>
+            <button class="project-bar-btn" type="button" onclick="openModal('project')" id="pb-btn" @if($selectedProject) hidden @endif>Selecionar projeto</button>
+            <span id="reg-entry-hint" class="reg-entry-hint reg-visually-hidden" aria-live="polite"></span>
         </div>
+
         <div class="card-body" style="display:flex;flex-direction:column;gap:0.6rem;">
 
             {{-- Associate selector --}}
-            <div class="selector-row" id="sel-assoc" onclick="openModal('assoc')">
+            <div class="selector-row" id="sel-assoc" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="modal-assoc" onclick="openModal('assoc')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openModal('assoc')}">
                 <div class="sel-icon">
                     <i data-lucide="user" style="width:16px;height:16px"></i>
                 </div>
@@ -3931,11 +3915,6 @@ tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--r
                     <i data-lucide="chevron-right" style="width:16px;height:16px"></i>
                 </div>
             </div>
-
-            <button class="btn-small" id="associate-simulator-btn" type="button" onclick="openAssociateSimulator()" hidden>
-                <i data-lucide="calculator"></i>
-                Simular entrega para este membro
-            </button>
 
             {{-- Date selector --}}
             <div
@@ -3962,7 +3941,7 @@ tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--r
             </div>
 
             {{-- Product selector --}}
-            <div class="selector-row disabled" id="sel-product" onclick="openModal('product')">
+            <div class="selector-row disabled" id="sel-product" role="button" tabindex="0" aria-disabled="true" aria-haspopup="dialog" aria-controls="modal-product" onclick="openModal('product')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();if(!this.classList.contains('disabled'))openModal('product')}">
                 <div class="sel-icon">
                     <i data-lucide="package" style="width:16px;height:16px"></i>
                 </div>
@@ -3997,14 +3976,15 @@ tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--r
                 <div class="form-grid">
                     <div>
                         <label class="field-label" for="f-qty">Quantidade <span id="f-unit-lbl"></span></label>
-                        <input class="field-input" type="number" id="f-qty" min="0.001" step="0.001" placeholder="0">
+                        <input class="field-input" type="number" id="f-qty" min="0.001" step="0.001" inputmode="decimal" autocomplete="off" placeholder="0" aria-describedby="reg-qty-hint">
+                        <small class="reg-field-hint" id="reg-qty-hint">Informe a quantidade recebida.</small>
                     </div>
                     <div>
                         <label class="field-label">Qualidade</label>
                         <div class="quality-group quality-pills" id="quality-group">
-                            <button class="q-pill active" data-q="A">A</button>
-                            <button class="q-pill" data-q="B">B</button>
-                            <button class="q-pill" data-q="C">C</button>
+                            <button type="button" class="q-pill active" data-q="A" aria-label="Qualidade A">A</button>
+                            <button type="button" class="q-pill" data-q="B" aria-label="Qualidade B">B</button>
+                            <button type="button" class="q-pill" data-q="C" aria-label="Qualidade C">C</button>
                         </div>
                     </div>
                     <div class="reg-notes-control">
@@ -4042,7 +4022,7 @@ tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--r
                     </div>
                 </div>
 
-                <button class="btn-submit" id="btn-submit" disabled onclick="submitEntry()">
+                <button type="button" class="btn-submit" id="btn-submit" disabled onclick="submitEntry()" aria-busy="false">
                     <span style="display:inline-flex;align-items:center;justify-content:center;gap:.35rem">
                         <i data-lucide="package-plus" style="width:15px;height:15px"></i>
                         Registrar Entrega
@@ -4072,10 +4052,13 @@ tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--r
                 <span class="reg-section-icon reg-section-icon-violet" aria-hidden="true">
                     <i data-lucide="clock-counter-clockwise"></i>
                 </span>
-                <span id="session-list-title">Registros desta sessão</span>
+                <span id="session-list-title">Histórico de entregas</span>
             </div>
 
             <div class="reg-history-head-actions">
+                <button type="button" class="reg-refresh-btn" onclick="refreshRegisterHistory(this)" aria-label="Atualizar histórico" title="Atualizar histórico">
+                    <i class="ph-duotone ph-arrows-clockwise" aria-hidden="true"></i>
+                </button>
                 <span id="session-count"></span>
 
                 <div class="reg-history-view-switch" id="reg-history-view-switch" role="group" aria-label="Visualização do histórico">
@@ -4108,7 +4091,7 @@ tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--r
                 <div>
                     <div style="display:flex;align-items:center;gap:.35rem;font-size:.76rem;font-weight:800;">
                         <i data-lucide="shield-alert" style="width:15px;height:15px;color:#d97706"></i>
-                        Pendencias e Inconsistencias
+                        Pendências e inconsistências
                     </div>
                     <div class="reg-integrity-counts" style="margin-top:.25rem;">
                         <span id="reg-integrity-critical" style="color:#dc2626"></span>
@@ -4122,28 +4105,34 @@ tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--r
             </div>
             <div class="reg-integrity-list" id="reg-integrity-list" hidden></div>
         </div>
-        <div class="history-filter" id="history-filter">
-            <label for="filter-history-search">Filtrar:</label>
-            <input type="search" id="filter-history-search" oninput="renderSessionItems()" placeholder="Buscar associado, produto ou data" autocomplete="off">
-            <select id="filter-status" onchange="renderSessionItems()" aria-label="Status">
-                <option value="">Todos os status</option>
-                <option value="pending">Pendentes</option>
-                <option value="approved">Aprovadas</option>
-                <option value="rejected">Rejeitadas</option>
-                <option value="cancelled">Canceladas</option>
-            </select>
-            <input type="search" id="filter-associate" oninput="renderSessionItems()" placeholder="Associado" autocomplete="off">
-            <input type="search" id="filter-product" oninput="renderSessionItems()" placeholder="Produto" autocomplete="off">
-            <input type="date" id="filter-date-from" oninput="renderSessionItems()" placeholder="De">
-            <span style="font-size:.75rem;color:var(--color-text-muted)">ate</span>
-            <input type="date" id="filter-date-to" oninput="renderSessionItems()" placeholder="Ate">
-            <button class="hf-more" id="history-filter-toggle" type="button" onclick="toggleHistoryFilters()" aria-expanded="false" title="Mais filtros" aria-label="Mostrar mais filtros">
-                <i data-lucide="sliders-horizontal"></i>
+        <div class="history-filter" id="history-filter" role="search" aria-label="Pesquisar entregas">
+            <div class="reg-history-search">
+                <i class="ph-duotone ph-magnifying-glass" aria-hidden="true"></i>
+                <input type="search" id="filter-history-search" oninput="renderSessionItems()" placeholder="Buscar produtor, produto ou data" aria-label="Buscar no histórico" autocomplete="off">
+                <button type="button" class="reg-search-clear" onclick="document.getElementById('filter-history-search').value='';renderSessionItems();document.getElementById('filter-history-search').focus()" aria-label="Limpar busca" title="Limpar busca"><i class="ph-duotone ph-x"></i></button>
+            </div>
+            <label class="reg-status-filter" for="filter-status">
+                <span class="reg-visually-hidden">Situação</span>
+                <select id="filter-status" onchange="renderSessionItems()" aria-label="Filtrar por situação">
+                    <option value="">Todas as situações</option>
+                    <option value="pending">Pendentes</option>
+                    <option value="approved">Aprovadas</option>
+                    <option value="rejected">Rejeitadas</option>
+                    <option value="cancelled">Canceladas</option>
+                </select>
+            </label>
+            <button class="hf-more" id="history-filter-toggle" type="button" onclick="toggleHistoryFilters()" aria-controls="reg-advanced-filters" aria-expanded="false" title="Filtros adicionais">
+                <i data-lucide="sliders-horizontal"></i><span>Filtros</span>
             </button>
-            <button class="hf-clear" onclick="clearFilter()" title="Limpar filtros" aria-label="Limpar filtros">
-                <i data-lucide="eraser"></i>
-                <span class="hf-clear-label">Limpar</span>
+            <button type="button" class="hf-clear" onclick="clearFilter()" title="Limpar filtros" aria-label="Limpar todos os filtros">
+                <i data-lucide="eraser"></i><span class="hf-clear-label">Limpar</span>
             </button>
+            <div class="reg-advanced-filters" id="reg-advanced-filters">
+                <label>Produtor<input type="search" id="filter-associate" oninput="renderSessionItems()" placeholder="Nome do produtor" autocomplete="off"></label>
+                <label>Produto<input type="search" id="filter-product" oninput="renderSessionItems()" placeholder="Nome do produto" autocomplete="off"></label>
+                <label>Data inicial<input type="date" id="filter-date-from" oninput="renderSessionItems()"></label>
+                <label>Data final<input type="date" id="filter-date-to" oninput="renderSessionItems()"></label>
+            </div>
         </div>
         <div id="session-list">
             <div class="session-empty" id="session-empty">Selecione um projeto para ver o histórico de entregas</div>
@@ -4272,16 +4261,6 @@ tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--r
         </div>
 
         <div class="reg-calendar-body register-sheet-scroll">
-            <div class="reg-calendar-selection">
-                <span class="reg-calendar-selection-icon" aria-hidden="true">
-                    <i class="ph-duotone ph-calendar-check"></i>
-                </span>
-                <div>
-                    <small>Data selecionada</small>
-                    <strong id="calendar-selected-label">—</strong>
-                </div>
-            </div>
-
             <div class="reg-calendar-manual">
                 <label for="calendar-manual-input">Digitar manualmente</label>
                 <div class="reg-calendar-input-wrap">
@@ -4322,7 +4301,7 @@ tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--r
                 </div>
 
                 <div class="reg-calendar-weekdays" aria-hidden="true">
-                    <span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span><span>Dom</span>
+                    <span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span>
                 </div>
 
                 <div class="reg-calendar-grid" id="calendar-grid" role="grid" aria-label="Calendário"></div>
@@ -4658,7 +4637,7 @@ body.register-sheet-open {
 
 body.register-sheet-open .modal-overlay.open,
 body.register-sheet-open .dist-summary-overlay.open,
-body.register-sheet-open #dm-overlay.open,
+body.register-sheet-open #dm-overlay.dm-open,
 body.register-sheet-open #delivery-notes-overlay.open {
     top: var(--reg-vv-top) !important;
     bottom: auto !important;
@@ -4722,7 +4701,7 @@ body.register-sheet-open #delivery-notes-overlay.open {
 
 .modal-overlay.open .modal-box,
 .dist-summary-overlay.open .dist-summary-box,
-#dm-overlay.open .dm-box,
+#dm-overlay.dm-open .dm-box,
 #delivery-notes-overlay.open > :first-child {
     animation: reg-sheet-enter .24s cubic-bezier(.22,.78,.24,1) both;
     transform-origin: bottom center;
@@ -5571,7 +5550,7 @@ body.register-sheet-open #delivery-notes-overlay.open {
     .dist-summary-overlay.open,
     .modal-overlay.open .modal-box,
     .dist-summary-overlay.open .dist-summary-box,
-    #dm-overlay.open .dm-box,
+    #dm-overlay.dm-open .dm-box,
     #delivery-notes-overlay.open > :first-child {
         animation: none !important;
     }
@@ -5643,6 +5622,786 @@ body.register-sheet-open #delivery-notes-overlay.open {
     .product-substitution-list {max-height:min(32dvh,280px)}
     .product-substitution-item {min-height:50px}
     .product-substitution-footer {grid-template-columns:1fr 1.45fr;padding-bottom:calc(.52rem + env(safe-area-inset-bottom))}
+}
+</style>
+
+<style id="register-campo-workbench">
+/* SGC Campo | Registro de entregas — workbench operacional
+ * Contratos Laravel, distribuicao, pagamentos e eventos permanecem no Blade.
+ * Escopo: apenas a tela e os modais relacionados. Sem resets globais.
+ */
+.reg-page,.modal-overlay,.dist-summary-overlay,#toast-root,#dm-overlay,#delivery-notes-overlay {
+  --cw-canvas:#f4f4ef;--cw-surface:#fffefb;--cw-muted-surface:#f7f8f3;
+  --cw-raised:#fffefb;--cw-border:#dbe1d7;--cw-border-strong:#b9c6ba;
+  --cw-ink:#202b24;--cw-secondary:#596a5e;--cw-muted:#78867b;
+  --cw-forest:#173c2e;--cw-lime:#d9f172;--cw-accent-ink:#173c2e;
+  --cw-green:#207b50;--cw-green-soft:#eaf5ee;
+  --cw-amber:#986513;--cw-amber-soft:#fff4dd;
+  --cw-blue:#286ba6;--cw-blue-soft:#edf4fc;
+  --cw-red:#b64d45;--cw-red-soft:#fff0ee;
+  --cw-gray:#6c7871;--cw-gray-soft:#f1f3ef;
+  --cw-shadow:0 2px 12px rgba(22,43,30,.035);
+  --cw-ease:cubic-bezier(.2,.75,.25,1);
+  /* Aliases usados pelos estilos legados e por templates dinamicos. */
+  --r-green:var(--cw-green);--r-green-soft:var(--cw-green-soft);
+  --r-blue:var(--cw-blue);--r-blue-soft:var(--cw-blue-soft);
+  --r-sky:var(--cw-blue);--r-sky-soft:var(--cw-blue-soft);
+  --r-violet:var(--cw-blue);--r-violet-soft:var(--cw-blue-soft);
+  --r-amber:var(--cw-amber);--r-amber-soft:var(--cw-amber-soft);
+  --r-red:var(--cw-red);--r-red-soft:var(--cw-red-soft);
+  --r-slate:var(--cw-gray);--r-slate-soft:var(--cw-gray-soft);
+  --r-text:var(--cw-ink);--r-text-2:var(--cw-secondary);--r-text-3:var(--cw-muted);
+  --r-surface:var(--cw-surface);--r-soft:var(--cw-muted-surface);
+  --r-border:var(--cw-border);--r-border-2:var(--cw-border-strong);
+  --rv-green:var(--cw-green);--rv-green-soft:var(--cw-green-soft);
+  --rv-blue:var(--cw-blue);--rv-blue-soft:var(--cw-blue-soft);
+  --rv-sky:var(--cw-blue);--rv-sky-soft:var(--cw-blue-soft);
+  --rv-violet:var(--cw-blue);--rv-violet-soft:var(--cw-blue-soft);
+  --rv-amber:var(--cw-amber);--rv-amber-soft:var(--cw-amber-soft);
+  --rv-red:var(--cw-red);--rv-red-soft:var(--cw-red-soft);
+  --rv-slate:var(--cw-gray);--rv-slate-soft:var(--cw-gray-soft);
+  --rv-text:var(--cw-ink);--rv-text-2:var(--cw-secondary);--rv-text-3:var(--cw-muted);
+  --rv-border:var(--cw-border);--rv-border-strong:var(--cw-border-strong);
+  --rv-soft:var(--cw-muted-surface);
+  --color-bg:var(--cw-canvas);--color-surface:var(--cw-surface);
+  --color-surface-soft:var(--cw-muted-surface);--color-text:var(--cw-ink);
+  --color-text-secondary:var(--cw-secondary);--color-text-muted:var(--cw-muted);
+  --color-border:var(--cw-border);--color-border-strong:var(--cw-border-strong);
+  --color-primary:var(--cw-forest);--color-primary-dark:var(--cw-forest);
+  --color-danger:var(--cw-red);--color-success:var(--cw-green);
+  color:var(--cw-ink);
+}
+[data-theme='dark'] :is(.reg-page,.modal-overlay,.dist-summary-overlay,#toast-root,#dm-overlay,#delivery-notes-overlay) {
+  --cw-canvas:#111418;--cw-surface:#191e24;--cw-raised:#20262d;
+  --cw-muted-surface:#20262c;--cw-border:#353d44;--cw-border-strong:#48515b;
+  --cw-ink:#edf2f6;--cw-secondary:#b6c1c7;--cw-muted:#9ba8ae;
+  --cw-forest:#e7c87d;--cw-lime:#e7c87d;--cw-accent-ink:#191e24;
+  --cw-green:#70cba0;--cw-green-soft:#20382e;
+  --cw-amber:#e5bb74;--cw-amber-soft:#3a3025;
+  --cw-blue:#8abbe4;--cw-blue-soft:#233448;
+  --cw-red:#efa09a;--cw-red-soft:#442e31;
+  --cw-gray:#a0adb6;--cw-gray-soft:#293137;
+  --cw-shadow:0 5px 20px rgba(0,0,0,.16);
+  color-scheme:dark;
+}
+.reg-page {grid-column:1/-1!important;min-width:0;max-width:1480px!important;
+  width:100%!important;margin:0 auto!important;padding:0 0 clamp(18px,3vw,40px)!important;
+  display:grid!important;grid-template-columns:minmax(328px,390px) minmax(0,1fr)!important;
+  align-items:start!important;gap:clamp(12px,1.35vw,20px)!important;color:var(--cw-ink)!important;
+}
+.reg-page [hidden],.modal-overlay [hidden],.dist-summary-overlay [hidden] {display:none!important}
+.reg-page :is(button,a,input,select,textarea,[role='button']),
+.modal-overlay :is(button,input,select,textarea),.dist-summary-overlay button {
+  -webkit-tap-highlight-color:transparent;
+}
+.reg-page :is(button,a,input,select,textarea,[role='button']):focus-visible,
+.modal-overlay :is(button,input,select,textarea,[role='button']):focus-visible,
+.dist-summary-overlay button:focus-visible {
+  outline:2px solid var(--cw-blue)!important;outline-offset:2px!important;
+}
+.reg-page :is(button,input,select,textarea),.modal-overlay :is(button,input,select,textarea) {font-family:inherit}
+.reg-visually-hidden {position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+/* Contexto de projeto ocupa toda a largura. */
+.reg-page .reg-context {grid-column:1/-1;grid-row:1;min-width:0;display:flex;align-items:center;
+  gap:clamp(10px,1.5vw,22px);padding:12px 16px;border:1px solid var(--cw-border);
+  border-radius:16px;background:var(--cw-surface);box-shadow:var(--cw-shadow);
+}
+.reg-context-kicker {display:inline-flex;gap:8px;align-items:center;flex:0 0 auto;
+  color:var(--cw-secondary);font-size:10px;font-weight:830;letter-spacing:.12em;white-space:nowrap;
+}
+.reg-context-kicker span {display:block;width:17px;height:6px;border-radius:7px;background:var(--cw-lime)}
+.reg-page .project-bar {flex:1 1 auto;min-width:0;min-height:50px!important;display:flex!important;
+  align-items:center;gap:11px;padding:0!important;border:0!important;border-radius:0!important;
+  background:transparent!important;box-shadow:none!important;
+}
+.reg-page .project-bar-icon {display:grid;width:43px;height:43px;min-width:43px;place-items:center;
+  border-radius:12px;background:var(--cw-forest)!important;color:var(--cw-accent-ink)!important;
+}
+.reg-page .project-bar-icon .ph-duotone {font-size:19px!important;color:inherit!important}
+.reg-page .project-bar-info {flex:1;min-width:0}
+.reg-page .project-bar-title {font-size:clamp(14px,1.4vw,17px)!important;line-height:1.25;
+  font-weight:860!important;letter-spacing:-.025em;color:var(--cw-ink)!important;
+}
+.reg-page .project-bar-sub {color:var(--cw-secondary)!important;font-size:12px!important;margin-top:3px}
+.reg-page .project-bar-btn {min-height:40px;display:inline-flex;gap:7px;align-items:center;
+  padding:8px 13px!important;border:1px solid var(--cw-border-strong)!important;
+  border-radius:10px!important;background:var(--cw-raised)!important;color:var(--cw-ink)!important;
+  font-size:12px!important;font-weight:770!important;transition:background .16s,border-color .16s,transform .16s;
+}
+.reg-page .project-bar-btn:hover {border-color:var(--cw-forest)!important;background:var(--cw-muted-surface)!important;transform:translateY(-1px)}
+/* Áreas operacionais: superfícies secas, sem gradiente decorativo. */
+.reg-page .entry-card,.reg-page .history-card {min-width:0;overflow:hidden;
+  border:1px solid var(--cw-border)!important;border-radius:16px!important;
+  background:var(--cw-surface)!important;box-shadow:var(--cw-shadow)!important;
+}
+.reg-page .entry-card {grid-column:1;grid-row:2;align-self:start;scroll-margin-top:84px;
+  transition:box-shadow .26s var(--cw-ease),border-color .26s var(--cw-ease);
+}
+.reg-page .history-card {grid-column:2;grid-row:2;min-height:0!important;display:flex;flex-direction:column;
+  container-type:inline-size;
+}
+.reg-page .card-header {background:var(--cw-surface)!important;border-bottom:1px solid var(--cw-border)!important;
+  color:var(--cw-ink)!important;letter-spacing:0!important;text-transform:none!important;
+  font-size:14px!important;font-weight:840!important;padding:13px 16px!important;
+  min-height:60px!important;
+}
+.reg-page .reg-entry-title {display:flex;gap:11px;align-items:center;flex-wrap:wrap;
+  border-top:3px solid var(--cw-forest)!important;
+}
+.reg-page .reg-section-icon {display:grid!important;width:35px!important;height:35px!important;
+  place-items:center;border-radius:10px!important;background:var(--cw-muted-surface)!important;
+  color:var(--cw-forest)!important;flex:none;
+}
+.reg-page .reg-section-icon svg,.reg-page .reg-section-icon .ph-duotone {width:18px;height:18px}
+.reg-entry-hint {margin-left:auto;color:var(--cw-muted)!important;font-size:11px!important;
+  font-weight:700!important;line-height:1.4!important;text-transform:none!important;letter-spacing:0!important;
+}
+.reg-entry-hint.ready {color:var(--cw-green)!important}
+.reg-entry-hint.ready::before {content:'●';font-size:8px;margin-right:5px}
+.reg-page .entry-card .card-body {display:flex!important;flex-direction:column!important;
+  gap:10px!important;padding:16px!important;background:var(--cw-surface)!important;
+}
+/* Campos clicáveis com feedback, sem bordas duplicadas. */
+.reg-page .selector-row {position:relative;display:flex!important;align-items:center;
+  gap:11px!important;min-height:66px!important;padding:11px 13px!important;
+  border:1px solid var(--cw-border)!important;border-radius:12px!important;
+  background:var(--cw-surface)!important;color:var(--cw-ink)!important;
+  cursor:pointer;transition:border-color .17s var(--cw-ease),background .17s var(--cw-ease),transform .17s var(--cw-ease),box-shadow .17s;
+}
+.reg-page .selector-row:hover:not(.disabled),.reg-page .selector-row:focus-visible {
+  border-color:var(--cw-border-strong)!important;background:var(--cw-muted-surface)!important;
+  box-shadow:0 4px 12px rgba(30,44,35,.05);transform:translateY(-1px);
+}
+.reg-page .selector-row.selected {border-color:color-mix(in srgb,var(--cw-green) 40%,var(--cw-border))!important;
+  background:var(--cw-surface)!important;
+}
+.reg-page .selector-row.selected::before {content:'';position:absolute;inset:11px auto 11px 0;width:3px;
+  border-radius:0 4px 4px 0;background:var(--cw-green);
+}
+.reg-page .selector-row.disabled {cursor:not-allowed;opacity:.6}
+.reg-page .sel-icon {display:grid!important;place-items:center;width:39px!important;height:39px!important;
+  border-radius:10px!important;background:var(--cw-muted-surface)!important;
+  color:var(--cw-secondary)!important;flex:none;
+}
+.reg-page .selector-row.selected .sel-icon {background:var(--cw-green-soft)!important;color:var(--cw-green)!important}
+.reg-page .sel-icon .ph-duotone {font-size:19px!important}
+.reg-page .sel-label {color:var(--cw-muted)!important;font-size:10px!important;font-weight:780!important;
+  letter-spacing:.04em!important;text-transform:uppercase!important;line-height:1.2;
+}
+.reg-page :is(.sel-value,.sel-date-display) {margin-top:4px;color:var(--cw-ink)!important;
+  font-size:14px!important;line-height:1.34;font-weight:780!important;white-space:normal;overflow-wrap:anywhere;
+}
+.reg-page .sel-meta {margin-top:4px;color:var(--cw-secondary)!important;font-size:11px!important}
+.reg-page .sel-chevron {display:grid;place-items:center;margin-left:auto;color:var(--cw-muted)!important;
+  transition:transform .17s;color:var(--cw-muted);
+}
+.reg-page .selector-row:hover .sel-chevron {transform:translateX(2px)}
+.reg-page .product-substitution-trigger {width:38px!important;min-width:38px!important;height:38px!important;
+  border:1px solid var(--cw-border)!important;border-radius:10px!important;
+  background:var(--cw-muted-surface)!important;color:var(--cw-blue)!important;
+}
+.reg-page .product-substitution-trigger:hover {border-color:var(--cw-blue)!important;background:var(--cw-blue-soft)!important}
+.reg-page #entry-fields {display:grid;gap:12px;margin-top:5px!important;padding:14px!important;
+  border:1px solid var(--cw-border)!important;border-radius:12px!important;
+  background:var(--cw-muted-surface)!important;overflow:hidden;
+}
+.reg-page #entry-fields[style*='none'] {display:none!important}
+.reg-page .form-divider {display:none!important}
+.reg-page .form-grid {display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  gap:12px!important;align-items:start;
+}
+.reg-page .form-grid>div:nth-child(3) {grid-column:1/-1!important}
+.reg-page .field-label {display:block;margin:0 0 6px!important;color:var(--cw-secondary)!important;
+  font-size:12px!important;font-weight:770!important;text-transform:none!important;letter-spacing:0!important;
+}
+.reg-page .field-input,.modal-overlay .field-input {width:100%;min-width:0;min-height:44px;
+  border:1px solid var(--cw-border-strong)!important;border-radius:10px!important;
+  background:var(--cw-surface)!important;color:var(--cw-ink)!important;
+  box-shadow:none!important;font-size:15px!important;padding:10px 12px!important;
+  outline:none!important;transition:border-color .17s,box-shadow .17s;
+}
+.reg-page .field-input:focus,.modal-overlay .field-input:focus {
+  border-color:var(--cw-blue)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--cw-blue) 12%,transparent)!important;
+}
+.reg-page #f-qty {font-size:23px!important;line-height:1.2;font-weight:850!important;
+  font-variant-numeric:tabular-nums;letter-spacing:-.035em;text-align:left;
+}
+.reg-field-hint {display:block;margin-top:5px;font-size:10px;color:var(--cw-muted);line-height:1.4}
+.reg-page .quality-pills {display:flex;gap:6px!important}
+.reg-page .q-pill,.modal-overlay .q-pill {min-width:0;min-height:44px!important;border:1px solid var(--cw-border)!important;
+  border-radius:10px!important;background:var(--cw-surface)!important;color:var(--cw-secondary)!important;
+  font-size:14px!important;font-weight:800!important;
+  transition:border-color .15s,background .15s,transform .15s;
+}
+.reg-page .q-pill:hover,.modal-overlay .q-pill:hover {transform:translateY(-1px);border-color:var(--cw-border-strong)!important}
+.reg-page .q-pill[data-q='A'].active,.modal-overlay .q-pill[data-q='A'].active {border-color:var(--cw-green)!important;background:var(--cw-green-soft)!important;color:var(--cw-green)!important}
+.reg-page .q-pill[data-q='B'].active,.modal-overlay .q-pill[data-q='B'].active {border-color:var(--cw-amber)!important;background:var(--cw-amber-soft)!important;color:var(--cw-amber)!important}
+.reg-page .q-pill[data-q='C'].active,.modal-overlay .q-pill[data-q='C'].active {border-color:var(--cw-red)!important;background:var(--cw-red-soft)!important;color:var(--cw-red)!important}
+.reg-page .reg-notes-toggle {min-height:46px!important;border:1px solid var(--cw-border)!important;
+  background:var(--cw-surface)!important;color:var(--cw-ink)!important;border-radius:10px!important;
+}
+.reg-page .reg-notes-toggle:hover {background:var(--cw-muted-surface)!important}
+.reg-page :is(.reg-notes-toggle-icon,.reg-notes-toggle-chevron) {color:var(--cw-secondary)!important}
+.reg-page .reg-notes-toggle-copy strong {color:var(--cw-ink)!important}
+.reg-page .reg-notes-toggle-copy small {color:var(--cw-muted)!important}
+.reg-page .reg-notes-field .field-input {min-height:86px!important;resize:vertical}
+/* Ação principal só ganha destaque quando possível registrar. */
+.reg-page .btn-submit {position:relative;display:flex!important;align-items:center;justify-content:center;
+  width:100%!important;min-height:52px!important;margin:0!important;border:1px solid var(--cw-forest)!important;
+  border-radius:11px!important;background:var(--cw-forest)!important;color:var(--cw-accent-ink)!important;
+  box-shadow:none!important;font-size:14px!important;font-weight:840!important;
+  transition:background .18s,opacity .18s,transform .18s,box-shadow .18s;
+}
+.reg-page .btn-submit:not(:disabled):hover {transform:translateY(-2px);box-shadow:0 9px 20px color-mix(in srgb,var(--cw-forest) 18%,transparent)!important}
+.reg-page .btn-submit:disabled {
+  background:var(--cw-muted-surface)!important;
+  border-color:var(--cw-border-strong)!important;
+  color:var(--cw-secondary)!important;
+  opacity:1!important;
+  cursor:not-allowed!important;
+  filter:none;
+}
+.reg-page .btn-submit[aria-busy='true'] {
+  pointer-events:none;
+  cursor:wait!important;
+  background:var(--cw-green-soft)!important;
+  color:var(--cw-green)!important;
+}
+.reg-page #btn-submit > span, .reg-page #btn-submit > span i {color:inherit!important}
+.reg-page .btn-submit[aria-busy='true']::after {content:'';width:16px;height:16px;margin-left:10px;
+  border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:cw-spinner .7s linear infinite;
+}
+.reg-page .entry-card.reg-saved {border-color:var(--cw-green)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--cw-green) 14%,transparent)!important}
+@keyframes cw-spinner {to{transform:rotate(360deg)}}
+/* Recarregar histórico sem abandonar o projeto. */
+.reg-page .reg-refresh-btn {display:inline-flex;align-items:center;justify-content:center;
+  width:34px;min-width:34px;height:34px;padding:0;border:1px solid var(--cw-border)!important;
+  border-radius:9px!important;background:var(--cw-surface)!important;
+  color:var(--cw-secondary)!important;cursor:pointer;transition:background .15s,color .15s;
+}
+.reg-page .reg-refresh-btn:hover {background:var(--cw-muted-surface)!important;color:var(--cw-forest)!important}
+.reg-page .reg-refresh-btn:disabled {opacity:.55;cursor:wait}
+.reg-page .reg-refresh-btn.is-loading i {display:inline-block;animation:cw-spinner .75s linear infinite}
+/* Histórico: titulo util, ações discretas e filtro bem compacto. */
+.reg-page .history-card>.reg-history-head {display:flex!important;align-items:center;justify-content:space-between;
+  gap:8px;min-height:62px!important;padding:11px 16px!important;
+}
+.reg-page .reg-history-title {min-width:0;gap:9px!important}
+.reg-page #session-list-title {min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:14px!important;font-weight:830!important;color:var(--cw-ink)!important;
+}
+.reg-page #session-count {flex:none;border:1px solid var(--cw-border)!important;
+  background:var(--cw-muted-surface)!important;color:var(--cw-secondary)!important;
+  font-size:11px!important;font-weight:770!important;padding:5px 8px!important;white-space:nowrap;
+}
+.reg-page .reg-history-head-actions {display:flex;gap:8px;align-items:center;flex:none}
+.reg-page .reg-history-view-switch {padding:3px;border:1px solid var(--cw-border)!important;
+  border-radius:9px;background:var(--cw-muted-surface)!important;
+}
+.reg-page .reg-view-btn {color:var(--cw-secondary)!important;border-radius:7px!important}
+.reg-page .reg-view-btn.active {background:var(--cw-surface)!important;color:var(--cw-forest)!important;box-shadow:var(--cw-shadow)!important}
+.reg-page .history-filter {display:grid!important;grid-template-columns:minmax(0,1fr) minmax(138px,185px) auto auto!important;
+  gap:8px!important;align-items:center!important;padding:11px 14px!important;
+  overflow:visible!important;border-bottom:1px solid var(--cw-border)!important;
+  background:var(--cw-surface)!important;
+}
+.reg-history-search {position:relative;display:flex;align-items:center;min-width:0;min-height:43px;
+  border:1px solid var(--cw-border-strong);border-radius:10px;background:var(--cw-muted-surface);
+  transition:border-color .16s,box-shadow .16s,background .16s;
+}
+.reg-history-search:focus-within {border-color:var(--cw-blue);background:var(--cw-surface);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--cw-blue) 11%,transparent);
+}
+.reg-history-search>i {position:absolute;left:12px;top:50%;transform:translateY(-50%);
+  color:var(--cw-secondary)!important;font-size:17px!important;pointer-events:none;
+}
+.reg-page #filter-history-search {display:block!important;flex:1 1 auto;width:100%!important;min-width:0!important;
+  max-width:none!important;min-height:40px!important;padding:9px 32px 9px 39px!important;
+  margin:0!important;border:0!important;border-radius:10px!important;background:transparent!important;
+  color:var(--cw-ink)!important;font-size:13px!important;box-shadow:none!important;outline:0!important;
+}
+.reg-page #filter-history-search::placeholder {color:var(--cw-muted)!important}
+.reg-history-search .reg-search-clear {position:absolute;right:6px;top:50%;transform:translateY(-50%);
+  width:29px;min-height:29px;display:grid;place-items:center;border:0;border-radius:7px;
+  background:transparent;color:var(--cw-muted);cursor:pointer;
+}
+.reg-history-search .reg-search-clear:hover {background:var(--cw-gray-soft)!important;color:var(--cw-ink)}
+.reg-history-search input:placeholder-shown+.reg-search-clear {display:none}
+.reg-page .reg-status-filter {display:block;min-width:0;max-width:none!important;margin:0}
+.reg-page #filter-status {display:block!important;width:100%!important;min-width:0!important;max-width:none!important;
+  min-height:43px!important;padding:8px 30px 8px 11px!important;
+  border:1px solid var(--cw-border-strong)!important;border-radius:10px!important;
+  background:var(--cw-surface)!important;color:var(--cw-ink)!important;font-size:12px!important;
+  box-shadow:none!important;outline:0!important;cursor:pointer;
+}
+.reg-page #filter-status:focus {border-color:var(--cw-blue)!important}
+.reg-page .history-filter .hf-more,.reg-page .history-filter .hf-clear {display:inline-flex!important;align-items:center;justify-content:center;
+  gap:7px;min-height:43px!important;padding:8px 11px!important;border:1px solid var(--cw-border)!important;
+  border-radius:10px!important;background:var(--cw-surface)!important;
+  color:var(--cw-secondary)!important;font-size:12px!important;font-weight:750!important;white-space:nowrap;
+}
+.reg-page .history-filter .hf-more[aria-expanded='true'] {background:var(--cw-blue-soft)!important;border-color:var(--cw-blue)!important;color:var(--cw-blue)!important}
+.reg-page .history-filter :is(.hf-more,.hf-clear):hover {border-color:var(--cw-border-strong)!important;background:var(--cw-muted-surface)!important}
+.reg-page .history-filter :is(.hf-more,.hf-clear) svg {width:16px;height:16px}
+.reg-advanced-filters {grid-column:1/-1;display:none!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;
+  padding:12px 0 2px;border-top:1px solid var(--cw-border);animation:cw-expand .17s var(--cw-ease) both;
+}
+.reg-page .history-filter.filters-expanded .reg-advanced-filters {display:grid!important}
+.reg-advanced-filters label {display:grid;gap:5px;min-width:0;color:var(--cw-secondary)!important;
+  font-size:11px!important;font-weight:780!important;text-transform:none!important;letter-spacing:0!important;
+}
+.reg-page .reg-advanced-filters input {display:block!important;width:100%!important;max-width:none!important;
+  min-width:0!important;min-height:40px!important;padding:8px 10px!important;
+  border:1px solid var(--cw-border-strong)!important;border-radius:9px!important;
+  background:var(--cw-surface)!important;color:var(--cw-ink)!important;
+  font-size:13px!important;box-shadow:none!important;
+}
+@keyframes cw-expand {from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+/* Pendências são informações importantes, não decoracao. */
+.reg-page .reg-integrity {border-bottom:1px solid var(--cw-border)!important;background:var(--cw-amber-soft)!important}
+.reg-page .reg-integrity-title {color:var(--cw-ink)!important}
+.reg-page .reg-integrity-item {border-radius:9px!important;background:var(--cw-surface)!important}
+.reg-page .reg-integrity-toggle {background:var(--cw-surface)!important;color:var(--cw-amber)!important}
+/* Histórico operável; produtor principal, produto secundário, status no cabeçalho. */
+.reg-page #session-list {display:grid;align-content:start;grid-template-columns:1fr!important;
+  padding:12px!important;gap:10px!important;background:var(--cw-muted-surface)!important;
+}
+.reg-page #session-list .session-section-header {margin:3px 0 0!important;padding:5px 4px!important;
+  color:var(--cw-secondary)!important;font-size:11px!important;font-weight:820!important;
+}
+.reg-page #session-list .mobile-card {border:1px solid var(--cw-border)!important;
+  border-left:3px solid var(--delivery-state)!important;border-radius:12px!important;
+  background:var(--cw-surface)!important;box-shadow:none!important;overflow:hidden;
+  transition:border-color .17s,transform .17s,box-shadow .17s;
+}
+.reg-page #session-list .mobile-card:hover {border-color:var(--cw-border-strong)!important;
+  box-shadow:0 4px 14px rgba(22,43,30,.05)!important;transform:translateY(-1px);
+}
+.reg-page #session-list .mobile-card.status-pending {--delivery-state:var(--cw-amber);--delivery-state-bg:var(--cw-amber-soft)}
+.reg-page #session-list .mobile-card.status-approved {--delivery-state:var(--cw-green);--delivery-state-bg:var(--cw-green-soft)}
+.reg-page #session-list .mobile-card.status-distributed {--delivery-state:var(--cw-blue);--delivery-state-bg:var(--cw-blue-soft)}
+.reg-page #session-list .mobile-card.status-rejected {--delivery-state:var(--cw-red);--delivery-state-bg:var(--cw-red-soft)}
+.reg-page #session-list .mobile-card.status-cancelled {--delivery-state:var(--cw-gray);--delivery-state-bg:var(--cw-gray-soft)}
+.reg-page #session-list .dc-head {display:grid;grid-template-columns:minmax(0,1fr) auto;
+  gap:11px;padding:12px 14px!important;align-items:start;
+  border-bottom:1px solid var(--cw-border)!important;background:var(--cw-surface)!important;
+}
+.reg-page #session-list .dc-main {display:flex;flex-direction:column;gap:7px;min-width:0}
+.reg-page #session-list .dc-context {display:flex;gap:8px;align-items:center;justify-content:space-between;
+  min-width:0;flex-wrap:wrap;order:0;
+}
+.reg-page #session-list .dc-primary-person {display:flex;align-items:center;gap:9px;min-width:0;
+  flex:1 1 170px;color:var(--cw-ink)!important;
+}
+.reg-person-avatar {width:34px;height:34px;min-width:34px;display:grid;place-items:center;
+  border-radius:10px;background:var(--cw-green-soft);color:var(--cw-green);
+  font-size:11px;font-weight:850;letter-spacing:-.03em;
+}
+.reg-page #session-list .dc-associate {display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;color:var(--cw-ink)!important;font-size:14px!important;font-weight:840!important;
+  letter-spacing:-.015em;
+}
+.reg-page #session-list .dc-context-item.date {display:inline-flex;align-items:center;gap:4px;
+  font-size:11px!important;color:var(--cw-secondary)!important;white-space:nowrap;
+}
+.reg-page #session-list .dc-context-item.date i {font-size:13px}
+.reg-page #session-list .dc-product-line {display:flex;align-items:center;gap:6px;min-width:0;order:1;
+  padding-left:43px;flex-wrap:wrap;
+}
+.reg-page #session-list .dc-product-line>.ph-duotone {flex:none;color:var(--cw-muted)!important;font-size:13px!important}
+.reg-page #session-list .dc-product {min-width:0;color:var(--cw-secondary)!important;
+  font-size:12px!important;font-weight:670!important;line-height:1.4;
+}
+.reg-page #session-list .dc-side {display:flex;min-width:78px;flex-direction:column;
+  gap:8px;align-items:flex-end;justify-content:flex-start;
+}
+.reg-page #session-list .dc-qty {color:var(--cw-ink)!important;font-size:16px!important;
+  font-weight:860!important;font-variant-numeric:tabular-nums;white-space:nowrap;
+}
+.reg-page #session-list .mc-state-icon {display:grid;place-items:center;min-width:27px;height:27px;
+  border:1px solid color-mix(in srgb,var(--delivery-state) 30%,var(--cw-border));
+  border-radius:8px;background:var(--delivery-state-bg)!important;color:var(--delivery-state)!important;
+}
+.reg-page #session-list .dc-body {padding:10px 13px 12px!important;gap:8px!important;
+  background:var(--cw-surface)!important;
+}
+.reg-page #session-list .dc-meter {padding:0!important;border:0!important;
+  background:transparent!important;box-shadow:none!important;
+}
+.reg-page #session-list .dc-meter-head {display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap}
+.reg-page #session-list .dc-meter-label {font-size:11px!important;font-weight:720!important;color:var(--cw-secondary)!important}
+.reg-page #session-list .dc-meter-value {font-size:11px!important;font-weight:780!important;color:var(--cw-ink)!important}
+.reg-page #session-list :is(.dc-track,.mc-dist-bar-bg) {height:6px!important;border-radius:20px!important;
+  background:var(--cw-border)!important;box-shadow:none!important;
+}
+.reg-page #session-list .dc-meter.dc-limit-meter .dc-track>span {background:var(--cw-green)!important}
+.reg-page #session-list .dc-meter.dc-limit-meter.amber .dc-track>span {background:var(--cw-amber)!important}
+.reg-page #session-list .dc-meter.dc-limit-meter.red .dc-track>span {background:var(--cw-red)!important}
+.reg-page #session-list .mc-dist-indicator {display:flex!important;min-height:26px;gap:8px;cursor:pointer}
+.reg-page #session-list .mc-dist-bar-fill.partial {background:var(--cw-blue)!important}
+.reg-page #session-list .mc-dist-bar-fill.full {background:var(--cw-green)!important}
+.reg-page #session-list .mc-dist-bar-fill.over {background:var(--cw-red)!important}
+.reg-page #session-list .mc-dist-text {min-width:32px;text-align:right;color:var(--cw-secondary)!important;
+  font-size:12px!important;font-weight:800!important;
+}
+.reg-page #session-list .mc-net {color:var(--cw-green)!important;font-size:12px!important}
+/* Controles de risco e de fluxo, sem uso de cores aleatórias. */
+.reg-page #session-list .mc-actions {display:flex!important;flex-wrap:wrap!important;
+  gap:6px!important;width:100%;align-items:center;justify-content:flex-end!important;
+  border-top:1px solid var(--cw-border)!important;padding:10px 0 0!important;margin:3px 0 0!important;
+}
+.reg-page #session-list .dc-action {display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  width:auto!important;min-width:42px!important;height:38px!important;min-height:38px!important;
+  gap:6px!important;padding:8px 10px!important;border:1px solid var(--cw-border)!important;
+  border-radius:9px!important;background:var(--cw-surface)!important;color:var(--cw-secondary)!important;
+  font-size:11px!important;font-weight:780!important;line-height:1.2!important;white-space:nowrap;
+  transition:border-color .15s,background .15s,transform .15s;
+}
+.reg-page #session-list .dc-action .ph-duotone {font-size:15px!important;line-height:1!important}
+.reg-page #session-list .dc-action:hover:not(:disabled) {transform:translateY(-1px)}
+.reg-page #session-list .dc-action.approve {border-color:color-mix(in srgb,var(--cw-green) 35%,var(--cw-border))!important;
+  background:var(--cw-green-soft)!important;color:var(--cw-green)!important;
+}
+.reg-page #session-list .dc-action.distribute {border-color:color-mix(in srgb,var(--cw-blue) 30%,var(--cw-border))!important;
+  background:var(--cw-blue-soft)!important;color:var(--cw-blue)!important;
+}
+.reg-page #session-list .dc-action.reject,
+.reg-page #session-list .dc-action.delete {border-color:color-mix(in srgb,var(--cw-red) 25%,var(--cw-border))!important;
+  background:var(--cw-red-soft)!important;color:var(--cw-red)!important;
+}
+.reg-page #session-list .dc-action.edit,.reg-page #session-list .dc-action.notes {
+  background:var(--cw-muted-surface)!important;color:var(--cw-secondary)!important;
+}
+.reg-page #session-list .dc-action-label {display:inline!important;font-size:11px!important;font-weight:770!important}
+.reg-page #session-list .mc-actions .dc-action.delete {margin-left:auto}
+/* Sessão recolhível de outros produtores */
+.reg-page #session-list .session-collapsible {border:1px solid var(--cw-border)!important;
+  border-radius:12px!important;background:var(--cw-surface)!important;
+}
+.reg-page #session-list .session-collapsible>summary {display:flex!important;align-items:center;
+  padding:11px 13px!important;min-height:48px!important;
+  border:0!important;background:var(--cw-surface)!important;color:var(--cw-ink)!important;
+}
+.reg-page #session-list .session-other-main strong {color:var(--cw-ink)!important;font-size:12px!important}
+.reg-page #session-list .session-other-main .ph-duotone {color:var(--cw-secondary)!important}
+.reg-page #session-list .session-other-cta {color:var(--cw-blue)!important;
+  border:1px solid var(--cw-border)!important;background:var(--cw-muted-surface)!important;border-radius:8px!important;
+}
+.reg-page .reg-session-table-wrap {background:var(--cw-surface)!important;overflow-x:auto}
+.reg-page .reg-session-table {color:var(--cw-ink)!important;font-size:12px!important}
+.reg-page .reg-session-table th {padding:12px 11px!important;background:var(--cw-muted-surface)!important;
+  color:var(--cw-secondary)!important;border-color:var(--cw-border)!important;font-size:11px!important;
+}
+.reg-page .reg-session-table td {padding:12px 11px!important;background:var(--cw-surface)!important;
+  color:var(--cw-ink)!important;border-color:var(--cw-border)!important;
+}
+.reg-page .reg-session-table tbody tr:hover td {background:var(--cw-muted-surface)!important}
+.reg-page .reg-session-associate {font-weight:840!important;color:var(--cw-ink)!important}
+.reg-page .reg-table-state {background:var(--cw-gray-soft)!important;color:var(--cw-secondary)!important}
+.reg-page .reg-session-table tr.status-pending .reg-table-state {background:var(--cw-amber-soft)!important;color:var(--cw-amber)!important}
+.reg-page .reg-session-table tr.status-approved .reg-table-state {background:var(--cw-green-soft)!important;color:var(--cw-green)!important}
+.reg-page .reg-session-table tr.status-distributed .reg-table-state {background:var(--cw-blue-soft)!important;color:var(--cw-blue)!important}
+.reg-page .reg-session-table tr.status-rejected .reg-table-state {background:var(--cw-red-soft)!important;color:var(--cw-red)!important}
+.reg-page .reg-session-table .reg-table-actions button {border-radius:8px!important}
+.reg-page .delivery-pagination {background:var(--cw-surface)!important;border-color:var(--cw-border)!important;
+  padding:12px 13px!important;gap:10px!important;
+}
+.reg-page .delivery-pagination-info {color:var(--cw-secondary)!important;font-size:12px!important}
+.reg-page .delivery-page-size,.reg-page .delivery-page-btn {min-height:38px!important;
+  border:1px solid var(--cw-border)!important;border-radius:9px!important;
+  background:var(--cw-surface)!important;color:var(--cw-ink)!important;font-size:12px!important;
+}
+.reg-page .session-empty {padding:32px 15px!important;color:var(--cw-muted)!important;font-size:13px!important}
+/* Modais: foco na leitura e scroll interno, página sempre bloqueada pelo JS original. */
+.modal-overlay,.dist-summary-overlay {background:rgba(9,18,15,.62)!important;backdrop-filter:blur(3px)}
+.modal-overlay.open,.dist-summary-overlay.open {animation:cw-backdrop .18s ease-out both}
+@keyframes cw-backdrop {from{opacity:0}to{opacity:1}}
+.modal-overlay.open .modal-box,.dist-summary-overlay.open .dist-summary-box {animation:cw-dialog-in .22s var(--cw-ease) both!important}
+@keyframes cw-dialog-in {from{opacity:.68;transform:translateY(12px) scale(.985)}to{opacity:1;transform:none}}
+.modal-overlay .modal-box,.dist-summary-overlay .dist-summary-box {min-width:0;
+  width:min(100%,560px);max-height:min(88dvh,800px)!important;
+  border:1px solid var(--cw-border)!important;border-radius:16px!important;
+  background:var(--cw-surface)!important;color:var(--cw-ink)!important;
+  box-shadow:0 20px 55px rgba(0,0,0,.18)!important;
+}
+.modal-overlay :is(.modal-header,.reg-calendar-head,.register-confirm-head,.reg-edit-footer,.quota-footer,.reg-calendar-footer,.product-substitution-footer),
+.dist-summary-overlay .dist-summary-head {padding:13px 16px!important;border-color:var(--cw-border)!important;
+  background:var(--cw-surface)!important;
+}
+.modal-overlay .modal-title,.modal-overlay .register-confirm-title,.dist-summary-overlay .dist-summary-title {
+  color:var(--cw-ink)!important;font-size:15px!important;font-weight:840!important;
+}
+.modal-overlay :is(.mi-sub,.reg-calendar-sub,.reg-sheet-subtitle,.register-confirm-msg),
+.dist-summary-overlay .dist-summary-sub {color:var(--cw-secondary)!important;font-size:12px!important}
+.modal-overlay .modal-close,.dist-summary-overlay .dist-summary-close {display:grid;place-items:center;
+  min-width:36px;width:36px;height:36px;border:1px solid var(--cw-border)!important;
+  border-radius:10px!important;background:var(--cw-muted-surface)!important;color:var(--cw-secondary)!important;
+}
+.modal-overlay .modal-close:hover,.dist-summary-overlay .dist-summary-close:hover {background:var(--cw-gray-soft)!important;color:var(--cw-ink)!important}
+.modal-overlay .modal-search-wrap {padding:12px 14px!important;background:var(--cw-surface)!important;border-color:var(--cw-border)!important}
+.modal-overlay :is(.modal-search,#calendar-manual-input,.reg-edit-body input,.reg-edit-body textarea,.quota-body input,.product-substitution-body input,.product-substitution-body select),
+.modal-overlay .reg-calendar-input-wrap {border-color:var(--cw-border-strong)!important;background:var(--cw-surface)!important;
+  color:var(--cw-ink)!important;border-radius:10px!important;box-shadow:none!important;
+}
+.modal-overlay :is(.modal-search,#calendar-manual-input,.reg-edit-body input,.reg-edit-body textarea):focus {border-color:var(--cw-blue)!important}
+.modal-overlay .modal-list,.modal-overlay .quota-body,.modal-overlay .reg-edit-body,
+.modal-overlay .reg-calendar-body,.modal-overlay .register-sheet-scroll,
+.dist-summary-overlay .dist-summary-body {min-height:0!important;overflow-y:auto!important;overscroll-behavior:contain!important;
+  background:var(--cw-surface)!important;
+}
+.modal-overlay .modal-item {border-color:var(--cw-border)!important;color:var(--cw-ink)!important;
+  min-height:56px!important;transition:background .13s;
+}
+.modal-overlay .modal-item:hover,.modal-overlay .modal-item.highlighted {background:var(--cw-muted-surface)!important}
+.modal-overlay .mi-name {color:var(--cw-ink)!important;font-size:14px!important;font-weight:780!important}
+.modal-overlay .mi-sub {color:var(--cw-secondary)!important;font-size:12px!important}
+.modal-overlay .mi-avatar {background:var(--cw-green-soft)!important;color:var(--cw-green)!important}
+.modal-overlay .mi-avatar.product,.modal-overlay .mi-avatar.project {background:var(--cw-gray-soft)!important;color:var(--cw-secondary)!important}
+.modal-overlay :is(.reg-calendar-month-card,.reg-calendar-selection,.reg-calendar-manual,.quota-metric,.product-substitution-target,.product-substitution-calculation,.product-substitution-equation),
+.dist-summary-overlay .dist-summary-row {border-color:var(--cw-border)!important;
+  background:var(--cw-muted-surface)!important;color:var(--cw-ink)!important;
+}
+.modal-overlay .reg-calendar-day {background:var(--cw-surface)!important;color:var(--cw-ink)!important}
+.modal-overlay .reg-calendar-day.selected {background:var(--cw-forest)!important;color:var(--cw-accent-ink)!important;border-color:var(--cw-forest)!important}
+.modal-overlay .reg-calendar-day.today:not(.selected) {border-color:var(--cw-green)!important;color:var(--cw-green)!important}
+.modal-overlay .reg-calendar-day.cursor:not(.selected),.modal-overlay .reg-calendar-day:hover:not(.selected) {border-color:var(--cw-blue)!important;background:var(--cw-blue-soft)!important;color:var(--cw-blue)!important}
+.modal-overlay .reg-calendar-weekdays {color:var(--cw-secondary)!important}
+.modal-overlay :is(.reg-sheet-action.primary,.product-modal-actions .btn-small.primary,.quota-footer .btn-small.primary,.register-confirm-btn.confirm,.reg-calendar-use-btn) {
+  border-color:var(--cw-forest)!important;background:var(--cw-forest)!important;color:var(--cw-accent-ink)!important;
+}
+.modal-overlay :is(.reg-sheet-action.secondary,.register-confirm-btn.cancel,.product-modal-actions .btn-small:not(.primary),.quota-footer .btn-small:not(.primary)) {
+  border:1px solid var(--cw-border)!important;background:var(--cw-muted-surface)!important;color:var(--cw-ink)!important;
+}
+.modal-overlay :is(.register-confirm-btn,.reg-sheet-action,.quota-footer .btn-small,.reg-calendar-today) {min-height:42px!important;border-radius:10px!important}
+.modal-overlay .register-confirm-btn.confirm.danger {background:var(--cw-red)!important;border-color:var(--cw-red)!important;color:#fff!important}
+.modal-overlay :is(.quota-metric,.quota-picker-item,.product-substitution-item,.product-substitution-notice) {
+  background:var(--cw-muted-surface)!important;border-color:var(--cw-border)!important;color:var(--cw-ink)!important;
+}
+.modal-overlay .product-substitution-result {background:var(--cw-green-soft)!important;color:var(--cw-green)!important}
+.modal-overlay .product-substitution-result.warning {background:var(--cw-amber-soft)!important;color:var(--cw-amber)!important}
+.modal-overlay .product-substitution-advanced-toggle {background:var(--cw-surface)!important;border-color:var(--cw-border)!important}
+.modal-overlay .reg-calendar-selection strong,.modal-overlay .product-substitution-target strong {color:var(--cw-ink)!important}
+.dist-summary-overlay .dist-summary-row strong {color:var(--cw-ink)!important}
+.dist-summary-overlay .dist-summary-row span {color:var(--cw-secondary)!important}
+#toast-root .toast {min-height:44px;max-width:100%;display:flex;align-items:center;justify-content:center;
+  padding:12px 15px!important;border-radius:11px!important;box-shadow:0 9px 28px rgba(0,0,0,.13)!important;
+  font-size:13px!important;font-weight:770!important;animation:cw-toast-in .22s var(--cw-ease) both;
+}
+#toast-root .toast.success {background:#1e6848!important;color:#fff!important}
+#toast-root .toast.error {background:#af423e!important;color:#fff!important}
+#toast-root .toast.info {background:#344957!important;color:#fff!important}
+@keyframes cw-toast-in {from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+.reg-page .scroll-top-btn {background:var(--cw-surface)!important;color:var(--cw-forest)!important}
+/* responsivo: no desktop o cadastro permanece ao alcance sem criar dois scrolls concorrentes. */
+@media(min-width:1120px) {
+  .reg-page .entry-card {position:sticky!important;top:92px!important;max-height:calc(100dvh - 105px);
+    overflow-y:auto!important;overscroll-behavior:contain;scrollbar-width:thin;
+  }
+  @container(min-width:890px) {
+    #session-list {grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  }
+}
+@media(max-width:1119px) {
+  .reg-page {grid-template-columns:1fr!important;max-width:100%!important}
+  .reg-page .entry-card,.reg-page .history-card {grid-column:1!important}
+  .reg-page .entry-card {grid-row:2!important}
+  .reg-page .history-card {grid-row:3!important}
+  .reg-page .entry-card {position:static!important;max-height:none!important;overflow:visible!important}
+}
+@media(max-width:820px) {
+  .reg-page .reg-context {display:grid;grid-template-columns:1fr;gap:7px;padding:12px!important}
+  .reg-page .project-bar {gap:9px;min-height:48px!important}
+  .reg-page .reg-context-kicker {font-size:9px}
+  .reg-page .history-filter {grid-template-columns:minmax(0,1fr) minmax(115px,160px) auto auto!important;gap:6px!important}
+  .reg-page .reg-advanced-filters {grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:560px) {
+  .reg-page {gap:10px!important;padding-bottom:calc(15px + env(safe-area-inset-bottom))!important}
+  .reg-page .reg-context {padding:11px!important;border-radius:12px!important}
+  .reg-page .project-bar-title {font-size:14px!important}
+  .reg-page .project-bar-sub {font-size:11px!important}
+  .reg-page .project-bar-btn {min-height:40px;padding:7px 10px!important}
+  .reg-page :is(.entry-card,.history-card) {border-radius:12px!important}
+  .reg-page .card-header {min-height:55px!important;padding:10px 12px!important}
+  .reg-page .reg-entry-title {gap:8px}
+  .reg-page .reg-entry-hint {flex:0 0 auto;width:calc(100% - 45px);min-width:0;margin:0 0 0 45px;font-size:10px!important;white-space:normal}
+  .reg-page .entry-card .card-body {padding:12px!important;gap:8px!important}
+  .reg-page .selector-row {min-height:61px!important;padding:9px 10px!important}
+  .reg-page .sel-icon {width:36px!important;height:36px!important}
+  .reg-page #entry-fields {padding:12px!important}
+  .reg-page .form-grid {grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:10px!important}
+  .reg-page #f-qty {font-size:20px!important}
+  .reg-page .reg-history-head-actions {gap:5px}
+  .reg-page #session-list-title {font-size:13px!important}
+  .reg-page #session-count {font-size:10px!important;padding:5px!important}
+  .reg-page .history-filter {grid-template-columns:minmax(0,1fr) 42px 42px!important;gap:7px!important;padding:10px!important}
+  .reg-page .reg-status-filter {grid-column:1/-1;grid-row:2}
+  .reg-page .history-filter .hf-more {grid-column:2;grid-row:1;min-width:42px;padding:8px!important}
+  .reg-page .history-filter .hf-clear {grid-column:3;grid-row:1;min-width:42px;padding:8px!important}
+  .reg-page .history-filter :is(.hf-more,.hf-clear) span {display:none!important}
+  .reg-page .history-filter .reg-advanced-filters {grid-column:1/-1}
+  .reg-page #session-list {padding:8px!important;gap:8px!important}
+  .reg-page #session-list .dc-head {padding:10px!important;gap:5px}
+  .reg-page #session-list .dc-body {padding:10px!important}
+  .reg-page #session-list .dc-product-line {padding-left:0}
+  .reg-page #session-list .dc-context-item.date {font-size:10px!important}
+  .reg-page #session-list .mc-actions {gap:5px!important;justify-content:flex-start!important}
+  .reg-page #session-list .dc-action {min-height:39px!important;padding:8px 9px!important}
+  .reg-page #session-list .mc-actions .dc-action.delete {margin-left:auto}
+  .modal-overlay {align-items:flex-end!important;padding:0!important}
+  .modal-overlay .modal-box {width:100%!important;max-width:none!important;
+    max-height:min(92dvh,calc(var(--reg-vv-height,100dvh) - 3px))!important;
+    border-radius:17px 17px 0 0!important;border-bottom:0!important;
+  }
+  .modal-overlay.open .modal-box {animation:cw-sheet-in .23s var(--cw-ease) both!important}
+  @keyframes cw-sheet-in {from{opacity:.72;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+  .dist-summary-overlay {align-items:flex-end!important;padding:0!important}
+  .dist-summary-overlay .dist-summary-box {width:100%!important;max-width:none!important;
+    max-height:90dvh!important;border-radius:17px 17px 0 0!important;
+  }
+  #toast-root {bottom:calc(78px + env(safe-area-inset-bottom))!important}
+}
+@media(max-width:370px) {
+  .reg-page .form-grid {grid-template-columns:1fr!important}
+  .reg-page .form-grid>div:nth-child(3) {grid-column:auto!important}
+  .reg-page #session-list .dc-context-item.date {flex:1 1 100%;margin-left:43px}
+  .reg-page #session-list .mc-actions .dc-action-label {display:none!important}
+  .reg-page #session-list .dc-action {width:40px!important;min-width:40px!important;padding:0!important}
+  .reg-page .reg-history-head-actions {flex-wrap:wrap;justify-content:flex-end}
+}
+@media(prefers-reduced-motion:reduce) {
+  .reg-page :is(.selector-row,.mobile-card,.btn-submit,.project-bar-btn,.reg-search-clear),
+  .modal-overlay.open,.dist-summary-overlay.open,
+  .modal-overlay.open .modal-box,.dist-summary-overlay.open .dist-summary-box,
+  #toast-root .toast,.reg-advanced-filters {animation:none!important;transition:none!important;transform:none!important}
+}
+.reg-page :is(#pb-btn, #pb-sub)[hidden] {display:none!important}
+.reg-page .reg-context {padding:6px 10px!important}
+.reg-page .project-bar {min-height:36px!important}
+.reg-page .project-bar-icon {width:30px!important;height:30px!important}
+.reg-page .project-bar-title {font-size:13px!important;white-space:normal;overflow-wrap:anywhere}
+.reg-page .project-bar-sub {font-size:11px!important}
+.reg-page .btn-submit:not(:disabled),
+.modal-overlay :is(.reg-sheet-action.primary,.product-modal-actions .btn-small.primary,.quota-footer .btn-small.primary,.reg-calendar-use-btn):not(:disabled),
+#dm-overlay #dm-save-btn:not(:disabled) {
+  background:var(--sgc-accent,#d9f172)!important;
+  border-color:var(--sgc-accent,#d9f172)!important;
+  color:var(--sgc-on-accent,#173c2e)!important;
+}
+:is(.modal-overlay,.dist-summary-overlay,#dm-overlay) :is(input:not([type=checkbox],[type=radio],[type=hidden],[type=file]),select,textarea) {
+  background:var(--cw-surface)!important;color:var(--cw-ink)!important;border-color:var(--cw-border-strong)!important;
+}
+:is(.modal-overlay,.dist-summary-overlay,#dm-overlay,#delivery-notes-overlay) :is(button,input,select,textarea):focus-visible {
+  outline:2px solid var(--cw-green);outline-offset:2px;
+}
+[data-theme='dark'] :is(.modal-overlay,.dist-summary-overlay,#dm-overlay,#delivery-notes-overlay) {color-scheme:dark}
+.reg-page .entry-card {
+  --entry-forest: #173c2e;
+  --entry-light: #f7faf3;
+  --entry-muted: #c7dacf;
+  --entry-lime: #d9f172;
+  grid-row:1!important;
+  overflow:hidden;
+  border-color:var(--cw-border)!important;
+}
+.reg-page .history-card {grid-row:1!important}
+@media(max-width:1119px) {
+  .reg-page .history-card {grid-row:2!important}
+}
+.reg-page .reg-entry-title {
+  gap:.65rem!important;
+  min-height:0!important;
+  padding:.8rem .9rem!important;
+  border-top:0!important;
+  border-bottom:0!important;
+  border-radius:inherit;
+  border-end-start-radius:0;
+  border-end-end-radius:0;
+  color:var(--entry-light)!important;
+  background:
+    radial-gradient(circle at 100% -85%, transparent 61%, #d9f1721c 61.3%, #d9f1720a 61.8%, transparent 75%),
+    radial-gradient(circle at 100% -85%, #ffffff07 68%, transparent 68.3%),
+    var(--entry-forest)!important;
+}
+.reg-entry-context {display:grid;gap:.15rem;min-width:0}
+.reg-page .reg-entry-context > strong {color:var(--entry-light)!important;font-size:1rem}
+.reg-entry-project {display:flex;flex-wrap:wrap;gap:.15rem .45rem;color:var(--entry-muted);font-size:.76rem;line-height:1.3;overflow-wrap:anywhere}
+.reg-entry-project #pb-sub {padding-inline-start:.45rem;border-inline-start:1px solid #c7dacf55}
+.reg-page .reg-entry-title .reg-section-icon {
+  width:36px!important;height:36px!important;
+  color:var(--entry-lime)!important;background:#d9f1721a!important;border-color:#d9f17236!important;
+}
+.reg-page .reg-entry-title .reg-section-icon i {color:inherit!important}
+.reg-page .reg-entry-title .project-bar-btn {color:var(--entry-forest)!important;background:var(--entry-lime)!important}
+.reg-page .reg-entry-title .project-bar-btn:focus-visible {outline:2px solid var(--entry-light);outline-offset:2px}
+.reg-page .entry-card > .card-body {background:var(--cw-surface)!important}
+.reg-page .entry-card .selector-row {min-height:52px!important;padding-block:.35rem!important}
+#modal-date .reg-calendar-body {padding:.65rem!important;gap:.55rem!important}
+#modal-date .reg-calendar-month-card {padding:.45rem!important}
+#modal-date .reg-calendar-grid {gap:3px!important}
+#modal-date .reg-calendar-day {min-width:0!important;min-height:38px!important;height:clamp(38px,8vw,46px)!important;aspect-ratio:auto!important;border-radius:8px!important}
+#modal-date .reg-calendar-day.outside {background:transparent!important;border-color:transparent!important}
+#modal-date .reg-calendar-day.selected {background:var(--sgc-accent,#d9f172)!important;color:var(--sgc-on-accent,#173c2e)!important;border-color:transparent!important}
+#modal-date .reg-calendar-day.today::after {background:currentColor!important}
+#modal-date .reg-calendar-nav strong {text-transform:none!important}
+#modal-date .reg-calendar-manual {padding:.35rem!important}
+#modal-date .reg-calendar-input-wrap {padding:.25rem!important}
+#modal-date #calendar-manual-input {font-size:1rem!important}
+#modal-date .reg-calendar-footer {padding:.45rem .65rem calc(.45rem + env(safe-area-inset-bottom))!important}
+#modal-product .product-modal-actions {display:flex!important;gap:.45rem!important;padding:.45rem .7rem!important}
+#modal-product #refresh-products-btn {width:auto!important;font-size:.75rem!important;padding-inline:.65rem!important}
+#modal-product #add-product-limit-btn {font-size:.75rem!important}
+#modal-product #add-product-limit-btn:disabled {background:var(--cw-muted-surface)!important;color:var(--cw-secondary)!important;opacity:1!important}
+#modal-product .product-limit-item {display:grid!important;grid-template-columns:minmax(0,1fr) auto 44px;align-items:center!important;gap:.45rem!important;padding:.6rem .75rem!important}
+#modal-product .product-limit-item .mi-info {min-width:0!important}
+#modal-product .product-limit-item .mi-badge {grid-column:2;grid-row:1;margin:0!important;white-space:normal;text-align:center}
+#modal-product .product-limit-item .mi-quota-edit {grid-column:3;grid-row:1;margin:0!important;width:44px!important;height:44px!important;color:var(--cw-green)!important}
+#register-confirm-ok:not(.danger) {background:var(--sgc-accent,#d9f172)!important;color:var(--sgc-on-accent,#173c2e)!important}
+#register-confirm-ok.danger {background:var(--cw-red-soft)!important;border-color:var(--cw-red)!important;color:var(--cw-red)!important}
+#dm-overlay .dm-head {background:var(--cw-surface)!important}
+#dm-overlay .dm-title-icon {background:var(--cw-green-soft)!important;color:var(--cw-green)!important}
+#dm-overlay :is(.dm-head,.dm-progress-wrap,.dm-body,.dm-foot) {padding-inline:clamp(.65rem,3vw,1.1rem)!important}
+#dm-overlay :is(#dm-existing-section,#dm-new-section) {border-radius:12px!important;background:var(--cw-surface)!important}
+#dm-overlay :is(.dm-row,.dm-existing-row) {background:var(--cw-muted-surface)!important;border-color:var(--cw-border)!important}
+#dm-overlay .dm-foot .btn-ghost::before {display:none!important}
+#dm-overlay .dm-add-btn.primary {background:var(--cw-green-soft)!important;color:var(--cw-green)!important;border-color:var(--cw-border)!important}
+#dm-overlay .dm-foot #dm-save-btn:disabled {background:var(--cw-muted-surface)!important;color:var(--cw-secondary)!important}
+#dm-overlay .dm-allocation-empty {margin:0;padding:.65rem .75rem;color:var(--cw-secondary);font-size:.8rem}
+.reg-page :is(.dc-action,.reg-refresh-btn), #dm-overlay :is(.dm-existing-actions button,.dm-add-btn) {transition:background-color .15s,border-color .15s,transform .15s}
+.reg-page :is(.dc-action,.reg-refresh-btn):active, #dm-overlay :is(.dm-existing-actions button,.dm-add-btn):active {transform:scale(.96)}
+.reg-page .dc-action i, #dm-overlay .dm-existing-actions button i {font-size:1rem;line-height:1}
+.reg-page .dc-action:focus-visible {outline:2px solid var(--cw-green);outline-offset:2px}
+.reg-page #session-list .dc-main {min-width:0}
+.reg-page #session-list .dc-primary-person {min-width:0;max-width:100%}
+.reg-page #session-list .dc-associate {min-width:0;white-space:normal;overflow-wrap:anywhere}
+.reg-page #session-list .dc-context-item.date {margin-inline-start:0}
+.reg-page #session-list .dc-side {min-width:0}
+.reg-page #session-list .dc-qty {white-space:normal;text-align:end;overflow-wrap:anywhere}
+.reg-page #session-list .dc-meter-head {flex-wrap:wrap;gap:.25rem .55rem}
+.reg-page #session-list .mc-actions {
+  display:grid!important;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:.35rem!important;
+}
+.reg-page #session-list .mc-actions .dc-action {
+  display:grid!important;justify-items:center;align-content:center;gap:.22rem;
+  width:100%!important;min-width:0!important;min-height:44px!important;
+  margin:0!important;padding:.3rem!important;text-align:center;
+}
+.reg-page #session-list .mc-actions .dc-action-label {
+  display:none!important;
+}
+@media(max-width:650px) {
+  .reg-page #session-list .dc-context-item.date {flex:0 0 100%}
+  .reg-page #session-list .dc-product-line {padding-inline-start:0}
+}
+@media(prefers-reduced-motion:reduce) {
+  .reg-page :is(.dc-action,.reg-refresh-btn), #dm-overlay :is(.dm-existing-actions button,.dm-add-btn) {transition:none;transform:none!important}
+}
+@media(max-width:360px) {
+  #modal-product .product-limit-item {grid-template-columns:minmax(0,1fr) 44px}
+  #modal-product .product-limit-item .mi-badge {grid-column:1;grid-row:2;justify-self:start}
+  #modal-product .product-limit-item .mi-quota-edit {grid-column:2}
 }
 </style>
 
@@ -5728,6 +6487,14 @@ const REGISTER_SHEET_STATE_KEY = '__sgcRegisterSheet';
 let registerCurrentSheet = null;
 let registerHandlingPopState = false;
 const registerSheetRegistry = new Map();
+const registerPreviousScrollRestoration = history.scrollRestoration;
+history.scrollRestoration = 'manual';
+window.addEventListener('pagehide', () => {
+    history.scrollRestoration = registerPreviousScrollRestoration;
+});
+window.addEventListener('pageshow', event => {
+    if (event.persisted) history.scrollRestoration = 'manual';
+});
 
 function isCompactDevice() {
     return window.matchMedia('(max-width: 767px)').matches;
@@ -5897,7 +6664,7 @@ function getRegisterOpenSheets() {
     return Array.from(document.querySelectorAll([
         '.modal-overlay.open',
         '.dist-summary-overlay.open',
-        '#dm-overlay.open',
+        '#dm-overlay.dm-open',
         '#delivery-notes-overlay.open',
     ].join(',')));
 }
@@ -5966,10 +6733,11 @@ function unlockRegisterPageScroll() {
     document.body.style.right = '';
     document.body.style.width = '';
 
-    window.scrollTo(0, registerLockedScrollY);
+    window.scrollTo({top: registerLockedScrollY, behavior: 'instant'});
 }
 
 function syncRegisterSheetEnvironment() {
+    if (registerHandlingPopState) return;
     const hasOpen = getRegisterOpenSheets().length > 0;
 
     if (hasOpen) {
@@ -5982,7 +6750,7 @@ function syncRegisterSheetEnvironment() {
 
 function registerFindScrollableElement(target) {
     const openSheet = target?.closest?.(
-        '.modal-overlay.open, .dist-summary-overlay.open, #dm-overlay.open, #delivery-notes-overlay.open'
+        '.modal-overlay.open, .dist-summary-overlay.open, #dm-overlay.dm-open, #delivery-notes-overlay.open'
     );
 
     if (!openSheet) return null;
@@ -6426,23 +7194,17 @@ function renderCalendar() {
 
     label.textContent = calendarMonthLabel();
 
-    const selectedLabel = $('calendar-selected-label');
-    if (selectedLabel) {
-        selectedLabel.textContent = REGISTER_CALENDAR.selectedIso
-            ? isoToBr(REGISTER_CALENDAR.selectedIso)
-            : 'Nenhuma data';
-    }
-
     const year = REGISTER_CALENDAR.viewYear;
     const month = REGISTER_CALENDAR.viewMonth;
     const first = new Date(year, month, 1, 12);
     const daysInMonth = new Date(year, month + 1, 0, 12).getDate();
-    const mondayOffset = (first.getDay() + 6) % 7;
-    const todayIso = new Date().toISOString().slice(0, 10);
+    const weekOffset = first.getDay();
+    const now = new Date();
+    const todayIso = isoFromDateParts(now.getFullYear(), now.getMonth() + 1, now.getDate());
 
     const cells = [];
 
-    for (let i = 0; i < mondayOffset; i++) {
+    for (let i = 0; i < weekOffset; i++) {
         cells.push('<span class="reg-calendar-day outside" aria-hidden="true"></span>');
     }
 
@@ -7007,7 +7769,9 @@ function applyProject(proj) {
         defaultCustomerId: proj.default_customer_id || proj.defaultCustomerId || null,
     };
     $('pb-title').textContent = proj.title;
-    $('pb-sub').textContent   = proj.customer_name;
+    $('pb-sub').textContent = S.project.customerIds.length === 1 ? (proj.customer_name || '') : '';
+    $('pb-sub').hidden = !$('pb-sub').textContent;
+    $('pb-btn').hidden = true;
     $('sel-product').classList.remove('disabled');
     if (S.loadingProjectId !== proj.id) {
         S.demands = [];
@@ -7020,7 +7784,7 @@ function applyProject(proj) {
 
 async function loadProjectDeliveries(projectId, force = false) {
     if (S.loadingDeliveries) {
-        if (force) S.deliveryReloadPending = projectId;
+        if (force || String(S.project?.id) === String(projectId)) S.deliveryReloadPending = projectId;
         return;
     }
     S.loadingDeliveries = true;
@@ -7036,23 +7800,33 @@ async function loadProjectDeliveries(projectId, force = false) {
             }
         });
         if (!res.ok) throw new Error('Erro ' + res.status);
-        S.items = (await res.json()).map(item => ({
+        const items = await res.json();
+        if (String(S.project?.id) !== String(projectId)) return;
+        S.items = items.map(item => ({
             ...item,
             customerIds: item.customerIds || S.project?.customerIds || [],
             defaultCustomerId: item.defaultCustomerId || S.project?.defaultCustomerId || null,
         }));
+        S.deliveriesSyncedAt = Date.now();
     } catch (e) {
         toast('Erro ao carregar histórico: ' + e.message, 'error');
-        S.items = [];
     } finally {
         S.loadingDeliveries = false;
-        S.deliveriesSyncedAt = Date.now();
-        renderSessionItems();
-        loadRegisterIntegrity(projectId);
+        if (String(S.project?.id) === String(projectId)) {
+            renderSessionItems();
+            loadRegisterIntegrity(projectId);
+        }
         const pendingProjectId = S.deliveryReloadPending;
         S.deliveryReloadPending = null;
         if (pendingProjectId) loadProjectDeliveries(pendingProjectId, true);
     }
+}
+
+async function refreshRegisterHistory(button) {
+    if (!S.project?.id || S.loadingDeliveries || button?.disabled) return;
+    if (button) { button.disabled = true; button.classList.add('is-loading'); }
+    try { await loadProjectDeliveries(S.project.id, true); }
+    finally { if (button) { button.disabled = false; button.classList.remove('is-loading'); } }
 }
 
 function toggleRegisterIntegrity() {
@@ -7110,7 +7884,9 @@ async function loadRegisterIntegrity(projectId) {
     try {
         const res = await fetch(ROUTES.integrity(projectId), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
         const data = await res.json();
-        if (data.success) renderRegisterIntegrity(data.integrity);
+        if (data.success && String(S.project?.id) === String(projectId)) {
+            preserveRegisterHistoryPosition(() => renderRegisterIntegrity(data.integrity));
+        }
     } catch (error) {
         // The delivery history remains usable if the advisory feed is temporarily unavailable.
     }
@@ -7605,24 +8381,11 @@ function selectAssociate(assoc) {
     S.dateConfirmed = false;
     $('sel-assoc').classList.add('selected');
     $('assoc-value').textContent = assoc.nickname || assoc.name;
-    $('associate-simulator-btn').hidden = false;
     closeModal('assoc');
     checkFormReady();
     renderSessionItems();
     syncKeyboardStage();
     if (S.project) loadDemands(S.project.id, assoc.id);
-}
-
-function openAssociateSimulator() {
-    if (!S.project || !S.associate) {
-        toast('Selecione um projeto e um membro primeiro.', 'warning');
-        return;
-    }
-
-    window.location.assign(
-        '/' + TENANT + '/delivery/projects/' + S.project.id
-        + '/associates/' + S.associate.id + '/simulate'
-    );
 }
 
 /* ─── Product ────────────────────────────────────── */
@@ -8209,13 +8972,27 @@ function checkFormReady() {
 
     if ($('btn-submit')) {
         $('btn-submit').disabled = !(hasProject && hasAssoc && hasProd && hasQty) || S.submitting;
+        $('btn-submit').setAttribute('aria-busy', S.submitting ? 'true' : 'false');
+    }
+    document.querySelector('.entry-card')?.classList.toggle('reg-is-saving', S.submitting);
+    const hint = $('reg-entry-hint');
+    if (hint) {
+        hint.textContent = S.submitting ? 'Registrando…'
+            : !hasProject ? 'Selecione um projeto'
+            : !hasAssoc ? 'Selecione um associado'
+            : !hasProd ? 'Escolha o produto'
+            : !hasQty ? 'Informe a quantidade'
+            : 'Pronto para registrar';
+        hint.classList.toggle('ready', hasProject && hasAssoc && hasProd && hasQty && !S.submitting);
     }
 
     const selProd = $('sel-product');
     if (hasProject) {
         selProd.classList.remove('disabled');
+        selProd.setAttribute('aria-disabled', 'false');
     } else {
         selProd.classList.add('disabled');
+        selProd.setAttribute('aria-disabled', 'true');
     }
 }
 
@@ -8280,6 +9057,10 @@ async function submitEntry() {
 
         if (data.success) {
             toast('Entrega registrada!', 'success');
+            const entryCard = document.querySelector('.entry-card');
+            entryCard?.classList.remove('reg-saved');
+            if (entryCard) { void entryCard.offsetWidth; entryCard.classList.add('reg-saved'); }
+            window.setTimeout(() => entryCard?.classList.remove('reg-saved'), 850);
             addSessionItem({
                 id           : data.delivery.id,
                 projectId    : S.project.id,
@@ -8381,6 +9162,48 @@ function addSessionItem(item) {
 }
 
 function renderSessionItems() {
+    preserveRegisterHistoryPosition(drawSessionItems);
+}
+
+function preserveRegisterHistoryPosition(update) {
+    const list = $('session-list');
+    const table = $('session-table-wrap');
+    const visibleRows = () => [...document.querySelectorAll('[data-history-delivery]')].filter(row => row.getClientRects().length);
+    const rows = visibleRows();
+    const viewportTop = document.querySelector('.app-header')?.getBoundingClientRect().bottom || 0;
+    const index = rows.findIndex(row => {
+        const rect = row.getBoundingClientRect();
+        return rect.bottom > viewportTop && rect.top < window.innerHeight;
+    });
+    const focusedRow = document.activeElement?.closest('[data-history-delivery]');
+    const focusedRect = focusedRow?.getBoundingClientRect();
+    const activeRow = focusedRect && focusedRect.bottom > viewportTop && focusedRect.top < window.innerHeight
+        ? focusedRow : null;
+    const candidates = index < 0 ? [] : [activeRow, rows[index], rows[index + 1], rows[index - 1]].filter(Boolean);
+    const positions = candidates.map(row => [row.dataset.historyDelivery, row.getBoundingClientRect().top]);
+    const openGroups = new Set([...list.querySelectorAll('.session-collapsible[open]')].map(group => group.dataset.historyGroup));
+    const horizontal = table?.scrollLeft || 0;
+    const scrollY = registerBodyLockActive ? registerLockedScrollY : window.scrollY;
+
+    update();
+
+    list.querySelectorAll('.session-collapsible').forEach(group => {
+        group.open = openGroups.has(group.dataset.historyGroup);
+    });
+    if (table) table.scrollLeft = horizontal;
+    const updatedRows = new Map(visibleRows().map(row => [row.dataset.historyDelivery, row]));
+    const anchor = positions.find(([id]) => updatedRows.has(id));
+    const delta = anchor ? updatedRows.get(anchor[0]).getBoundingClientRect().top - anchor[1] : 0;
+    const target = Math.max(0, (anchor && !registerBodyLockActive ? window.scrollY : scrollY) + delta);
+    if (registerBodyLockActive) {
+        registerLockedScrollY = target;
+        document.body.style.top = `-${target}px`;
+    } else {
+        window.scrollTo({top: target, behavior: 'instant'});
+    }
+}
+
+function drawSessionItems() {
     const list  = $('session-list');
     const count = $('session-count');
     const empty = $('session-empty');
@@ -8539,6 +9362,7 @@ function renderSessionItems() {
         return `
             <tr
                 class="status-${visualClass}"
+                data-history-delivery="${item.id}"
                 data-delivery-id="${item.id}"
                 data-total-qty="${totalQty}"
                 data-unit="${escAttr(item.productUnit || '')}"
@@ -8609,8 +9433,8 @@ function renderSessionItems() {
 
         const actionsHtml = buildActionsHtml(item);
 
-        return `<article class="mobile-card delivery-card-v2 status-${visualClass}" id="row-${item.id}" data-total-qty="${totalQty}" data-unit="${escAttr(item.productUnit || '')}" data-product="${escAttr(item.productName)}" data-distributions="${distJson}" data-distributed="${distQty}">
-            <div class="dc-head mc-head"><div class="dc-main"><div class="dc-product-line"><strong class="dc-product mc-head-product" title="${escAttr(item.productName)}">${escHtml(item.productName)}</strong>${statusTag}${billedTag}</div><div class="dc-context"><span class="dc-context-item"><i class="ph-duotone ph-user"></i><span class="dc-associate mc-associate" title="${escAttr(item.associateName)}">${escHtml(item.associateName)}</span></span><span class="dc-context-item date"><i class="ph-duotone ph-calendar-dots"></i>${dateStr}</span></div></div><div class="dc-side"><strong class="dc-qty mc-head-qty">${fmtQty(totalQty,item.productUnit)}</strong><span class="mc-state-icon" title="${escAttr(stateLabel)}">${stateIcon}</span></div></div>
+        return `<article class="mobile-card delivery-card-v2 status-${visualClass}" id="row-${item.id}" data-history-delivery="${item.id}" data-total-qty="${totalQty}" data-unit="${escAttr(item.productUnit || '')}" data-product="${escAttr(item.productName)}" data-distributions="${distJson}" data-distributed="${distQty}">
+            <div class="dc-head mc-head"><div class="dc-main"><div class="dc-context"><span class="dc-context-item dc-primary-person"><span class="reg-person-avatar" aria-hidden="true">${escHtml(initials(item.associateName))}</span><strong class="dc-associate mc-associate" title="${escAttr(item.associateName)}">${escHtml(item.associateName)}</strong></span><span class="dc-context-item date"><i class="ph-duotone ph-calendar-dots"></i>${dateStr}</span></div><div class="dc-product-line"><i class="ph-duotone ph-package" aria-hidden="true"></i><strong class="dc-product mc-head-product" title="${escAttr(item.productName)}">${escHtml(item.productName)}</strong>${statusTag}${billedTag}</div></div><div class="dc-side"><strong class="dc-qty mc-head-qty">${fmtQty(totalQty,item.productUnit)}</strong><span class="mc-state-icon" title="${escAttr(stateLabel)}" role="img" aria-label="${escAttr(stateLabel)}">${stateIcon}</span></div></div>
             <div class="dc-body mc-body">${limit.associate_limit == null ? '' : `<div class="dc-meter dc-limit-meter ${limitPct >= 100 ? 'red' : limitPct >= 80 ? 'amber' : 'green'}"><div class="dc-meter-head"><span class="dc-meter-label"><i class="ph-duotone ph-gauge"></i>Cota</span><strong class="dc-meter-value">${fmtQty(limit.associate_remaining,item.productUnit)} livres</strong></div><div class="dc-track"><span style="width:${limitPct}%"></span></div></div>`}<div class="dc-meter dc-distribution"><div class="dc-meter-head"><span class="dc-meter-label"><i class="ph-duotone ph-git-merge"></i>Distribuição</span><strong class="dc-meter-value">${overDist ? 'Excedeu ' + fmtQty(distQty-totalQty,item.productUnit) : distPercent >= 100 ? 'Concluída' : fmtQty(totalQty-distQty,item.productUnit) + ' restantes'}</strong></div><div class="mc-dist-indicator" role="button" tabindex="0" data-summary="1"><div class="mc-dist-bar-bg"><div class="mc-dist-bar-fill ${overDist ? 'over' : distPercent >= 100 ? 'full' : 'partial'}" style="width:${displayPercent}%"></div></div><span class="mc-dist-text">${overDist ? '!' : distPercent + '%'}</span></div></div>${netValue > 0 ? `<strong class="mc-net">${money(netValue)}</strong>` : ''}<div class="dc-actions mc-actions">${actionsHtml}</div></div></article>`;
     }
 
@@ -8624,6 +9448,7 @@ function renderSessionItems() {
     function buildCollapsibleSection(label, items) {
         const section = document.createElement('details');
         section.className = 'session-collapsible';
+        section.dataset.historyGroup = `${projectId}:${S.associate?.id ?? ''}:${label}`;
         const summary = document.createElement('summary');
         summary.innerHTML = `
             <span class="session-other-main">
@@ -9136,7 +9961,6 @@ $('edit-qty')?.addEventListener('input', updateRegisterEditFeedback);
 $('edit-notes')?.addEventListener('input', updateRegisterEditFeedback);
 
 /* ─── Distribute modal ───────────────────────────── */
-let distRegId = null;
 
 let registerNativeDistModalOpen = null;
 let registerNativeDistModalClose = null;
@@ -9158,22 +9982,16 @@ function openDistributionDirect(config, fromHistory = false) {
         body?.setAttribute('inert', '');
     }
 
-    const result = registerNativeDistModalOpen(config);
+    lockRegisterPageScroll();
+    try {
+        return registerNativeDistModalOpen(config);
+    } finally {
+        syncRegisterSheetEnvironment();
 
-    if (isCompactDevice()) {
-        window.setTimeout(() => {
-            body?.removeAttribute('inert');
-
-            const active = document.activeElement;
-            const overlay = document.getElementById('dm-overlay');
-
-            if (active && overlay?.contains(active)) {
-                active.blur?.();
-            }
-        }, 150);
+        if (isCompactDevice()) {
+            window.setTimeout(() => body?.removeAttribute('inert'), 150);
+        }
     }
-
-    return result;
 }
 
 function installDistModalHistoryBridge() {
@@ -9220,7 +10038,6 @@ function openDistributeModal(id) {
     const item = S.items.find(i => i.id === id);
     if (!item) return;
     if (item.status !== 'approved') { toast('Aprove a entrega antes de distribuir.', 'info'); return; }
-    distRegId = id;
 
     DistModal.open({
         id:          id,
@@ -9233,6 +10050,8 @@ function openDistributeModal(id) {
             customer_id: d.customer_id || d.customerId || null,
             customer: d.customer,
             qty: d.qty,
+            unit_price: d.unit_price,
+            price_inconsistent: d.price_inconsistent,
             net: d.net || 0,
             billed: !!d.billed,
             paid: !!d.paid,
@@ -9251,14 +10070,9 @@ function openDistributeModal(id) {
     });
 }
 
-window._DistModalReload = function(data) {
-    if (!distRegId || !S.project) { location.reload(); return; }
-    distRegId = null;
-    loadProjectDeliveries(S.project.id).then(() => {
-        toast('Distribuição salva!', 'success');
-    }).catch(() => {
-        toast('Distribuição salva!', 'success');
-    });
+window._DistModalReload = async function() {
+    if (S.project) await loadProjectDeliveries(S.project.id, true);
+    toast('Distribuição salva!', 'success');
 };
 
 /* ─── Modals ─────────────────────────────────────── */
@@ -9478,10 +10292,9 @@ function renderProductList(list, search) {
         const badgeText  = hasLimit ? (completed ? 'Limite atingido' : 'Saldo: ' + fmtQty(remaining, d.product_unit)) : 'Sem limite';
 
         return '<div class="modal-item product-limit-item' + (S.product?.product_id === d.product_id ? ' highlighted' : '') + (completed ? ' disabled' : '') + '" data-idx="' + i + '" data-disabled="' + (completed ? '1' : '0') + '">' +
-            '<div class="mi-avatar product">' + initials(d.product_name) + '</div>' +
             '<div class="mi-info">' +
                 '<div class="mi-name">' + escHtml(d.product_name) + '</div>' +
-                (hasLimit ? '<div class="mi-limit-summary"><span>Limite efetivo <strong>' + fmtQty(baseLimit, d.product_unit) + '</strong></span><span>Entregue <strong>' + fmtQty(delivered, d.product_unit) + '</strong></span><span>Disponivel <strong>' + fmtQty(remaining, d.product_unit) + '</strong></span></div>' : '<div class="mi-sub">Produto sem limite de quantidade</div>') +
+                (hasLimit ? '<div class="mi-limit-summary"><span>Limite efetivo <strong>' + fmtQty(baseLimit, d.product_unit) + '</strong></span><span>Entregue <strong>' + fmtQty(delivered, d.product_unit) + '</strong></span></div>' : '<div class="mi-sub">Produto sem limite de quantidade</div>') +
                 (hasLimit ? '<div class="mi-limit-track" role="progressbar" aria-label="Quantidade entregue de ' + escHtml(d.product_name) + '" aria-valuemin="0" aria-valuemax="' + baseLimit + '" aria-valuenow="' + delivered + '"><span class="mi-limit-used" style="width:' + percent + '%" title="Entregue: ' + fmtQty(delivered, d.product_unit) + '"></span><span class="mi-limit-free" style="width:' + Math.max(0, 100 - percent) + '%" title="Disponivel: ' + fmtQty(remaining, d.product_unit) + '"></span></div>' : '') +
             '</div>' +
             '<button class="mi-quota-edit" type="button" data-edit-quota="' + Number(d.product_id) + '" title="' + (d.associate_limit != null ? 'Editar limite do associado' : 'Definir limite do associado') + '" aria-label="' + (d.associate_limit != null ? 'Editar limite do associado' : 'Definir limite do associado') + '">' +
@@ -9572,8 +10385,14 @@ document.addEventListener('keydown', e => {
 
     if (hasOpenModal() || $('dist-summary-overlay')?.classList.contains('open')) return;
 
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        $('filter-history-search')?.focus();
+        return;
+    }
+
     if (e.key === 'Enter') {
-        if (isInteractiveControl(e.target)) return;
+        if (isTypingField(e.target) || isInteractiveControl(e.target)) return;
         e.preventDefault();
         submitEntry();
         return;
@@ -9689,6 +10508,7 @@ window.calendarUseToday      = calendarUseToday;
 window.applyManualCalendarDate = applyManualCalendarDate;
 window.setHistoryView        = setHistoryView;
 window.renderSessionItems   = renderSessionItems;
+window.refreshRegisterHistory = refreshRegisterHistory;
 window.clearFilter          = clearFilter;
 window.toggleHistoryFilters = toggleHistoryFilters;
 window.onDateChange         = onDateChange;

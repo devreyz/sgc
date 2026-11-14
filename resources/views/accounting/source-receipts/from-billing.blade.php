@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', 'Comprovantes dos membros · '.$billing->formatted_number)
 @section('page-title', 'Comprovantes dos membros')

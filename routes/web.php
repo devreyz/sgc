@@ -504,6 +504,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/expenses/documents/{document}', [ServiceProviderPortalController::class, 'expenseDocument'])->whereNumber('document')->name('management.expenses.documents.show');
         Route::get('/orders/{order}', [ServiceManagementController::class, 'show'])->whereNumber('order')->name('management.show');
         Route::get('/orders/{order}/execute', [ServiceManagementController::class, 'execute'])->whereNumber('order')->name('management.execute');
+        Route::post('/orders/{order}/execute/preview', [ServiceManagementController::class, 'previewExecution'])->middleware('throttle:60,1')->whereNumber('order')->name('management.execute.preview');
         Route::post('/orders/{order}/execute/start', [ServiceManagementController::class, 'startExecution'])->middleware('throttle:20,1')->whereNumber('order')->name('management.execute.start');
         Route::put('/orders/{order}/execute/draft', [ServiceManagementController::class, 'draftExecution'])->middleware('throttle:60,1')->whereNumber('order')->name('management.execute.draft');
         Route::post('/orders/{order}/execute/submit', [ServiceManagementController::class, 'submitExecution'])->middleware('throttle:20,1')->whereNumber('order')->name('management.execute.submit');
@@ -531,6 +532,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::delete('/catalog/{service}', [ServiceCatalogController::class, 'remove'])->middleware('throttle:10,1')->whereNumber('service')->name('catalog.remove');
         Route::get('/catalog/versions/{version}', [ServiceCatalogController::class, 'show'])->whereNumber('version')->name('catalog.show');
         Route::put('/catalog/versions/{version}', [ServiceCatalogController::class, 'update'])->middleware('throttle:20,1')->whereNumber('version')->name('catalog.update');
+        Route::patch('/catalog/versions/{version}/prices', [ServiceCatalogController::class, 'updatePrices'])->middleware('throttle:20,1')->whereNumber('version')->name('catalog.prices.update');
         Route::post('/catalog/versions/{version}/fields', [ServiceCatalogController::class, 'field'])->middleware('throttle:30,1')->whereNumber('version')->name('catalog.fields.store');
         Route::put('/catalog/versions/{version}/fields/{field}', [ServiceCatalogController::class, 'updateField'])->middleware('throttle:30,1')->whereNumber(['version', 'field'])->name('catalog.fields.update');
         Route::delete('/catalog/versions/{version}/fields/{field}', [ServiceCatalogController::class, 'deleteField'])->middleware('throttle:20,1')->whereNumber(['version', 'field'])->name('catalog.fields.delete');
@@ -555,6 +557,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::post('/orders/{order}/start', [ServiceProviderPortalController::class, 'start'])->middleware('throttle:20,1')->whereNumber('order')->name('orders.start');
         Route::put('/orders/{order}/draft', [ServiceProviderPortalController::class, 'draft'])->middleware('throttle:60,1')->whereNumber('order')->name('orders.draft');
         Route::post('/orders/{order}/submit', [ServiceProviderPortalController::class, 'submit'])->middleware('throttle:20,1')->whereNumber('order')->name('orders.submit');
+        Route::post('/orders/{order}/preview', [ServiceProviderPortalController::class, 'previewExecution'])->middleware('throttle:60,1')->whereNumber('order')->name('orders.preview');
         Route::post('/orders/{order}/approve', [ServiceProviderPortalController::class, 'approve'])->middleware('throttle:20,1')->whereNumber('order')->name('orders.approve');
         Route::post('/orders/{order}/evidences', [ServiceProviderPortalController::class, 'upload'])->middleware('throttle:20,1')->whereNumber('order')->name('orders.evidences.store');
         Route::get('/evidences/{evidence}', [ServiceProviderPortalController::class, 'evidence'])->whereNumber('evidence')->name('evidences.download');

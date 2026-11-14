@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', $simulatorTitle ?? 'Simular entrega')
 @section('page-title', $simulatorTitle ?? 'Simular entrega')

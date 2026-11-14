@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', $mode === 'template' ? 'Editor de modelos' : 'Editor de documentos')
 @section('page-title', 'Secretaria')

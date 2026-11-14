@@ -39,9 +39,9 @@ class ServiceExecutionWorkflow
         }, 3);
     }
 
-    public function updateFromTable(ServiceExecution $execution, array $values, string $date, int $version, ?string $operationKey, User $actor, array $times = []): ServiceExecution
+    public function updateFromTable(ServiceExecution $execution, array $values, ?string $date, int $version, ?string $operationKey, User $actor, array $times = [], ?string $providerRate = null): ServiceExecution
     {
-        return DB::transaction(function () use ($execution, $values, $date, $version, $operationKey, $actor, $times): ServiceExecution {
+        return DB::transaction(function () use ($execution, $values, $date, $version, $operationKey, $actor, $times, $providerRate): ServiceExecution {
             $locked = $this->lock($execution);
             if ($operationKey && $locked->submit_operation_key === $operationKey) {
                 return $locked;
@@ -50,6 +50,23 @@ class ServiceExecutionWorkflow
                 throw ValidationException::withMessages(['order' => 'A ordem mudou ou saiu da edição. Atualize a tabela antes de continuar.']);
             }
             $locked->order->update(['execution_date' => $date] + $times);
+            if ($providerRate !== null) {
+                $snapshot = $locked->catalog_snapshot;
+                $method = $snapshot['provider_pricing_method'] ?? null;
+                if (! ($snapshot['payable_enabled'] ?? false) || ! $locked->service_provider_id
+                    || ! in_array($method, ['quantity_x_rate', 'fixed'], true)) {
+                    throw ValidationException::withMessages(['provider_rate' => 'Esta ordem usa outra forma de calcular o pagamento.']);
+                }
+                $oldRate = data_get($snapshot, 'provider_compensation.rate') ?? ($snapshot['default_provider_rate'] ?? null);
+                $snapshot['provider_compensation'] = [
+                    'source' => 'order_override', 'provider_rate_id' => null,
+                    'method' => $method, 'rate' => $providerRate, 'percentage' => null,
+                ];
+                $locked->update(['catalog_snapshot' => $snapshot]);
+                activity('service_order')->performedOn($locked->order)->causedBy($actor)->withProperties([
+                    'tenant_id' => $locked->tenant_id, 'previous_rate' => $oldRate, 'provider_rate' => $providerRate,
+                ])->log('Tarifa do prestador corrigida na ordem');
+            }
             if (! $operationKey) {
                 return $this->saveDraft($locked, $values, $actor);
             }
@@ -79,12 +96,7 @@ class ServiceExecutionWorkflow
                 (array) data_get($execution->catalog_snapshot, 'financial_config.rules', []),
                 $values,
             );
-            $derived = app(ServiceCalculationRules::class)->quantities(
-                (array) data_get($execution->catalog_snapshot, 'execution_config', []),
-                (array) data_get($execution->catalog_snapshot, 'fields', []),
-                $values,
-                (float) ($execution->quantity ?? 1)
-            );
+            $derived = $this->quantities($execution, $values);
             $quantity = $derived['primary_quantity'];
             $this->validateFinancialQuantities($execution, $derived);
             $execution->forceFill(['values' => $values, 'derived_values' => $derived, 'quantity' => $quantity, 'submitted_at' => now(), 'submitted_by' => $actor->id, 'submit_operation_key' => $operationKey, 'status' => 'submitted', 'lock_version' => $execution->lock_version + 1])->save();
@@ -95,6 +107,28 @@ class ServiceExecutionWorkflow
 
             return $execution->fresh();
         }, 3);
+    }
+
+    public function preview(ServiceExecution $execution, array $values): array
+    {
+        $values = array_replace($execution->values ?? [], $values);
+        $derived = $this->quantities($execution, $values);
+        $this->validateFinancialQuantities($execution, $derived);
+
+        $preview = clone $execution;
+        $preview->forceFill(['values' => $values, 'derived_values' => $derived, 'quantity' => $derived['primary_quantity']]);
+
+        return $this->calculator->calculate($preview, false);
+    }
+
+    private function quantities(ServiceExecution $execution, array $values): array
+    {
+        return app(ServiceCalculationRules::class)->quantities(
+            (array) data_get($execution->catalog_snapshot, 'execution_config', []),
+            (array) data_get($execution->catalog_snapshot, 'fields', []),
+            $values,
+            (float) ($execution->quantity ?? 1)
+        );
     }
 
     public function approve(ServiceExecution $execution, string $operationKey, User $actor): ServiceExecution
@@ -135,7 +169,7 @@ class ServiceExecutionWorkflow
         $this->obligations->handle($execution, $composition, $actor);
         $order = $execution->order;
         $order->update(['operational_status' => 'validated',
-            'execution_date' => $order->execution_date ?? $order->scheduled_date ?? $order->scheduled_at ?? $execution->started_at ?? now(),
+            'execution_date' => $order->execution_date ?? $order->scheduled_date ?? $order->scheduled_at,
             'actual_quantity' => $execution->quantity, 'final_price' => $composition['receivable_total'], 'provider_payment' => $composition['payable_total']]);
 
         return $execution->fresh(['compositionLines', 'obligations']);

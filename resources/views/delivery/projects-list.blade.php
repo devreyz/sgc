@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', 'Projetos')
 @section('page-title', 'Projetos')
@@ -1445,7 +1445,7 @@
 
                             <div class="pl-stat progress">
                                 <span class="pl-stat-label">Progresso</span>
-                                <strong class="pl-stat-value">{{ number_format($progressPct, 0) }}%</strong>
+                                <strong class="pl-stat-value">{{ number_format($progressPct, 1, ',', '.') }}%</strong>
                             </div>
 
                             <div class="pl-stat net">
@@ -1464,7 +1464,7 @@
                                         Andamento
                                     </span>
 
-                                    <strong>{{ number_format($progressPct, 0) }}%</strong>
+                                    <strong>{{ number_format($progressPct, 1, ',', '.') }}%</strong>
                                 </div>
 
                                 <div

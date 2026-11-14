@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', 'Carteirinha de Associado')
 @section('page-title', 'Carteirinha de Associado - ' . $tenant->name)

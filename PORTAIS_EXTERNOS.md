@@ -254,7 +254,7 @@ Todos os formulários incluem `@csrf` token.
 Edite o arquivo principal:
 
 ```
-resources/views/layouts/bento.blade.php
+resources/views/layouts/campo.blade.php
 ```
 
 ### Customizar Views

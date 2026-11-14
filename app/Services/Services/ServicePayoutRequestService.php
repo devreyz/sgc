@@ -22,7 +22,7 @@ class ServicePayoutRequestService
             $total = 0;
             foreach ($amounts as $obligationId => $requested) {
                 $obligation = ServiceObligation::query()->whereKey($obligationId)->where('tenant_id', $provider->tenant_id)->where('direction', 'payable')->where('service_provider_id', $provider->id)->lockForUpdate()->first();
-                if (! $obligation) {
+                if (! $obligation || $obligation->status === 'cancelled') {
                     throw ValidationException::withMessages(['obligations' => 'Obrigação não elegível para este prestador.']);
                 }$reserved = (float) ServicePayoutRequestItem::query()->where('service_obligation_id', $obligation->id)->whereHas('request', fn ($q) => $q->whereIn('status', ['pending', 'approved']))->sum('amount');
                 $available = max(0, $obligation->balance - $reserved);

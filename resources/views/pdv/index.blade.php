@@ -9,8 +9,8 @@
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800" rel="stylesheet" />
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#16803d">
+    <link rel="manifest" href="/manifest.json?v=campo">
+    <meta name="theme-color" content="#173c2e">
     <style>
 
         *, *::before, *::after { box-sizing: border-box; }

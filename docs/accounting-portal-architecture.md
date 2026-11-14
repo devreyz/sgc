@@ -132,7 +132,7 @@ flowchart LR
 4. Projetos permitidos vêm exclusivamente de `sales_project_organizations`; esconder links nunca substitui o filtro no backend.
 5. Não existe vínculo direto `user_id -> organization`. O `User` global autentica e o e-mail autorizado identifica o representante dentro do tenant.
 6. Cobranças são resolvidas por `tenant_id + organization_id + authorization_id` e ainda precisam pertencer a um projeto participante. IDs alterados manualmente retornam 404.
-7. Foram reutilizados `layouts.bento`, `PortalNavigation`, o middleware comprador, o sistema de notificações e as relações já existentes de organização/projeto.
+7. Foram reutilizados `layouts.campo`, `PortalNavigation`, o middleware comprador, o sistema de notificações e as relações já existentes de organização/projeto.
 
 ### Decisão de domínio
 

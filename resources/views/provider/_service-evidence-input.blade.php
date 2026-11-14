@@ -207,12 +207,7 @@
     </div>
 
     <small class="svc-field-help">
-        <strong>Arquivos</strong> abre o seletor de documentos do aparelho.
-        Formatos aceitos: {{ collect($acceptedMimes)->map(fn ($mime) => match ($mime) {'image/jpeg' => 'JPG/JPEG', 'image/png' => 'PNG', 'image/webp' => 'WebP', 'application/pdf' => 'PDF', default => $mime})->implode(', ') }}
-        . Vídeos são recusados.
-        A câmera só é acionada por este botão. A foto é usada como evidência
-        da execução, otimizada antes do envio e armazenada no repositório
-        privado configurado pela organização.
+        Aceita {{ collect($acceptedMimes)->map(fn ($mime) => match ($mime) {'image/jpeg' => 'JPG', 'image/png' => 'PNG', 'image/webp' => 'WebP', 'application/pdf' => 'PDF', default => $mime})->join(', ', ' ou ') }}.
     </small>
 
     <div

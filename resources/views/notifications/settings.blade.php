@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', 'Preferencias de notificacao')
 @section('page-title', 'Preferencias de notificacao')

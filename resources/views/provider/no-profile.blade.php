@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', 'Perfil Não Encontrado')
 @section('page-title', 'Portal do Prestador')

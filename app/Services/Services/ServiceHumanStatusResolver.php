@@ -19,7 +19,7 @@ class ServiceHumanStatusResolver
             return 'Correção solicitada';
         }
         if ($status === 'cancelled') {
-            return 'Cancelado';
+            return $order->execution?->validated_at ? 'Anulada' : 'Cancelada';
         }
         if ($status !== 'validated') {
             return $status === 'scheduled' ? 'Agendado' : 'Rascunho';

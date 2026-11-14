@@ -62,11 +62,7 @@ class DeliveryViewerController extends Controller
                     ->whereNull('parent_delivery_id')
                     ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value]),
             ], 'quantity')
-            ->withSum([
-                'deliveries as distributed_quantity' => fn ($query) => $query
-                    ->whereNotNull('parent_delivery_id')
-                    ->where('status', DeliveryStatus::APPROVED->value),
-            ], 'quantity')
+            ->withSum('approvedDistributions as distributed_quantity', 'quantity')
             ->when($status !== 'all', fn ($query) => $query->where('status', $selectedStatus))
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($nested) use ($search) {

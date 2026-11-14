@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', 'Comprovantes de Produtores')
 @section('page-title', 'Comprovantes de Produtores')

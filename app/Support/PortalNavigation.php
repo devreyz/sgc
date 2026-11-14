@@ -40,12 +40,12 @@ class PortalNavigation
             ],
             'services' => [
                 ...((auth()->user()?->checkPermissionTo('view_service_management') ?? false) ? [['key' => 'queue', 'label' => 'Ordens', 'route' => 'services.management.index', 'icon' => 'list-checks']] : []),
+                ...((auth()->user()?->checkPermissionTo('view_service_reports') ?? false) ? [['key' => 'reports', 'label' => 'Prestação de contas', 'route' => 'services.management.reports', 'icon' => 'chart-bar']] : []),
                 ...((auth()->user()?->checkPermissionTo('manage_service_expenses') && auth()->user()?->checkPermissionTo('view_service_management')) ? [['key' => 'expenses', 'label' => 'Despesas', 'route' => 'services.management.expenses', 'icon' => 'receipt']] : []),
-                ...((auth()->user()?->checkPermissionTo('create_service_order') ?? false) ? [['key' => 'new', 'label' => 'Nova ordem', 'route' => 'services.management.create', 'icon' => 'plus-circle']] : []),
+                ...((auth()->user()?->checkPermissionTo('create_service_order') ?? false) ? [['key' => 'new', 'label' => 'Nova ordem', 'route' => 'services.management.create', 'icon' => 'plus-circle', 'mobile' => false]] : []),
                 ...((auth()->user()?->checkPermissionTo('manage_service_catalog') ?? false) ? [['key' => 'catalog', 'label' => 'Catálogo', 'route' => 'services.catalog.index', 'icon' => 'wrench']] : []),
-                ...((auth()->user()?->checkPermissionTo('manage_service_providers') ?? false) ? [['key' => 'providers', 'label' => 'Prestadores', 'route' => 'services.providers.index', 'icon' => 'users-three']] : []),
+                ...((auth()->user()?->checkPermissionTo('manage_service_providers') ?? false) ? [['key' => 'providers', 'label' => 'Prestadores', 'route' => 'services.providers.index', 'icon' => 'users-three', 'mobile' => false]] : []),
                 ...((auth()->user()?->checkPermissionTo('manage_service_agreements') ?? false) ? [['key' => 'agreements', 'label' => 'Acordos', 'route' => 'services.management.agreements', 'icon' => 'handshake']] : []),
-                ...((auth()->user()?->checkPermissionTo('view_service_reports') ?? false) ? [['key' => 'reports', 'label' => 'Prestação', 'route' => 'services.management.reports', 'icon' => 'chart-bar']] : []),
             ],
             'cashier' => [
                 ['key' => 'dashboard', 'label' => 'Caixa', 'route' => 'pdv.index', 'icon' => 'cash-register'],

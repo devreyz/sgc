@@ -495,17 +495,19 @@ class DeliveryRegistrationController extends Controller
 
         $projects = SalesProject::where('tenant_id', $tenantId)
             ->whereIn('status', [ProjectStatus::DRAFT->value, ProjectStatus::ACTIVE->value, ProjectStatus::DELIVERIES_CLOSED->value])
-            ->with(['customer', 'demands.product', 'deliveries'])
+            ->with(['customer', 'demands.product', 'deliveries' => fn ($query) => $query->whereNull('parent_delivery_id')])
+            ->withSum('approvedDistributions as project_distributed_quantity', 'quantity')
+            ->withSum('demands as project_target_quantity', 'target_quantity')
             ->orderByRaw("FIELD(status, 'active', 'deliveries_closed', 'draft')")
             ->orderBy('title')
             ->get()
             ->map(function ($project) {
-                $totalTarget = $project->demands->sum('target_quantity');
-                $totalDelivered = $project->deliveries->sum('quantity');
+                $totalTarget = (float) $project->project_target_quantity;
+                $totalDelivered = (float) $project->project_distributed_quantity;
                 $approvedDeliveries = $project->deliveries->where('status', DeliveryStatus::APPROVED->value)->count();
                 $pendingDeliveries = $project->deliveries->where('status', DeliveryStatus::PENDING->value)->count();
                 $rejectedDeliveries = $project->deliveries->where('status', DeliveryStatus::REJECTED->value)->count();
-                $progress = $totalTarget > 0 ? min(100, ($totalDelivered / $totalTarget) * 100) : 0;
+                $progress = $project->progress_percentage;
 
                 return [
                     'id' => $project->id,
@@ -533,13 +535,17 @@ class DeliveryRegistrationController extends Controller
             'active_projects' => $projects->where('status_value', ProjectStatus::ACTIVE->value)->count(),
             'draft_projects' => $projects->where('status_value', ProjectStatus::DRAFT->value)->count(),
             'total_deliveries_today' => ProductionDelivery::where('tenant_id', $tenantId)
+                ->whereNull('parent_delivery_id')
                 ->whereDate('delivery_date', today())->count(),
             // backward-compatibility: some views expect 'deliveries_today'
             'deliveries_today' => ProductionDelivery::where('tenant_id', $tenantId)
+                ->whereNull('parent_delivery_id')
                 ->whereDate('delivery_date', today())->count(),
             'pending_approvals' => ProductionDelivery::where('tenant_id', $tenantId)
+                ->whereNull('parent_delivery_id')
                 ->where('status', DeliveryStatus::PENDING)->count(),
             'total_delivered_this_week' => ProductionDelivery::where('tenant_id', $tenantId)
+                ->whereNotNull('parent_delivery_id')->where('status', DeliveryStatus::APPROVED)
                 ->whereBetween('delivery_date', [now()->startOfWeek(), now()->endOfWeek()])->sum('quantity'),
         ];
 
@@ -570,14 +576,16 @@ class DeliveryRegistrationController extends Controller
             ->with(['customer', 'customers', 'organizations'])
             ->findOrFail((int) $request->route('project'));
 
+        $customers = app(ProjectDistributionCustomerService::class)->customers($project);
+        $singleCustomer = $customers->count() === 1 ? $customers->first() : null;
         $selectedProject = [
             'id' => $project->id,
             'title' => $project->title,
-            'customer_name' => $project->customer->name ?? '-',
+            'customer_name' => $singleCustomer?->name,
             'default_customer_id' => $project->customer_id ? (int) $project->customer_id : null,
             'allow_any_product' => (bool) $project->allow_any_product,
             'admin_fee_percentage' => (float) ($project->admin_fee_percentage ?? 10),
-            'customer_ids' => app(ProjectDistributionCustomerService::class)->ids($project)->all(),
+            'customer_ids' => $customers->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
         ];
         $projects = collect([$selectedProject]);
 
@@ -2864,17 +2872,10 @@ class DeliveryRegistrationController extends Controller
 
         $query = SalesProject::where('tenant_id', $tenantId)
             ->with('customer')
-            ->withCount([
-                'deliveries as deliveries_approved_count' => fn ($q) => $q
-                    ->whereNotNull('parent_delivery_id')
-                    ->where('status', DeliveryStatus::APPROVED),
-            ])
-            ->withSum(
-                ['deliveries as net_total' => fn ($q) => $q
-                    ->whereNotNull('parent_delivery_id')
-                    ->where('status', DeliveryStatus::APPROVED)],
-                'net_value'
-            )
+            ->withCount('approvedDistributions as deliveries_approved_count')
+            ->withSum('approvedDistributions as net_total', 'net_value')
+            ->withSum('approvedDistributions as project_distributed_quantity', 'quantity')
+            ->withSum('demands as project_target_quantity', 'target_quantity')
             ->orderByDesc('created_at');
 
         if ($statusFilter = request('status')) {

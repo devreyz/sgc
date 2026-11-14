@@ -1238,6 +1238,7 @@
 </style>
 
 <style id="dm-project-deliveries-theme">
+#dm-overlay :is(#dm-new-section,#dm-save-btn,#dm-allocation-empty)[hidden] {display:none!important}
 /* =====================================================================
    DIST MODAL — tema Project Deliveries / Register
    ===================================================================== */
@@ -2118,8 +2119,6 @@ body.dm-page-locked {
 .dm-inline-edit label { display: grid; gap: .3rem; min-width: 0; font-size: .82rem; }
 .dm-inline-edit select, .dm-inline-edit input { width: 100%; min-width: 0; font-size: .9rem; }
 .dm-inline-edit-actions { flex-wrap: wrap; justify-content: flex-end; }
-.dm-planning-link { margin-top: .6rem; }
-.dm-planning-link[hidden] { display: none; }
 
 @media (max-width: 560px) {
     .dm-inline-edit { grid-template-columns: minmax(0, 1fr); }
@@ -2129,7 +2128,7 @@ body.dm-page-locked {
 </style>
 
 {{-- ══ HTML ═════════════════════════════════════════════════════════════ --}}
-<div id="dm-overlay">
+<div id="dm-overlay" role="dialog" aria-modal="true" aria-label="Distribuição">
     <div class="dm-box">
 
         {{-- Head --}}
@@ -2182,9 +2181,6 @@ body.dm-page-locked {
             <div id="dm-existing-section" style="display:none">
                 <div class="dm-section-lbl">Já distribuído</div>
                 <div class="dm-existing-block" id="dm-existing-list"></div>
-                <a class="dm-add-btn dm-planning-link" id="dm-planning-link" target="_blank" rel="noopener" hidden>
-                    <i class="ph-duotone ph-users-three" aria-hidden="true"></i> Atendimento no planejamento
-                </a>
             </div>
 
             {{-- New rows --}}
@@ -2214,16 +2210,17 @@ body.dm-page-locked {
                     </button>
                 </div>
             </div>
+            <p class="dm-allocation-empty" id="dm-allocation-empty" hidden>Todo o saldo foi distribuído. Use as ações acima para ajustar uma distribuição.</p>
         </div>
 
         {{-- Footer --}}
         <div class="dm-foot">
             <span class="dm-shortcuts">Enter: salvar · Esc: fechar · Alt+A: adicionar cliente</span>
-            <button class="btn btn-ghost btn-sm" onclick="DistModal.close()" aria-label="Cancelar e fechar">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="DistModal.close()" aria-label="Fechar distribuição">
                 <i class="ph-duotone ph-x"></i>
                 <span>Fechar</span>
             </button>
-            <button class="btn btn-primary btn-sm" id="dm-save-btn" onclick="DistModal.save()" aria-label="Salvar distribuições">
+            <button type="button" class="btn btn-primary btn-sm" id="dm-save-btn" onclick="DistModal.save()" aria-label="Salvar distribuições">
                 <i class="ph-duotone ph-check-circle"></i>
                 <span>Salvar distribuições</span>
             </button>
@@ -2246,7 +2243,7 @@ body.dm-page-locked {
         </div>
 
         <div class="dm-confirm-actions">
-            <button type="button" class="btn btn-ghost btn-sm" onclick="DistModal.cancelDangerConfirm()">Cancelar</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="DistModal.cancelDangerConfirm()" data-back-close>Cancelar</button>
             <button type="button" class="btn btn-danger btn-sm" id="dm-confirm-ok" onclick="DistModal.acceptDangerConfirm()">Confirmar</button>
         </div>
     </div>
@@ -2271,7 +2268,7 @@ body.dm-page-locked {
             </div>
         </div>
         <div class="dm-notice-actions">
-            <button type="button" class="btn btn-ghost btn-sm" onclick="DistModal.closeNotice()">Fechar</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="DistModal.closeNotice()" data-back-close>Fechar</button>
             <button type="button" class="btn btn-primary btn-sm" id="dm-notice-action" style="display:none"></button>
         </div>
     </div>
@@ -2328,7 +2325,7 @@ function syncDmViewport() {
 }
 
 function lockDmPage() {
-    if (document.body.classList.contains('dm-page-locked')) return;
+    if (document.body.classList.contains('dm-page-locked') || document.body.classList.contains('register-sheet-open')) return;
 
     _scrollLockY = window.scrollY || window.pageYOffset || 0;
 
@@ -2356,7 +2353,7 @@ function unlockDmPage() {
     document.body.style.right = '';
     document.body.style.width = '';
 
-    window.scrollTo(0, _scrollLockY);
+    window.scrollTo({top: _scrollLockY, behavior: 'instant'});
 }
 
 function setDmConfirmIcon(icon) {
@@ -2507,20 +2504,26 @@ function renderRowPrice(row, pricing) {
 
 async function loadRowPrice(row, customerId, force = false) {
     if (!customerId || !_id) return renderRowPrice(row, null);
+    const receptionId = _id;
+    const stillSelected = () => _id === receptionId && row.isConnected
+        && String(row.querySelector('select')?.value) === String(customerId);
     const key = priceCacheKey(customerId);
     if (!force && _priceCache.has(key)) return renderRowPrice(row, _priceCache.get(key));
     const target = row.querySelector('.dm-row-price');
     if (target) target.textContent = 'Consultando preco...';
     try {
         const response = await fetch(`/${DM_TENANT}/delivery/deliveries/${_id}/customers/${customerId}/price`, {
+            cache: 'no-store',
             headers: { 'Accept': 'application/json' },
         });
         const data = await response.json();
         if (!response.ok || !data.success) throw new Error(data.message || 'Nao foi possivel consultar o preco.');
-        _priceCache.set(key, data);
-        renderRowPrice(row, data);
+        if (stillSelected()) {
+            _priceCache.set(key, data);
+            renderRowPrice(row, data);
+        }
     } catch (error) {
-        if (target) {
+        if (target && stillSelected()) {
             target.className = 'dm-row-price missing';
             target.textContent = error.message;
         }
@@ -2611,7 +2614,7 @@ function normalizeExisting(d) {
         customer_id: d.customer_id || d.customerId || null,
         customer: d.customer || '?',
         qty: parseFloat(d.qty || d.quantity || 0),
-        unit_price: parseFloat(d.unit_price || d.unitPrice || 0),
+        unit_price: Number(d.unit_price ?? d.unitPrice ?? 0),
         price_inconsistent: !!d.price_inconsistent,
         net: parseFloat(d.net || 0),
         billed: !!d.billed,
@@ -2681,6 +2684,10 @@ function updateProgress() {
 
     $('dm-warning-overflow').classList.toggle('visible', overflow);
     $('dm-done-badge').classList.toggle('visible', complete);
+    const allocated = _distQty >= _totalQty && _totalQty > 0 && newTotal === 0;
+    $('dm-new-section').hidden = allocated;
+    $('dm-allocation-empty').hidden = !allocated;
+    $('dm-save-btn').hidden = allocated;
 }
 
 /* ── Build existing distributions list ─────────────────────────────── */
@@ -2702,7 +2709,7 @@ function renderExisting(existing) {
         <div class="dm-existing-row" id="dmex-${d.id}">
             <span class="dm-existing-customer">
                 ${esc(d.customer)}
-                <small class="dm-existing-price">Valor unitário: ${fmtR(d.unit_price)}</small>
+                <small class="dm-existing-price">${Number.isFinite(d.unit_price) && d.unit_price > 0 ? 'Valor unitário: ' + fmtR(d.unit_price) : 'Valor unitário indisponível'}</small>
                 ${statusBadges(d)}
             </span>
 
@@ -2832,17 +2839,11 @@ window.DistModal = {
         _distQty  = cfg.distributed || 0;
         _defaultCustomerId = cfg.defaultCustomerId ? String(cfg.defaultCustomerId) : null;
         _notes = String(cfg.notes || '').trim();
-        const projectId = String(cfg.context || '').match(/^([1-9]\d*):/)?.[1];
-        const planningLink = $('dm-planning-link');
-        planningLink.hidden = !projectId;
-        if (projectId) planningLink.href = `/${DM_TENANT}/delivery/projects/${projectId}/planning#atendimento`;
-        else planningLink.removeAttribute('href');
+        _priceCache.clear();
 
         // Subtitle
         $('dm-subtitle').textContent =
-            (cfg.product || '') + '  ·  Total: ' +
-            fmt(_totalQty, _unit) + '  ·  Disponível: ' +
-            fmt(Math.max(0, _totalQty - _distQty), _unit);
+            [cfg.product, 'Total: ' + fmt(_totalQty, _unit)].filter(Boolean).join(' · ');
 
         // Existing
         renderExisting(cfg.existing || []);
@@ -3161,7 +3162,7 @@ window.DistModal = {
     },
 
     async save() {
-        if (!_id || $('dm-save-btn').disabled) return;
+        if (!_id || $('dm-save-btn').disabled || $('dm-save-btn').hidden) return;
         if ($('dm-existing-list').querySelector('.dm-inline-edit')) {
             showNotice('Salve ou cancele a edição em andamento antes de salvar novas distribuições.');
             return;

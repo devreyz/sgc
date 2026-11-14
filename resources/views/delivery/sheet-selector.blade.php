@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', 'Imprimiveis')
 @section('page-title', 'Imprimiveis')

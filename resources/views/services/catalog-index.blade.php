@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', 'Catálogo')
 @section('page-title', 'Catálogo de serviços')
@@ -982,7 +982,7 @@
                                     ?? $draftVersion;
 
                                 $status = $versionStatusMeta(
-                                    $currentVersion?->status
+                                    $currentVersion?->status ?? ($service->versions->contains('status', 'retired') ? 'retired' : null)
                                 );
 
                                 $versionLabel =
@@ -1083,7 +1083,7 @@
                                             {{
                                                 $currentVersion
                                                     ? 'Configurar'
-                                                    : 'Abrir rascunho'
+                                                    : ($targetVersion->status === 'draft' ? 'Abrir rascunho' : 'Ver histórico')
                                             }}
 
                                             <i class="ph-fill ph-arrow-right"></i>
@@ -1110,7 +1110,7 @@
                             ?? $draftVersion;
 
                         $status = $versionStatusMeta(
-                            $currentVersion?->status
+                            $currentVersion?->status ?? ($service->versions->contains('status', 'retired') ? 'retired' : null)
                         );
 
                         $versionLabel =
@@ -1210,7 +1210,7 @@
                                     {{
                                         $currentVersion
                                             ? 'Configurar serviço'
-                                            : 'Abrir rascunho'
+                                            : ($targetVersion->status === 'draft' ? 'Abrir rascunho' : 'Ver histórico')
                                     }}
 
                                     <i class="ph-fill ph-arrow-right"></i>

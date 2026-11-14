@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\DeliveryStatus;
+
 use App\Enums\ProjectStatus;
 use App\Services\ProjectReceiptNumberingService;
 use App\Traits\BelongsToTenant;
@@ -295,6 +297,11 @@ class SalesProject extends Model
         return $this->hasMany(ProductionDelivery::class);
     }
 
+    public function approvedDistributions(): HasMany
+    {
+        return $this->deliveries()->whereNotNull('parent_delivery_id')->where('status', DeliveryStatus::APPROVED->value);
+    }
+
     public function deliveryConferenceSheets(): HasMany
     {
         return $this->hasMany(DeliveryConferenceSheet::class);
@@ -403,10 +410,7 @@ class SalesProject extends Model
     public function getTotalDeliveredValueAttribute(): float
     {
         // Sum from distributions only: gross_value = qty × customer sale_price
-        return $this->deliveries()
-            ->where('status', 'approved')
-            ->whereNotNull('parent_delivery_id')
-            ->sum('gross_value');
+        return $this->approvedDistributions()->sum('gross_value');
     }
 
     /**
@@ -416,10 +420,7 @@ class SalesProject extends Model
     public function getTotalAdminFeesAttribute(): float
     {
         // Sum from distributions only
-        return $this->deliveries()
-            ->where('status', 'approved')
-            ->whereNotNull('parent_delivery_id')
-            ->sum('admin_fee_amount');
+        return $this->approvedDistributions()->sum('admin_fee_amount');
     }
 
     /**
@@ -427,8 +428,8 @@ class SalesProject extends Model
      */
     public function getProgressPercentageAttribute(): float
     {
-        $totalTarget = $this->demands()->sum('target_quantity');
-        $totalDelivered = $this->demands()->sum('delivered_quantity');
+        $totalTarget = $this->getAttribute('project_target_quantity') ?? $this->demands()->sum('target_quantity');
+        $totalDelivered = $this->getAttribute('project_distributed_quantity') ?? $this->approvedDistributions()->sum('quantity');
 
         if ($totalTarget <= 0) {
             return 0;
@@ -452,10 +453,7 @@ class SalesProject extends Model
     public function getTotalAssociatesPaymentAttribute(): float
     {
         // Sum from distributions: net_value on distributions = what associate receives
-        return $this->deliveries()
-            ->where('status', 'approved')
-            ->whereNotNull('parent_delivery_id')
-            ->sum('net_value');
+        return $this->approvedDistributions()->sum('net_value');
     }
 
     /**

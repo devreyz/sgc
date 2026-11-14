@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @php
     $tenantSlug = $tenant->slug ?? request()->route('tenant');

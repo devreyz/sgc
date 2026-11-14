@@ -19,16 +19,18 @@ class ServiceReportService
         if ($from->greaterThan($to)) {
             throw ValidationException::withMessages(['from' => 'O início deve ser anterior ao fim do período.']);
         }
-        $serviceDate = 'COALESCE(orders.execution_date, orders.scheduled_date, DATE(orders.scheduled_at), DATE(service_executions.validated_at))';
-        $executions = ServiceExecution::query()->where('service_executions.tenant_id', $tenantId)->where('service_executions.status', 'validated')
+        $serviceDate = 'COALESCE(orders.execution_date, orders.scheduled_date, DATE(orders.scheduled_at))';
+        $base = ServiceExecution::query()->where('service_executions.tenant_id', $tenantId)->where('service_executions.status', 'validated')
             ->join('service_orders as orders', fn ($join) => $join->on('orders.id', '=', 'service_executions.service_order_id')
                 ->on('orders.tenant_id', '=', 'service_executions.tenant_id'))
-            ->whereNull('orders.deleted_at')->whereRaw("$serviceDate BETWEEN ? AND ?", [$from->toDateString(), $to->toDateString()])
-            ->select('service_executions.*')->selectRaw("$serviceDate as report_execution_date")
-            ->with(['order.service', 'obligations.allocations.paymentEvent', 'obligations.adjustments', 'resources', 'compositionLines'])
+            ->whereNull('orders.deleted_at')
             ->when($providerId, fn ($q) => $q->where('service_executions.service_provider_id', $providerId))
             ->when($serviceId, fn ($q) => $q->whereHas('order', fn ($oq) => $oq->where('service_id', $serviceId)))
-            ->when($assetId, fn ($q) => $q->whereHas('order', fn ($oq) => $oq->where('asset_id', $assetId)))
+            ->when($assetId, fn ($q) => $q->whereHas('order', fn ($oq) => $oq->where('asset_id', $assetId)));
+        $undatedCount = (clone $base)->whereRaw("$serviceDate IS NULL")->count();
+        $executions = $base->whereRaw("$serviceDate BETWEEN ? AND ?", [$from->toDateString(), $to->toDateString()])
+            ->select('service_executions.*')->selectRaw("$serviceDate as report_execution_date")
+            ->with(['order.service', 'obligations.allocations.paymentEvent', 'obligations.adjustments', 'resources', 'compositionLines'])
             ->orderBy('report_execution_date')->orderBy('orders.start_time')->orderBy('orders.scheduled_at')->orderBy('service_executions.id')->get();
         $details = $executions->map(function ($execution) use ($to): array {
             $date = \Illuminate\Support\Carbon::parse($execution->report_execution_date);
@@ -87,6 +89,7 @@ class ServiceReportService
             ->with(['expenseable', 'chartAccount'])->orderBy('date')->get();
 
         return $totals + [
+            'undated_count' => $undatedCount,
             'from' => $from->toDateString(), 'to' => $to->toDateString(), 'details' => $details, 'rows' => $executions,
             'monthly' => $details->groupBy('month')->map(fn ($rows, $month) => ['month' => $month] + $this->totals($rows))->values(),
             'resource_amount' => round((float) $executions->flatMap->resources->sum('amount'), 2),

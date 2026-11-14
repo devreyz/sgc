@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 @section('title', 'Planejamento e Pré-distribuições')
 @section('page-title', 'Pré-distribuições')
 @section('user-role', $manager ? 'Gestão operacional' : 'Entregador')

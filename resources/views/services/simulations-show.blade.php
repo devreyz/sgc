@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', 'Resultado da simulação')
 @section('page-title', $simulation->name)

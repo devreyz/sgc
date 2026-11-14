@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 @section('title', 'Planejamento do projeto')
 @section('page-title', 'Planejamento')
 @section('page-subtitle', $project->title)

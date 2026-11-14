@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', 'Faturamento '.$receiptNumber)
 @section('page-title', 'Dossiê do faturamento')

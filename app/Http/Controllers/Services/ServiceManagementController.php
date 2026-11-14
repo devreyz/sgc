@@ -12,6 +12,8 @@ use App\Models\Service;
 use App\Models\ServiceExecutionEvidence;
 use App\Models\ServiceNegotiation;
 use App\Models\ServiceObligation;
+use App\Models\ServiceExecution;
+use App\Models\ServicePayoutRequestItem;
 use App\Models\ServiceOrder;
 use App\Models\ServicePaymentEvent;
 use App\Models\ServicePaymentPlanInstallment;
@@ -26,6 +28,7 @@ use App\Services\Services\ServiceHumanStatusResolver;
 use App\Services\Services\ServiceNegotiationService;
 use App\Services\Services\ServiceObligationAdjustmentService;
 use App\Services\Services\ServicePaymentService;
+use App\Services\Services\ServiceOrderNumberService;
 use App\Services\Services\ServiceReportService;
 use App\Services\Services\ServiceResourceService;
 use App\Services\TemplatedPdfService;
@@ -50,8 +53,9 @@ class ServiceManagementController extends Controller
         $serviceDate = 'COALESCE(execution_date, scheduled_date, DATE(scheduled_at))';
         $orders = ServiceOrder::query()->where('tenant_id', $tenant->id)->whereNotNull('service_version_id')
             ->with(['service', 'execution.obligations'])
-            ->when($dates['from'] ?? null, fn ($query, $date) => $query->whereRaw("$serviceDate >= ?", [$date]))
-            ->when($dates['to'] ?? null, fn ($query, $date) => $query->whereRaw("$serviceDate <= ?", [$date]))
+            ->when($request->boolean('undated'), fn ($query) => $query->whereRaw("$serviceDate IS NULL"))
+            ->when(! $request->boolean('undated') ? ($dates['from'] ?? null) : null, fn ($query, $date) => $query->whereRaw("$serviceDate >= ?", [$date]))
+            ->when(! $request->boolean('undated') ? ($dates['to'] ?? null) : null, fn ($query, $date) => $query->whereRaw("$serviceDate <= ?", [$date]))
             ->when($request->filled('status'), fn ($q) => $q->where('operational_status', $request->string('status')->toString()))
             ->when($search !== '', fn ($q) => $q->where(fn ($query) => $query
                 ->where('number', 'like', '%'.$search.'%')
@@ -76,13 +80,17 @@ class ServiceManagementController extends Controller
         $this->allow($request, 'view_service_management');
         $this->allow($request, 'edit_service_order');
         $data = $request->validate([
-            'execution_date' => 'required|date_format:Y-m-d|before_or_equal:today',
+            'execution_date' => 'nullable|date_format:Y-m-d|before_or_equal:today',
+            'provider_rate' => 'nullable|numeric|decimal:0,4|gt:0|max:999999999',
             'start_time' => 'nullable|date_format:H:i',
             'end_time' => 'nullable|date_format:H:i',
             'lock_version' => 'required|integer|min:0', 'intent' => 'required|in:save,submit',
             'operation_key' => 'required|uuid', 'values' => 'nullable|array|max:100',
             'values.*' => 'nullable|string|max:4000',
         ]);
+        if (isset($data['provider_rate'])) {
+            $this->allow($request, 'view_service_financials');
+        }
         if ($data['intent'] === 'submit') {
             $this->allow($request, 'operate_all_service_orders_portal');
         }
@@ -94,8 +102,9 @@ class ServiceManagementController extends Controller
                 && ! in_array($field['type'] ?? null, ['image', 'file', 'signature'], true))
             ->pluck('key')->all();
         $values = array_intersect_key($data['values'] ?? [], array_flip($fields));
-        $result = $workflow->updateFromTable($execution, $values, $data['execution_date'], (int) $data['lock_version'],
-            $data['intent'] === 'submit' ? $data['operation_key'] : null, $request->user(), \Illuminate\Support\Arr::only($data, ['start_time', 'end_time']));
+        $result = $workflow->updateFromTable($execution, $values, $data['execution_date'] ?? null, (int) $data['lock_version'],
+            $data['intent'] === 'submit' ? $data['operation_key'] : null, $request->user(),
+            \Illuminate\Support\Arr::only($data, ['start_time', 'end_time']), $data['provider_rate'] ?? null);
 
         return back()->with('success', match ($result->status) {
             'validated' => 'Execução concluída e validada.',
@@ -108,7 +117,7 @@ class ServiceManagementController extends Controller
     {
         $this->allow($request, 'create_service_order');
 
-        return $this->entryView($tenant);
+        return $this->entryView($tenant, batch: $request->boolean('batch'));
     }
 
     public function store(Request $request, Tenant $tenant, CreateServiceOrder $creator): RedirectResponse
@@ -155,7 +164,7 @@ class ServiceManagementController extends Controller
     {
         $this->allow($request, 'edit_service_order');
         $order = $this->order($tenant, $order);
-        abort_unless($order->execution?->status === 'draft', 409, 'Somente ordens que ainda não foram iniciadas podem ser editadas aqui.');
+        abort_unless(in_array($order->execution?->status, ['draft', 'in_progress', 'rejected'], true), 409, 'Esta ordem já saiu da edição.');
 
         return $this->entryView($tenant, $order);
     }
@@ -172,17 +181,27 @@ class ServiceManagementController extends Controller
         return redirect()->route('services.management.show', [$tenant->slug, $order])->with('success', 'Ordem corrigida.');
     }
 
-    public function remove(Request $request, Tenant $tenant, int $order): RedirectResponse
+    public function remove(Request $request, Tenant $tenant, int $order, ServiceOrderNumberService $numbers, FinancialDocumentIdentityService $identities): RedirectResponse
     {
         $this->allow($request, 'edit_service_order');
-        $data = $request->validate(['reason' => 'required|string|min:5|max:500', 'action' => 'required|in:delete,cancel']);
+        $data = $request->validate(['reason' => 'required|string|min:5|max:500', 'action' => 'required|in:delete,cancel,cancel_replace']);
+        if ($data['action'] === 'cancel_replace') {
+            $this->allow($request, 'create_service_order');
+        }
         $order = $this->order($tenant, $order);
-        DB::transaction(function () use ($order, $data, $request): void {
+        $replacement = DB::transaction(function () use ($order, $data, $request, $numbers, $identities): ?ServiceOrder {
             $execution = $order->execution()->lockForUpdate()->firstOrFail();
             $lockedOrder = ServiceOrder::query()->where('tenant_id', $order->tenant_id)->lockForUpdate()->findOrFail($order->id);
-            if (! in_array($execution->status, ['draft', 'in_progress', 'submitted', 'rejected'], true)
-                || $execution->obligations()->exists() || $lockedOrder->payments()->exists() || $lockedOrder->ledgerEntries()->exists() || $lockedOrder->paid) {
-                throw ValidationException::withMessages(['reason' => 'Esta ordem já possui validação ou movimentação financeira. Use os ajustes e estornos do dossiê.']);
+            $wasValidated = $execution->isFrozen();
+            $obligations = $execution->obligations()->orderBy('id')->lockForUpdate()->get();
+            if (! in_array($execution->status, ['draft', 'in_progress', 'submitted', 'rejected', 'validated'], true)
+                || $lockedOrder->payments()->exists() || $lockedOrder->ledgerEntries()->exists() || $lockedOrder->paid) {
+                throw ValidationException::withMessages(['reason' => 'Esta ordem já foi cancelada ou tem movimentação financeira anterior. Consulte o dossiê.']);
+            }
+            if ($obligations->contains(fn ($obligation) => $obligation->paid_amount !== 0.0 || $obligation->activePaymentPlan())
+                || ServicePayoutRequestItem::query()->whereIn('service_obligation_id', $obligations->modelKeys())
+                    ->whereHas('request', fn ($query) => $query->whereIn('status', ['pending', 'approved']))->exists()) {
+                throw ValidationException::withMessages(['reason' => 'Antes de anular, resolva os pagamentos, acordos ou solicitações de repasse ativos no dossiê.']);
             }
             if ($data['action'] === 'delete' && ($execution->status !== 'draft' || $execution->evidences()->exists()
                 || $execution->resources()->exists() || $lockedOrder->expenses()->exists()
@@ -196,14 +215,46 @@ class ServiceManagementController extends Controller
             $execution->update(['status' => 'cancelled', 'lock_version' => $execution->lock_version + 1]);
             $lockedOrder->update(['status' => ServiceOrderStatus::CANCELLED, 'operational_status' => 'cancelled',
                 'cancelled_at' => now(), 'cancelled_by' => $request->user()->id, 'cancellation_reason' => $data['reason']]);
+            foreach ($obligations as $obligation) {
+                $obligation->update(['status' => 'cancelled']);
+                $identities->invalidateDocument($obligation, $data['reason'], $request->user());
+            }
+            $replacement = null;
+            if ($data['action'] === 'cancel_replace') {
+                $replacement = new ServiceOrder($lockedOrder->only([
+                    'service_id', 'service_version_id', 'associate_id', 'service_provider_id', 'asset_id',
+                    'scheduled_date', 'scheduled_at', 'execution_date', 'start_time', 'end_time',
+                    'unit', 'location', 'order_data', 'beneficiary_snapshot', 'provider_snapshot',
+                ]) + [
+                    'number' => $numbers->next($lockedOrder->tenant_id, now()->year),
+                    'status' => ServiceOrderStatus::SCHEDULED, 'operational_status' => 'scheduled',
+                    'unit_price' => 0, 'total_price' => 0, 'final_price' => 0, 'created_by' => $request->user()->id,
+                ]);
+                $replacement->tenant_id = $lockedOrder->tenant_id;
+                $replacement->save();
+                $draft = $replacement->execution()->make($execution->only([
+                    'service_version_id', 'service_provider_id', 'associate_id', 'unit', 'values', 'catalog_snapshot',
+                ]) + ['status' => 'draft', 'derived_values' => []]);
+                $draft->tenant_id = $lockedOrder->tenant_id;
+                $draft->save();
+                activity('service_order')->performedOn($replacement)->causedBy($request->user())
+                    ->withProperties(['original_order_id' => $lockedOrder->id, 'reason' => $data['reason']])->log('Rascunho criado para corrigir ordem anulada');
+            }
             activity('service_order')->performedOn($lockedOrder)->causedBy($request->user())
-                ->withProperties(['reason' => $data['reason']])->log($data['action'] === 'delete' ? 'Ordem excluída da lista' : 'Ordem cancelada');
+                ->withProperties(['reason' => $data['reason'], 'replacement_order_id' => $replacement?->id])
+                ->log($data['action'] === 'delete' ? 'Ordem excluída da lista' : ($wasValidated ? 'Ordem finalizada anulada' : 'Ordem cancelada'));
             if ($data['action'] === 'delete') {
                 $lockedOrder->delete();
             }
+
+            return $replacement;
         }, 3);
 
-        return redirect()->route('services.management.index', $tenant->slug)->with('success', $data['action'] === 'delete' ? 'Ordem excluída.' : 'Ordem cancelada.');
+        if ($replacement) {
+            return redirect()->route('services.management.edit', [$tenant->slug, $replacement])
+                ->with('success', 'Ordem original anulada. Revise o rascunho antes de finalizar. Anexos e recursos permanecem na original.');
+        }
+        return redirect()->route('services.management.index', $tenant->slug)->with('success', $data['action'] === 'delete' ? 'Rascunho removido da lista.' : 'Ordem anulada. O motivo está registrado no dossiê.');
     }
 
     private function entryRules(): array
@@ -211,26 +262,32 @@ class ServiceManagementController extends Controller
         return ['service_version_id' => 'required|integer', 'associate_id' => 'nullable|integer',
             'beneficiary_name' => 'nullable|string|max:191|required_without:associate_id',
             'service_provider_id' => 'nullable|integer', 'asset_id' => 'nullable|integer',
-            'scheduled_at' => 'required|date', 'location' => 'nullable|string|max:191', 'order_data' => 'nullable|array|max:100',
+            'scheduled_at' => 'nullable|date', 'execution_date' => 'nullable|date_format:Y-m-d|before_or_equal:today',
+            'location' => 'nullable|string|max:191', 'order_data' => 'nullable|array|max:100',
             'order_data.description' => 'nullable|string|max:2000', 'order_data.notes' => 'nullable|string|max:2000',
-            'customer_rate' => 'nullable|numeric|decimal:0,4|min:0|max:999999999', 'provider_rate_source' => 'nullable|in:catalog,provider'];
+            'customer_rate' => 'nullable|numeric|decimal:0,4|min:0|max:999999999', 'provider_rate_source' => 'nullable|in:catalog,provider',
+            'provider_rate' => 'nullable|numeric|decimal:0,4|gt:0|max:999999999'];
     }
 
     private function allowPriceChanges(Request $request, array $rows): void
     {
-        if (collect($rows)->contains(fn (array $row) => isset($row['customer_rate']) || isset($row['provider_rate_source']) || isset($row['reset_customer_rate']))) {
+        if (collect($rows)->contains(fn (array $row) => isset($row['customer_rate']) || isset($row['provider_rate']) || isset($row['provider_rate_source']) || isset($row['reset_customer_rate']))) {
             $this->allow($request, 'view_service_financials');
         }
     }
 
-    private function entryView(Tenant $tenant, ?ServiceOrder $order = null): View
+    private function entryView(Tenant $tenant, ?ServiceOrder $order = null, bool $batch = false): View
     {
-        return view('services.management-create', [
+        return view($order || $batch ? 'services.management-create' : 'provider.services-create', [
             'order' => $order,
+            'managementEntry' => true,
+            'operator' => true,
             'versions' => ServiceVersion::query()->where('tenant_id', $tenant->id)->where(fn ($query) => $query
                 ->where(fn ($active) => $active->where('status', 'published')->whereHas('service', fn ($service) => $service->where('status', true)))
-                ->when($order, fn ($versions) => $versions->orWhere('id', $order->service_version_id)))
-                ->with(['service', 'fields', 'providerRates' => fn ($query) => $query->where('tenant_id', $tenant->id)->where('active', true)])->get(),
+                ->when($order, fn ($versions) => $versions->orWhere(fn ($history) => $history
+                    ->where('service_id', $order->service_id)->whereIn('status', ['published', 'retired']))))
+                ->with(['service', 'fields', 'providerRates' => fn ($query) => $query->where('tenant_id', $tenant->id)->where('active', true)])
+                ->orderBy('service_id')->orderByDesc('version')->get(),
             'providers' => ServiceProvider::query()->where('tenant_id', $tenant->id)->active()->with('services:id')->orderBy('name')->get(),
             'associates' => Associate::query()->where('tenant_id', $tenant->id)->active()->with('user')->orderBy('id')->get(),
             'assets' => Asset::query()->where('tenant_id', $tenant->id)->orderBy('name')->get(['id', 'name']),
@@ -261,6 +318,14 @@ class ServiceManagementController extends Controller
         $view->with('managementExecution', true);
 
         return $view;
+    }
+
+    public function previewExecution(Request $request, Tenant $tenant, int $order, ServiceExecutionWorkflow $workflow)
+    {
+        $this->allow($request, 'view_service_management');
+        $this->allow($request, 'operate_all_service_orders_portal');
+
+        return app(\App\Http\Controllers\Provider\ServiceProviderPortalController::class)->previewExecution($request, $tenant, $order, $workflow);
     }
 
     public function startExecution(Request $request, Tenant $tenant, int $order, ServiceExecutionWorkflow $workflow, ServiceEvidenceService $evidence)
@@ -509,6 +574,11 @@ class ServiceManagementController extends Controller
     {
         $this->allow($request, 'view_service_management');
         $record = GeneratedDocument::query()->where('tenant_id', $tenant->id)->whereKey($document)->firstOrFail();
+        if (in_array($record->documentable_type, [ServiceOrder::class, ServiceExecution::class], true)) {
+            $subject = $record->documentable;
+            $documentOrder = $subject instanceof ServiceExecution ? $subject->order : $subject;
+            abort_if($documentOrder?->operational_status === 'cancelled', 410, 'Documento de ordem anulada.');
+        }
         if (in_array(data_get($record->document_settings, 'template_key'), ['service_internal_note', 'service_execution'], true)) {
             $this->allow($request, 'view_service_financials');
         }

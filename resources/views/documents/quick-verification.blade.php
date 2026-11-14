@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', 'Verificação rápida de documentos')
 @section('page-title', 'Verificação rápida')

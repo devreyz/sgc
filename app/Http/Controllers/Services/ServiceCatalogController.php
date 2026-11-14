@@ -62,11 +62,13 @@ class ServiceCatalogController extends Controller
         abort_if(Service::query()->where('tenant_id', $tenant->id)->where('code', $data['code'] ?? null)->whereNotNull('code')->exists(), 422, 'Já existe um serviço com este código na organização.');
         $service = new Service(['name' => $data['name'], 'code' => $data['code'] ?? null, 'description' => $data['description'] ?? null, 'type' => ServiceType::tryFrom($preset['service_type'] ?? '') ?? ServiceType::OUTRO, 'unit' => $data['unit'], 'base_price' => $data['customer_rate'] ?? 0, 'status' => true]);
         $service->tenant_id = $tenant->id;
-        $service->save();
-        $version = $catalog->createDraft($service, ['unit' => $data['unit'], 'review_mode' => $data['review_mode'], 'allow_provider_create_order' => $data['allow_provider_create_order'] ?? false, 'members_only' => $data['members_only'] ?? false, 'receivable_enabled' => $data['receivable_enabled'] ?? $preset['receivable_enabled'], 'customer_pricing_method' => $data['customer_pricing_method'] ?? $preset['customer_pricing_method'], 'customer_rate' => $data['customer_rate'] ?? null, 'customer_percentage' => $data['customer_percentage'] ?? null, 'payable_enabled' => $data['payable_enabled'] ?? $preset['payable_enabled'], 'provider_pricing_method' => $data['provider_pricing_method'] ?? $preset['provider_pricing_method'], 'default_provider_rate' => $data['default_provider_rate'] ?? null, 'provider_percentage' => $data['provider_percentage'] ?? null, 'execution_config' => $preset['execution_config'] ?? []], $preset['fields'] ?? []);
-        if ($data['publish'] ?? false) {
-            $catalog->publish($version, $request->user());
-        }
+        $version = DB::transaction(function () use ($service, $catalog, $data, $preset, $request): ServiceVersion {
+            $service = clone $service;
+            $service->save();
+            $draft = $catalog->createDraft($service, ['unit' => $data['unit'], 'review_mode' => $data['review_mode'], 'allow_provider_create_order' => $data['allow_provider_create_order'] ?? false, 'members_only' => $data['members_only'] ?? false, 'receivable_enabled' => $data['receivable_enabled'] ?? $preset['receivable_enabled'], 'customer_pricing_method' => $data['customer_pricing_method'] ?? $preset['customer_pricing_method'], 'customer_rate' => $data['customer_rate'] ?? null, 'customer_percentage' => $data['customer_percentage'] ?? null, 'payable_enabled' => $data['payable_enabled'] ?? $preset['payable_enabled'], 'provider_pricing_method' => $data['provider_pricing_method'] ?? $preset['provider_pricing_method'], 'default_provider_rate' => $data['default_provider_rate'] ?? null, 'provider_percentage' => $data['provider_percentage'] ?? null, 'execution_config' => $preset['execution_config'] ?? []], $preset['fields'] ?? []);
+
+            return ($data['publish'] ?? false) ? $catalog->publish($draft, $request->user()) : $draft;
+        }, 3);
 
         return redirect()->route('services.catalog.show', [$tenant, $version]);
     }
@@ -78,6 +80,43 @@ class ServiceCatalogController extends Controller
         $providers = ServiceProvider::query()->where('tenant_id', $tenant->id)->active()->orderBy('name')->get();
 
         return view('services.catalog-show', compact('version', 'providers'));
+    }
+
+    public function updatePrices(Request $request, Tenant $tenant, int $version, ServiceCatalogService $catalog): RedirectResponse
+    {
+        $this->allow($request, 'manage_service_catalog');
+        $source = ServiceVersion::query()->where('tenant_id', $tenant->id)->findOrFail($version);
+        $data = $request->validate([
+            'customer_rate' => 'nullable|numeric|decimal:0,4|gt:0|max:999999999',
+            'default_provider_rate' => 'nullable|numeric|decimal:0,4|gt:0|max:999999999',
+            'provider_percentage' => 'nullable|numeric|decimal:0,4|gt:0|max:100',
+            'use_default_for_all' => 'sometimes|boolean',
+        ]);
+        $useDefaultForAll = (bool) ($data['use_default_for_all'] ?? false);
+        unset($data['use_default_for_all']);
+
+        $updated = DB::transaction(function () use ($source, $data, $catalog, $request, $useDefaultForAll): ServiceVersion {
+            $service = Service::query()->where('tenant_id', $source->tenant_id)->lockForUpdate()->findOrFail($source->service_id);
+            if ((int) $service->current_version_id !== (int) $source->id || $source->status !== 'published') {
+                throw ValidationException::withMessages(['version' => 'Abra a tarifa ativa do serviço para corrigir os preços.']);
+            }
+            $changes = array_filter($data, fn ($value, $key) => $value !== null && (float) $source->{$key} !== (float) $value, ARRAY_FILTER_USE_BOTH);
+            $clearOverrides = $useDefaultForAll && $source->payable_enabled && $source->providerRates()->where('active', true)->exists();
+            if ($changes === [] && ! $clearOverrides) {
+                return $source;
+            }
+
+            $draft = $catalog->clone($source);
+            $draft->update($changes);
+            if ($clearOverrides) {
+                $draft->providerRates()->update(['active' => false]);
+            }
+
+            return $catalog->publish($draft, $request->user());
+        }, 3);
+
+        return redirect()->route('services.catalog.show', [$tenant, $updated])
+            ->with('success', $updated->is($source) ? 'Os preços já estão atualizados.' : 'Preços atualizados para os próximos lançamentos.');
     }
 
     public function update(Request $request, Tenant $tenant, int $version): RedirectResponse

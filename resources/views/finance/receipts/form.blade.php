@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @php
     $editing = $receipt instanceof \App\Models\FinancialReceipt;

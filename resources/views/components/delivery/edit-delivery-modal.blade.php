@@ -1496,7 +1496,7 @@ textarea.em-input {
         </div>
 
         <div class="em-notice-actions">
-            <button type="button" onclick="EditModal.closeNotice()">Fechar</button>
+            <button type="button" onclick="EditModal.closeNotice()" data-back-close>Fechar</button>
         </div>
     </div>
 </div>

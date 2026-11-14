@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', $order->number)
 @section('page-title', 'Dossiê '.$order->number)
@@ -1697,6 +1697,18 @@
 </style>
 
 <main class="dossier-page">
+    @if($order->operational_status === 'cancelled')
+        <section class="ds-annulment" aria-label="Ocorrência de anulação">
+            <strong>Ordem anulada</strong>
+            @if($order->cancelled_at)<time datetime="{{ $order->cancelled_at->toIso8601String() }}">{{ $order->cancelled_at->format('d/m/Y H:i') }}</time>@endif
+            <p>{{ $order->cancellation_reason }}</p>
+        </section>
+        <style>
+            .ds-annulment { display: grid; gap: .35rem; padding: 1rem; border: 1px solid var(--ui-color-border); border-radius: 12px; background: var(--ui-color-surface); overflow-wrap: anywhere; }
+            .ds-annulment time { color: var(--ui-color-text-secondary); font-size: .85rem; }
+            .ds-annulment p { margin: 0; }
+        </style>
+    @endif
     <header class="ds-head">
         <div class="ds-head-top">
             <div class="ds-head-main">
@@ -1743,7 +1755,7 @@
         @endif
 
         <div class="ds-doc-actions" style="margin:.6rem 0">
-            @if($execution?->status === 'draft' && auth()->user()->checkPermissionTo('edit_service_order'))
+            @if(in_array($execution?->status, ['draft', 'in_progress', 'rejected'], true) && auth()->user()->checkPermissionTo('edit_service_order'))
                 <a class="btn" href="{{ route('services.management.edit', [$tenantSlug, $order]) }}">Editar ordem</a>
             @endif
             @if(auth()->user()->checkPermissionTo('manage_service_expenses'))

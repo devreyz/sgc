@@ -1,23 +1,27 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
+    @auth
+        <script>
+            try { localStorage.setItem('sgc-has-signed-in', '1'); } catch {}
+        </script>
+    @endauth
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="theme-color" content="#168a4d">
+    <meta name="theme-color" content="#173c2e">
 
-    <link rel="manifest" href="/manifest.json">
-    <link rel="icon" href="/assets/favicon.ico" sizes="any">
-    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicon-180.png">
+    <link rel="manifest" href="/manifest.json?v=campo">
+    <link rel="icon" href="/assets/favicon.ico?v=campo-light" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png?v=campo-light">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png?v=campo-light">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicon-180.png?v=campo-mark">
+    @include('components.campo-public-theme')
 
     <title>Escolher organização - {{ config('app.name', 'ZeCoop SGC') }}</title>
 
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/duotone/style.css">
 
     @php
         $nativePushConfig = [
@@ -37,18 +41,18 @@
 
     <style>
         :root {
-            --select-green: #168a4d;
-            --select-green-dark: #116c3a;
-            --select-green-deep: #0e542e;
-            --select-green-soft: #eaf8ef;
-            --select-blue: #2563eb;
-            --select-blue-soft: #eef4ff;
-            --select-violet: #7c3aed;
-            --select-violet-soft: #f4f0ff;
-            --select-amber: #c87408;
-            --select-amber-soft: #fff7e8;
-            --select-red: #cf3f3f;
-            --select-red-soft: #fff0f0;
+            --select-green: var(--ui-color-primary);
+            --select-green-dark: var(--ui-color-primary-strong);
+            --select-green-deep: var(--ui-color-primary-deep);
+            --select-green-soft: var(--ui-color-primary-soft);
+            --select-blue: var(--ui-color-info-strong);
+            --select-blue-soft: var(--ui-color-info-soft);
+            --select-violet: var(--ui-color-primary);
+            --select-violet-soft: var(--ui-color-primary-soft);
+            --select-amber: var(--ui-color-warning-strong);
+            --select-amber-soft: var(--ui-color-warning-soft);
+            --select-red: var(--ui-color-danger-strong);
+            --select-red-soft: var(--ui-color-danger-soft);
             --select-text: var(--color-text, #102018);
             --select-secondary: var(--color-text-secondary, #52645a);
             --select-muted-text: var(--color-text-muted, #809087);
@@ -79,18 +83,14 @@
 
         html {
             overflow: hidden;
-            background: #eef4f0;
+            background: var(--ui-color-canvas);
             -webkit-text-size-adjust: 100%;
         }
 
         body {
             margin: 0;
             overflow: hidden;
-            background:
-                radial-gradient(circle at 10% 4%, rgba(22, 138, 77, .10), transparent 25rem),
-                radial-gradient(circle at 92% 14%, rgba(124, 58, 237, .065), transparent 22rem),
-                radial-gradient(circle at 86% 96%, rgba(200, 116, 8, .065), transparent 24rem),
-                linear-gradient(180deg, #fbfdfb 0%, #f1f6f3 100%);
+            background: var(--ui-color-canvas);
             color: var(--select-text);
             font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             font-size: 16px;
@@ -100,21 +100,7 @@
             overscroll-behavior: none;
         }
 
-        body::before {
-            position: fixed;
-            z-index: 0;
-            inset: 0;
-            opacity: .56;
-            background-image:
-                linear-gradient(rgba(22, 138, 77, .022) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(22, 138, 77, .022) 1px, transparent 1px);
-            background-size: 28px 28px;
-            mask-image: linear-gradient(to bottom, #000 0%, transparent 88%);
-            content: "";
-            pointer-events: none;
-        }
-
-        button, input { min-width: 0; font: inherit; }
+button, input { min-width: 0; font: inherit; }
         button, input { -webkit-tap-highlight-color: transparent; }
         img { display: block; max-width: 100%; }
 
@@ -127,54 +113,25 @@
         [hidden] { display: none !important; }
 
         .select-page {
-            position: relative;
-            z-index: 1;
-            display: grid;
-            width: 100dvw;
-            min-width: 320px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
             height: 100dvh;
-            min-height: 100dvh;
-            place-items: center;
-            overflow: hidden;
-            padding:
-                max(16px, var(--safe-top))
-                max(16px, var(--safe-right))
-                max(16px, var(--safe-bottom))
-                max(16px, var(--safe-left));
+            overflow-y: auto;
+            padding: max(16px, var(--safe-top)) max(16px, var(--safe-right))
+                max(16px, var(--safe-bottom)) max(16px, var(--safe-left));
         }
 
         .select-shell {
-            position: relative;
-            display: grid;
-            width: min(calc(100dvw - 32px), 490px);
-            max-height: calc(100dvh - 32px);
-            overflow-x: hidden;
-            overflow-y: auto;
+            flex: none;
+            width: min(100%, 530px);
+            margin-block: auto;
             border: 1px solid var(--select-border);
-            border-radius: 18px;
+            border-radius: 20px;
             background: var(--select-surface);
-            box-shadow: var(--select-shadow);
-            scrollbar-color: var(--select-border-strong) transparent;
-            scrollbar-gutter: stable;
-            scrollbar-width: thin;
+            box-shadow: var(--ui-shadow-md);
         }
-
-        .select-shell::before {
-            position: sticky;
-            z-index: 5;
-            top: 0;
-            display: block;
-            width: 100%;
-            height: 4px;
-            background: linear-gradient(
-                90deg,
-                var(--select-green) 0 52%,
-                var(--select-violet) 52% 78%,
-                var(--select-amber) 78% 100%
-            );
-            content: "";
-        }
-
         .select-content {
             display: grid;
             min-width: 0;
@@ -185,7 +142,7 @@
         .select-brand {
             display: grid;
             min-width: 0;
-            grid-template-columns: auto minmax(0, 1fr) auto;
+            grid-template-columns: auto minmax(0, 1fr) auto auto;
             gap: .65rem;
             align-items: center;
         }
@@ -251,7 +208,7 @@
             place-items: center;
             border: 1px solid var(--select-border);
             border-radius: 11px;
-            background: #fff;
+            background: var(--ui-color-surface);
             color: var(--select-secondary);
             cursor: pointer;
             transition:
@@ -282,7 +239,7 @@
             border-radius: 15px;
             background:
                 radial-gradient(circle at 100% 0, rgba(124, 58, 237, .07), transparent 12rem),
-                linear-gradient(180deg, var(--select-soft), #fff);
+                linear-gradient(180deg, var(--select-soft), var(--ui-color-surface));
             text-align: center;
         }
 
@@ -348,7 +305,7 @@
             width: 34px;
             height: 34px;
             border-radius: 10px;
-            background: #fff;
+            background: var(--ui-color-surface);
             color: var(--select-red);
         }
 
@@ -453,7 +410,7 @@
 
         .organization-search:focus {
             border-color: rgba(37, 99, 235, .34);
-            background: #fff;
+            background: var(--ui-color-surface);
             box-shadow: 0 0 0 3px rgba(37, 99, 235, .08);
         }
 
@@ -488,7 +445,7 @@
             overflow: hidden;
             border: 1px solid var(--select-border);
             border-radius: 13px;
-            background: #fff;
+            background: var(--ui-color-surface);
             color: var(--select-text);
             cursor: pointer;
             text-align: left;
@@ -517,7 +474,7 @@
         .organization-option:hover,
         .organization-option:focus-visible {
             border-color: color-mix(in srgb, var(--tenant-tone) 28%, transparent);
-            background: color-mix(in srgb, var(--tenant-soft) 42%, #fff);
+            background: color-mix(in srgb, var(--tenant-soft) 42%, var(--ui-color-surface));
             outline: none;
             box-shadow: var(--select-shadow-sm);
             transform: translateY(-1px);
@@ -676,7 +633,7 @@
             padding: 1.45rem 1.25rem 1.25rem;
             border: 1px solid rgba(255, 255, 255, .82);
             border-radius: 18px;
-            background: #fff;
+            background: var(--ui-color-surface);
             box-shadow: 0 28px 80px rgba(8, 24, 15, .25);
             text-align: center;
             transform: translateY(8px) scale(.98);
@@ -755,31 +712,8 @@
         }
 
         @media (max-width: 520px) {
-            .select-page { padding: 0; }
-
-            .select-shell {
-                width: 100dvw;
-                height: 100dvh;
-                max-height: 100dvh;
-                border: 0;
-                border-radius: 0;
-                box-shadow: none;
-                scrollbar-gutter: auto;
-            }
-
-            .select-content {
-                min-height: calc(100dvh - 4px);
-                align-content: safe center;
-                padding:
-                    max(1rem, var(--safe-top))
-                    max(1rem, var(--safe-right))
-                    max(1rem, var(--safe-bottom))
-                    max(1rem, var(--safe-left));
-            }
-
-            .organization-list.is-scrollable { max-height: min(40dvh, 350px); }
+            .select-content { padding: 16px; }
         }
-
         @media (max-width: 360px) {
             .select-content { padding-right: .8rem; padding-left: .8rem; }
         }
@@ -824,7 +758,65 @@
                 transition-duration: .01ms !important;
             }
         }
+        .select-heading {
+            position: relative;
+            isolation: isolate;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            padding: clamp(.9rem, 4vw, 1.35rem);
+            text-align: left;
+            background: var(--sgc-rail);
+            color: var(--sgc-rail-text);
+            border: 1px solid var(--sgc-rail-divider);
+        }
+        .select-heading::before {
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+            background: radial-gradient(circle at 100% 145%, transparent 58px, currentColor 59px, transparent 60px 83px, currentColor 84px, transparent 85px 109px, currentColor 110px, transparent 111px);
+            opacity: .14;
+            content: "";
+        }
+        .select-heading h1 { color: inherit; font-size: clamp(1.25rem, 5vw, 1.7rem); }
+        .select-heading .heading-icon {
+            flex: 0 0 40px; width: 40px; height: 40px; margin: 0;
+            color: var(--sgc-accent); background: var(--sgc-rail-hover);
+        }
+        .select-heading .tenant-count {
+            margin: 0 0 0 auto;
+            color: var(--sgc-on-accent);
+            background: var(--sgc-accent);
+            border-color: transparent;
+        }
+        .brand-icon.campo-public-brand {
+            width: 50px; height: 50px; border-radius: 12px;
+            background: var(--sgc-accent);
+        }
+        .brand-icon.campo-public-brand > img { width: 38px; height: 38px; }
+        [data-theme="dark"] .brand-icon.campo-public-brand { background: var(--sgc-rail); border: 1px solid var(--select-border); }
+        .organization-option { background: var(--select-soft); }
+        .organization-option:focus-visible { outline: 2px solid var(--ui-color-focus); outline-offset: 2px; }
+        .organization-logo { object-fit: contain; }
+        @media (max-width: 390px) {
+            .select-heading { flex-wrap: wrap; }
+            .select-heading .tenant-count { margin-left: 0; }
+        }
+        .select-icon-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+        .select-brand :is(.campo-public-theme-toggle, .logout-button) {
+            width: 36px;
+            height: 36px;
+            flex: 0 0 36px;
+            padding: 0;
+            border-radius: 10px;
+        }
+        .select-icon { display: block; flex: none; width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
+        .tenant-count .select-icon { width: 14px; height: 14px; }
+        .heading-icon .select-icon, .empty-icon .select-icon { width: 22px; height: 22px; }
     </style>
+    @include('components.campo-public-style')
 </head>
 
 @php
@@ -834,18 +826,34 @@
 @endphp
 
 <body>
+    <svg class="select-icon-sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+<symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.4 15.3A9 9 0 0 1 8.7 3.6 9 9 0 1 0 20.4 15.3Z"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6m0 4h.01"/></symbol>
+        <symbol id="i-building" viewBox="0 0 24 24"><path d="M4 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16m0-11h3a1 1 0 0 1 1 1v10M2 21h20M8 7h4m-4 4h4m-4 4h4"/></symbol>
+        <symbol id="i-stack" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Zm-9 9 9 5 9-5M3 16l9 5 9-5"/></symbol>
+        <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></symbol>
+        <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+        <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4m-1-8h11m-4-4 4 4-4 4"/></symbol>
+    </svg>
     <main class="select-page">
         <section class="select-shell" aria-labelledby="select-title">
             <div class="select-content">
                 <header class="select-brand">
-                    <span class="brand-icon" aria-hidden="true">
-                        <img src="{{ asset('assets/sgc-symbol.png') }}" alt="">
+                    <span class="brand-icon campo-public-brand" aria-hidden="true">
+                        @include('components.campo-mark')
                     </span>
 
                     <span class="brand-copy">
                         <strong>{{ config('app.name', 'ZeCoop SGC') }}</strong>
                         <span>Conectado como {{ $userName }}</span>
                     </span>
+
+                    <button type="button" class="campo-public-theme-toggle" data-public-theme-toggle aria-label="Tema escuro" aria-pressed="false" title="Alternar tema">
+                        <svg class="select-icon campo-theme-moon" aria-hidden="true"><use href="#i-moon"/></svg>
+                        <svg class="select-icon campo-theme-sun" aria-hidden="true"><use href="#i-sun"/></svg>
+                    </button>
 
                     <form action="{{ route('logout') }}" method="POST" class="logout-form">
                         @csrf
@@ -855,23 +863,22 @@
                             aria-label="Sair da conta"
                             title="Sair da conta"
                         >
-                            <i class="ph ph-sign-out" aria-hidden="true"></i>
+                            <svg class="select-icon" aria-hidden="true"><use href="#i-logout"/></svg>
                         </button>
                     </form>
                 </header>
 
                 <section class="select-heading">
                     <span class="heading-icon" aria-hidden="true">
-                        <i class="ph-duotone ph-buildings"></i>
+                        <svg class="select-icon" aria-hidden="true"><use href="#i-building"/></svg>
                     </span>
 
                     <div class="heading-copy">
-                        <h1 id="select-title">Onde você quer entrar?</h1>
-                        <p>Selecione uma organização para continuar.</p>
+                        <h1 id="select-title">Escolha sua organização</h1>
                     </div>
 
                     <span class="tenant-count">
-                        <i class="ph-duotone ph-stack" aria-hidden="true"></i>
+                        <svg class="select-icon" aria-hidden="true"><use href="#i-stack"/></svg>
                         {{ $tenantCount }}
                         {{ $tenantCount === 1 ? 'organização' : 'organizações' }}
                     </span>
@@ -880,7 +887,7 @@
                 @if(session('error'))
                     <div class="feedback" role="alert">
                         <span class="feedback-icon" aria-hidden="true">
-                            <i class="ph-duotone ph-warning-circle"></i>
+                            <svg class="select-icon" aria-hidden="true"><use href="#i-alert"/></svg>
                         </span>
 
                         <span class="feedback-copy">
@@ -892,7 +899,7 @@
 
                 <div class="feedback" id="organization-error" role="alert" hidden>
                     <span class="feedback-icon" aria-hidden="true">
-                        <i class="ph-duotone ph-warning-circle"></i>
+                        <svg class="select-icon" aria-hidden="true"><use href="#i-alert"/></svg>
                     </span>
                     <span class="feedback-copy">
                         <strong>Não foi possível entrar</strong>
@@ -914,7 +921,7 @@
                                 aria-expanded="false"
                                 title="Buscar organização"
                             >
-                                <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+                                <svg class="select-icon" aria-hidden="true"><use href="#i-search"/></svg>
                             </button>
                         @endif
                     </header>
@@ -923,7 +930,7 @@
                         <div class="search-area" id="search-area" hidden>
                             <div class="search-field">
                                 <span class="search-field-icon" aria-hidden="true">
-                                    <i class="ph ph-magnifying-glass"></i>
+                                    <svg class="select-icon" aria-hidden="true"><use href="#i-search"/></svg>
                                 </span>
                                 <input
                                     class="organization-search"
@@ -955,7 +962,7 @@
                                 );
                                 $tenantLogo = $tenant->logo
                                     ? asset('storage/' . $tenant->logo)
-                                    : asset('assets/sgc-symbol.png');
+                                    : asset('assets/sgc-mark-light.png');
                             @endphp
 
                             <form
@@ -1002,20 +1009,18 @@
 
                                     <span class="organization-info">
                                         <strong class="organization-name">{{ $tenant->name }}</strong>
-                                        @if($tenant->slug)
-                                            <span class="organization-slug">{{ $tenant->slug }}</span>
-                                        @endif
+
                                     </span>
 
                                     <span class="organization-end" aria-hidden="true">
-                                        <i class="ph ph-arrow-right"></i>
+                                        <svg class="select-icon" aria-hidden="true"><use href="#i-arrow"/></svg>
                                     </span>
                                 </button>
                             </form>
                         @empty
                             <div class="empty-state">
                                 <span class="empty-icon" aria-hidden="true">
-                                    <i class="ph-duotone ph-buildings"></i>
+                                    <svg class="select-icon" aria-hidden="true"><use href="#i-building"/></svg>
                                 </span>
                                 <strong>Nenhuma organização disponível</strong>
                                 <p>Sua conta ainda não está vinculada a uma organização.</p>
@@ -1024,7 +1029,7 @@
 
                         <div class="empty-state" id="search-empty" hidden>
                             <span class="empty-icon" aria-hidden="true">
-                                <i class="ph-duotone ph-magnifying-glass"></i>
+                                <svg class="select-icon" aria-hidden="true"><use href="#i-search"/></svg>
                             </span>
                             <strong>Nenhuma organização encontrada</strong>
                             <p>Tente buscar usando outra parte do nome.</p>
@@ -1038,7 +1043,7 @@
     <div class="organization-transition" id="organization-transition" aria-hidden="true">
         <div class="transition-panel" role="status" aria-live="polite">
             <span class="transition-symbol" aria-hidden="true">
-                <img id="transition-logo" src="{{ asset('assets/sgc-symbol.png') }}" alt="">
+                <img id="transition-logo" src="{{ asset('assets/sgc-mark-light.png') }}" alt="">
             </span>
             <strong id="transition-title">Entrando...</strong>
             <p>Preparando sua organização.</p>
@@ -1105,7 +1110,7 @@
                     transitionLogo.src = form.dataset.tenantLogo;
                     transitionLogo.onerror = () => {
                         transitionLogo.onerror = null;
-                        transitionLogo.src = "{{ asset('assets/sgc-symbol.png') }}";
+                        transitionLogo.src = "{{ asset('assets/sgc-mark-light.png') }}";
                     };
                 }
 
@@ -1211,7 +1216,7 @@
                 searchArea.hidden = true;
                 searchToggle.setAttribute('aria-expanded', 'false');
                 searchToggle.innerHTML =
-                    '<i class="ph ph-magnifying-glass" aria-hidden="true"></i>';
+                    '<svg class="select-icon" aria-hidden="true"><use href="#i-search"/></svg>';
             }
 
             if (searchToggle && searchArea && searchInput) {
@@ -1227,7 +1232,7 @@
                     searchArea.hidden = false;
                     searchToggle.setAttribute('aria-expanded', 'true');
                     searchToggle.innerHTML =
-                        '<i class="ph ph-x" aria-hidden="true"></i>';
+                        '<svg class="select-icon" aria-hidden="true"><use href="#i-close"/></svg>';
                     requestAnimationFrame(() => searchInput.focus());
                 });
 

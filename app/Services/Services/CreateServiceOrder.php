@@ -5,6 +5,7 @@ namespace App\Services\Services;
 use App\Enums\ServiceOrderStatus;
 use App\Models\Asset;
 use App\Models\Associate;
+use App\Models\Service;
 use App\Models\ServiceOrder;
 use App\Models\ServiceProvider;
 use App\Models\ServiceProviderService;
@@ -23,21 +24,29 @@ class CreateServiceOrder
     {
         return DB::transaction(function () use ($tenantId, $version, $data, $actor, $existing): ServiceOrder {
             $execution = $existing?->execution()->where('tenant_id', $tenantId)->lockForUpdate()->firstOrFail();
-            if ($existing && ($execution->status !== 'draft' || (int) $execution->lock_version !== (int) ($data['lock_version'] ?? -1))) {
-                throw ValidationException::withMessages(['order' => 'A ordem mudou ou a execução já começou. Reabra a ordem para conferir.']);
+            if ($existing && (! in_array($execution->status, ['draft', 'in_progress', 'rejected'], true) || (int) $execution->lock_version !== (int) ($data['lock_version'] ?? -1))) {
+                throw ValidationException::withMessages(['order' => 'A ordem mudou ou saiu da edição. Reabra a ordem para conferir.']);
+            }
+            if ($execution && $execution->status !== 'draft'
+                && ((int) $existing->service_id !== (int) $version->service_id
+                    || (int) $execution->service_provider_id !== (int) ($data['service_provider_id'] ?? 0))) {
+                throw ValidationException::withMessages(['service_version_id' => 'Com a execução iniciada, mantenha o serviço e o prestador.']);
             }
             if ($existing && (int) $execution->service_provider_id !== (int) ($data['service_provider_id'] ?? 0)
                 && ($execution->evidences()->exists() || $execution->resources()->exists())) {
                 throw ValidationException::withMessages(['service_provider_id' => 'A ordem já possui anexos ou recursos registrados para o prestador atual.']);
             }
             $sameVersion = $execution && (int) $execution->service_version_id === (int) $version->id;
+            $sameService = $existing && (int) $existing->service_id === (int) $version->service_id;
+            $previousVersionId = $execution?->service_version_id;
+            $service = Service::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($version->service_id);
             $version = ServiceVersion::query()->whereKey($version->id)->where('tenant_id', $tenantId)
-                ->whereIn('status', $sameVersion ? ['published', 'retired'] : ['published'])->first();
+                ->whereIn('status', $sameService ? ['published', 'retired'] : ['published'])->first();
             if (! $version) {
                 throw ValidationException::withMessages(['service_version_id' => 'A versão publicada não pertence à organização.']);
             }
-            if (! $sameVersion && ! $version->service?->status) {
-                throw ValidationException::withMessages(['service_version_id' => 'O serviço está inativo.']);
+            if (! $sameService && (! $service->status || ($service->current_version_id && (int) $service->current_version_id !== (int) $version->id))) {
+                throw ValidationException::withMessages(['service_version_id' => 'A tarifa selecionada saiu de uso. Reabra o lançamento e escolha a tarifa atual.']);
             }
             $associate = ! empty($data['associate_id']) ? Associate::query()->whereKey($data['associate_id'])->where('tenant_id', $tenantId)->active()->first() : null;
             $provider = ! empty($data['service_provider_id']) ? ServiceProvider::query()->whereKey($data['service_provider_id'])->where('tenant_id', $tenantId)->first() : null;
@@ -84,31 +93,50 @@ class CreateServiceOrder
                 'description' => $data['description'] ?? null,
                 'notes' => $data['notes'] ?? null,
             ], fn ($value) => $value !== null));
+            if ($sameService) {
+                $orderData = array_replace($existing->order_data ?? [], $orderData);
+            }
             foreach ($orderData as $key => $value) {
                 if ($value !== null && ! is_scalar($value)) {
                     throw ValidationException::withMessages(["order_data.$key" => 'Informe um valor simples para este campo.']);
                 }
             }
-            $scheduled = isset($data['scheduled_at']) ? Carbon::parse($data['scheduled_at']) : now();
-            $existingOrderData = $existing?->order_data ?? [];
+            $scheduled = array_key_exists('scheduled_at', $data)
+                ? (isset($data['scheduled_at']) ? Carbon::parse($data['scheduled_at']) : null)
+                : ($existing?->scheduled_at ?? $existing?->scheduled_date);
+            $executionDate = array_key_exists('execution_date', $data) ? $data['execution_date'] : $existing?->execution_date;
             $order = $existing ?? new ServiceOrder([
-                'number' => $this->numbers->next($tenantId, (int) $scheduled->format('Y')),
+                'number' => $this->numbers->next($tenantId, (int) Carbon::parse($executionDate ?? $scheduled ?? now())->format('Y')),
                 'created_by' => $actor->id,
             ]);
             $order->fill([
                 'service_id' => $version->service_id, 'service_version_id' => $version->id,
                 'associate_id' => $associate?->id, 'service_provider_id' => $provider?->id,
                 'asset_id' => $asset?->id, 'scheduled_at' => $scheduled,
-                'scheduled_date' => $scheduled->toDateString(), 'location' => $data['location'] ?? null,
-                'unit' => $version->unit, 'unit_price' => 0,
-                'order_data' => $orderData, 'operational_status' => 'scheduled',
-                'status' => ServiceOrderStatus::SCHEDULED, 'total_price' => 0, 'final_price' => 0,
+                'scheduled_date' => $scheduled?->toDateString(), 'execution_date' => $executionDate, 'location' => $data['location'] ?? null,
+                'unit' => $version->unit,
+                'order_data' => $orderData,
                 'beneficiary_snapshot' => ['id' => $associate?->id, 'name' => $beneficiaryName, 'document' => $associate?->cpf_cnpj],
                 'provider_snapshot' => $provider ? ['id' => $provider->id, 'name' => $provider->name, 'document' => $provider->cpf] : null,
             ]);
+            if (! $existing) {
+                $order->fill(['operational_status' => 'scheduled', 'status' => ServiceOrderStatus::SCHEDULED,
+                    'unit_price' => 0, 'total_price' => 0, 'final_price' => 0]);
+            }
             $order->tenant_id = $tenantId;
             $order->save();
             $snapshot = $version->snapshot();
+            if ($sameService && ! $sameVersion) {
+                $oldFields = collect(data_get($execution->catalog_snapshot, 'fields', []))->keyBy('key');
+                foreach ($snapshot['fields'] as $field) {
+                    $oldField = $oldFields->get($field['key']);
+                    if ($oldField && filled(data_get($execution->values, $field['key']))
+                        && (($oldField['type'] ?? null) !== ($field['type'] ?? null)
+                            || ($oldField['unit'] ?? null) !== ($field['unit'] ?? null))) {
+                        throw ValidationException::withMessages(['service_version_id' => "O campo {$field['label']} mudou de tipo ou unidade. Escolha uma versão compatível."]);
+                    }
+                }
+            }
             if ($sameVersion) {
                 $snapshot = $execution->catalog_snapshot;
                 if (isset($data['reset_customer_rate'])) {
@@ -149,23 +177,39 @@ class CreateServiceOrder
                     'percentage' => $override?->percentage ?? $version->provider_percentage,
                 ];
             }
-            if ($execution && (int) $execution->service_version_id !== (int) $version->id
-                && ($execution->evidences()->exists() || $execution->resources()->exists())) {
+            if (isset($data['provider_rate'])) {
+                if (! $provider || ! $version->payable_enabled || ! in_array($version->provider_pricing_method, ['fixed', 'quantity_x_rate'], true)) {
+                    throw ValidationException::withMessages(['provider_rate' => 'Este serviço usa outra forma de calcular o pagamento.']);
+                }
+                $snapshot['provider_compensation'] = [
+                    'source' => 'order_override', 'provider_rate_id' => null, 'method' => $version->provider_pricing_method,
+                    'rate' => $data['provider_rate'], 'percentage' => null,
+                ];
+            }
+            if ($execution && ! $sameVersion && ($execution->evidences()->exists() || $execution->resources()->exists())
+                && (! $sameService || collect(['fields', 'execution_config', 'financial_config', 'evidence_config'])->contains(
+                    fn (string $key) => ($snapshot[$key] ?? []) != data_get($execution->catalog_snapshot, $key, [])
+                ))) {
                 throw ValidationException::withMessages(['service_version_id' => 'A ordem já possui anexos ou recursos. Mantenha o serviço ou cancele a ordem.']);
             }
             $execution ??= $order->execution()->make(['status' => 'draft', 'derived_values' => []]);
             $execution->fill([
                 'service_version_id' => $version->id, 'service_provider_id' => $provider?->id,
                 'associate_id' => $associate?->id, 'unit' => $version->unit, 'catalog_snapshot' => $snapshot,
-                'values' => $existing && (int) $execution->service_version_id === (int) $version->id
-                    ? array_replace(array_diff_key($execution->values ?? [], $existingOrderData), $orderData)
+                'values' => $sameService
+                    ? array_replace($execution->values ?? [], $orderData)
                     : $orderData,
+                'derived_values' => $sameVersion ? ($execution->derived_values ?? []) : [],
+                'quantity' => $sameVersion ? $execution->quantity : null,
                 'lock_version' => (int) $execution->lock_version + (int) ($existing !== null),
             ]);
             $execution->tenant_id = $tenantId;
             $execution->save();
             $this->fields->validate($execution, 'order', $orderData);
-            activity('service_order')->performedOn($order)->causedBy($actor)->withProperties(['tenant_id' => $tenantId, 'service_version_id' => $version->id])->log($existing ? 'Ordem de serviço corrigida' : 'Ordem de serviço criada');
+            activity('service_order')->performedOn($order)->causedBy($actor)->withProperties([
+                'tenant_id' => $tenantId, 'previous_service_version_id' => $previousVersionId, 'service_version_id' => $version->id,
+                'provider_rate' => $data['provider_rate'] ?? null,
+            ])->log($existing ? 'Ordem de serviço corrigida' : 'Ordem de serviço criada');
 
             return $order->fresh(['execution', 'serviceVersion', 'service', 'serviceProvider', 'associate']);
         }, 3);

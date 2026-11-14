@@ -1,29 +1,51 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="light" data-app-entry>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="theme-color" content="#0d5f38">
-    <title>SGC Aplicativo</title>
-    <link rel="stylesheet" href="/assets/sgc-app-portal.css">
+    <meta name="theme-color" content="#173c2e">
+    <meta name="robots" content="noindex,follow">
+    <title>Entrar no SGC</title>
+    <link rel="manifest" href="/manifest.json?v=campo">
+    <link rel="icon" href="/assets/favicon.ico?v=campo-light">
+    <script src="{{ asset('assets/pwa-entry.js') }}?v=3"></script>
+    <link rel="stylesheet" href="{{ asset('assets/sgc-app-portal.css') }}?v=4">
 </head>
 <body>
-<main class="page">
-    <section class="hero">
-        <div class="brand"><span class="mark">S</span><span>SGC · Aplicativo</span></div>
-        <span class="eyebrow">Acesso à sua organização</span>
-        <h1>Gestão cooperativa no ritmo do seu trabalho.</h1>
-        <p>Entre para acompanhar projetos, entregas, documentos e informações da sua organização.</p>
-        <a class="login" href="{{ route('login') }}">Entrar no SGC</a>
-    </section>
-    <nav class="panel" aria-label="Links úteis">
-        <a class="item" href="/legal/privacidade.html"><strong>Privacidade</strong><span>Como protegemos seus dados.</span></a>
-        <a class="item" href="/legal/termos.html"><strong>Termos de uso</strong><span>Regras para utilização do SGC.</span></a>
-        <a class="item" href="mailto:{{ config('legal.contact_email') }}"><strong>Suporte</strong><span>Fale com nossa equipe.</span></a>
-        <a class="item" href="mailto:{{ config('legal.privacy_email') }}"><strong>Contato de privacidade</strong><span>Dúvidas sobre dados pessoais.</span></a>
-    </nav>
-    <div class="status">Conexão segura necessária</div>
+<main class="entry-page">
+    <div class="entry-shell">
+        <header class="entry-brand">
+            <a href="{{ route('home', ['apresentacao' => 1]) }}" aria-label="Conhecer o SGC">
+                <span class="entry-mark">
+                    <img class="entry-mark-light" src="{{ asset('assets/sgc-mark-light.png') }}" width="38" height="38" alt="">
+                    <img class="entry-mark-dark" src="{{ asset('assets/sgc-mark-dark.png') }}" width="38" height="38" alt="">
+                </span>
+                <span><strong>SGC</strong><small>Sistema de Gestão Cooperativa</small></span>
+            </a>
+        </header>
+
+        <section class="entry-card" aria-labelledby="entry-title">
+            <div class="entry-hero">
+                <h1 id="entry-title">Acesse sua<br>organização.</h1>
+                <p>Projetos, entregas e serviços da sua organização.</p>
+            </div>
+            <div class="entry-actions">
+                <a class="entry-login" href="{{ route('login') }}">Entrar no SGC <span aria-hidden="true">→</span></a>
+                <a class="entry-code" href="{{ route('access.invitation.verify') }}">Tenho um código de acesso</a>
+                <nav class="entry-links" aria-label="Acesso e demonstração">
+                    <a href="mailto:{{ config('legal.contact_email') }}?subject=Solicitar%20acesso%20ao%20SGC">Solicitar acesso</a>
+                    <a href="{{ route('home', ['apresentacao' => 1]) }}#contato">Solicitar demonstração</a>
+                </nav>
+            </div>
+        </section>
+
+        <nav class="entry-legal" aria-label="Informações legais e sobre o SGC">
+            <a href="{{ route('home', ['apresentacao' => 1]) }}">Conhecer o SGC</a>
+            <a href="/legal/">Central Legal</a>
+            <a href="/legal/privacidade.html">Privacidade</a>
+            <a href="/legal/termos.html">Termos de uso</a>
+        </nav>
+    </div>
 </main>
 </body>
 </html>

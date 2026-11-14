@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="light">
 <head>
+    <script src="{{ asset('assets/overlay-back.js') }}"></script>
     <meta charset="utf-8">
 
     <meta
@@ -11,12 +12,14 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="referrer" content="no-referrer">
     <meta name="robots" content="noindex,nofollow,noarchive">
-    <meta name="theme-color" content="#22B573">
-    <link rel="manifest" href="/manifest.json">
-    <link rel="icon" href="/assets/favicon.ico" sizes="any">
-    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicon-180.png">
+    <meta name="theme-color" content="#173c2e">
+    <link rel="manifest" href="/manifest.json?v=campo">
+    <link rel="icon" href="/assets/favicon.ico?v=campo-light" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png?v=campo-light">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png?v=campo-light">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicon-180.png?v=campo-mark">
+
+    @include('components.campo-public-theme')
 
     <title>
         @yield('title', 'Acesso seguro') - {{ config('app.name', 'ZeCoop SGC') }}
@@ -29,35 +32,33 @@
 
     <style>
         :root {
-            --security-primary: var(--color-primary, #22c55e);
-            --security-primary-dark: var(--color-primary-dark, #16a34a);
-            --security-primary-deep: var(--color-primary-deep, #15803d);
+            --security-primary: var(--ui-color-primary);
+            --security-primary-dark: var(--ui-color-primary-strong);
+            --security-primary-deep: var(--ui-color-primary-deep);
 
-            --security-surface: var(--color-surface, #ffffff);
-            --security-surface-soft: var(--color-surface-soft, #f8faf9);
-            --security-surface-muted: var(--color-surface-muted, #eef4f0);
+            --security-surface: var(--ui-color-surface);
+            --security-surface-soft: var(--ui-color-surface-soft);
+            --security-surface-muted: var(--ui-color-surface-muted);
 
-            --security-border: var(--color-border, #dce6df);
-            --security-border-strong: var(--color-border-strong, #c8d6cd);
+            --security-border: var(--ui-color-border);
+            --security-border-strong: var(--ui-color-border-strong);
 
-            --security-text: var(--color-text, #102018);
-            --security-text-secondary: var(--color-text-secondary, #52645a);
-            --security-text-muted: var(--color-text-muted, #809087);
+            --security-text: var(--ui-color-text);
+            --security-text-secondary: var(--ui-color-text-secondary);
+            --security-text-muted: var(--ui-color-text-muted);
 
-            --security-danger: var(--color-danger, #dc2626);
-            --security-danger-soft: #fff7f7;
+            --security-danger: var(--ui-color-danger-strong);
+            --security-danger-soft: var(--ui-color-danger-soft);
 
-            --security-success: #047857;
-            --security-success-soft: #ecfdf5;
+            --security-success: var(--ui-color-success-strong);
+            --security-success-soft: var(--ui-color-success-soft);
 
-            --security-warning: #b45309;
-            --security-warning-soft: #fffbeb;
+            --security-warning: var(--ui-color-warning-strong);
+            --security-warning-soft: var(--ui-color-warning-soft);
 
-            --security-shadow-sm:
-                0 5px 18px rgba(15, 35, 24, .055);
+            --security-shadow-sm: var(--ui-shadow-sm);
 
-            --security-shadow:
-                0 22px 58px rgba(15, 35, 24, .13);
+            --security-shadow: var(--ui-shadow-sm);
         }
 
         * {
@@ -67,7 +68,7 @@
         html {
             min-width: 320px;
             min-height: 100%;
-            background: #eef4f0;
+            background: var(--ui-color-canvas);
         }
 
         body {
@@ -76,23 +77,7 @@
             min-height: 100vh;
             min-height: 100dvh;
             overflow-x: hidden;
-            background:
-                radial-gradient(
-                    circle at 8% 4%,
-                    rgba(34, 197, 94, .10),
-                    transparent 22rem
-                ),
-                radial-gradient(
-                    circle at 94% 96%,
-                    rgba(22, 163, 74, .08),
-                    transparent 24rem
-                ),
-                linear-gradient(
-                    180deg,
-                    #f8fbf9 0%,
-                    #f1f6f3 48%,
-                    #edf3ef 100%
-                );
+            background: var(--ui-color-canvas);
             color: var(--security-text);
             font-family:
                 Inter,
@@ -139,55 +124,6 @@
                 max(18px, env(safe-area-inset-left));
         }
 
-        .security-pattern {
-            position: fixed;
-            z-index: -2;
-            inset: 0;
-            opacity: .7;
-            background-image:
-                linear-gradient(
-                    rgba(21, 128, 61, .026) 1px,
-                    transparent 1px
-                ),
-                linear-gradient(
-                    90deg,
-                    rgba(21, 128, 61, .026) 1px,
-                    transparent 1px
-                );
-            background-size: 28px 28px;
-            mask-image:
-                linear-gradient(
-                    to bottom,
-                    rgba(0, 0, 0, .72),
-                    transparent 88%
-                );
-            pointer-events: none;
-        }
-
-        .security-layout::before,
-        .security-layout::after {
-            position: fixed;
-            z-index: -1;
-            width: 260px;
-            height: 260px;
-            border-radius: 50%;
-            content: "";
-            filter: blur(16px);
-            pointer-events: none;
-        }
-
-        .security-layout::before {
-            top: -150px;
-            left: -120px;
-            background: rgba(34, 197, 94, .07);
-        }
-
-        .security-layout::after {
-            right: -140px;
-            bottom: -170px;
-            background: rgba(22, 163, 74, .06);
-        }
-
         .security-container {
             display: grid;
             width: min(100%, 590px);
@@ -198,11 +134,11 @@
             position: relative;
             min-width: 0;
             overflow: hidden;
-            border: 1px solid rgba(220, 230, 223, .98);
+            border: 1px solid var(--security-border);
             border-radius: 16px;
-            background: rgba(255, 255, 255, .985);
+            background: var(--security-surface);
             box-shadow: var(--security-shadow);
-            backdrop-filter: blur(18px);
+
         }
 
         .security-card::before {
@@ -224,13 +160,7 @@
             position: relative;
             padding: .85rem .9rem .82rem 1rem;
             border-bottom: 1px solid var(--security-border);
-            background:
-                linear-gradient(
-                    90deg,
-                    rgba(236, 253, 245, .80),
-                    rgba(255, 255, 255, .98) 48%
-                ),
-                var(--security-surface);
+            background: var(--security-surface-soft);
         }
 
         .security-brand-row {
@@ -256,23 +186,18 @@
             height: 40px;
             flex: 0 0 auto;
             place-items: center;
-            border: 1px solid rgba(34, 197, 94, .15);
+            border: 1px solid var(--security-border);
             border-radius: 11px;
-            background:
-                linear-gradient(
-                    145deg,
-                    #dcfce7,
-                    #ecfdf5
-                );
+            background: var(--ui-color-primary-soft);
             color: var(--security-primary-dark);
             box-shadow:
                 inset 0 0 0 1px rgba(255, 255, 255, .60),
                 var(--security-shadow-sm);
         }
 
-        .security-brand-mark svg {
-            width: 20px;
-            height: 20px;
+        .security-brand-mark.campo-public-brand > img {
+            width: 28px;
+            height: 28px;
         }
 
         .security-brand-copy {
@@ -301,36 +226,10 @@
             font-weight: 630;
         }
 
-        .security-badge {
-            display: inline-flex;
-            min-height: 28px;
-            flex: 0 0 auto;
-            align-items: center;
-            gap: .34rem;
-            padding: .28rem .5rem;
-            border: 1px solid rgba(34, 197, 94, .20);
-            border-radius: 999px;
-            background: #ecfdf5;
-            color: var(--security-primary-deep);
-            font-size: .56rem;
-            font-weight: 810;
-            line-height: 1;
-            white-space: nowrap;
-        }
-
-        .security-badge-dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: var(--security-primary);
-            box-shadow:
-                0 0 0 4px rgba(34, 197, 94, .11);
-        }
-
         .security-heading {
             margin-top: .82rem;
             padding-top: .78rem;
-            border-top: 1px solid rgba(220, 230, 223, .72);
+            border-top: 1px solid var(--security-border);
         }
 
         .security-heading h1 {
@@ -411,7 +310,7 @@
         .security-body input:hover,
         .security-body textarea:hover,
         .security-body select:hover {
-            border-color: #98ac9f;
+            border-color: var(--ui-color-focus);
         }
 
         .field:focus,
@@ -490,7 +389,7 @@
                     var(--security-primary-dark)
                 );
             padding: .58rem .85rem;
-            color: #fff;
+            color: var(--sgc-on-primary);
             cursor: pointer;
             font-size: .72rem;
             font-weight: 820;
@@ -536,7 +435,7 @@
 
         .btn.secondary:hover:not(:disabled),
         .btn.outline:hover:not(:disabled) {
-            border-color: rgba(34, 197, 94, .35);
+            border-color: var(--ui-color-primary-border);
             background: var(--security-surface-soft);
             color: var(--security-primary-dark);
             box-shadow: none;
@@ -583,19 +482,19 @@
         }
 
         .status.error {
-            border-color: #fecaca;
+            border-color: var(--ui-color-danger-border);
             background: var(--security-danger-soft);
-            color: #991b1b;
+            color: var(--security-danger);
         }
 
         .status.success {
-            border-color: #bbf7d0;
+            border-color: var(--ui-color-success-border);
             background: var(--security-success-soft);
             color: var(--security-success);
         }
 
         .status.warning {
-            border-color: #fde68a;
+            border-color: var(--ui-color-warning-border);
             background: var(--security-warning-soft);
             color: var(--security-warning);
         }
@@ -658,7 +557,7 @@
             justify-content: center;
             gap: .36rem;
             padding: 0 .7rem;
-            color: #718078;
+            color: var(--security-text-secondary);
             font-size: .57rem;
             font-weight: 650;
             text-align: center;
@@ -748,11 +647,6 @@
                 max-width: 145px;
             }
 
-            .security-badge {
-                gap: .28rem;
-                padding-right: .42rem;
-                padding-left: .42rem;
-            }
         }
 
         @media (min-width: 768px) {
@@ -787,14 +681,29 @@
                 transform: translateY(0) scale(1);
             }
         }
+        .security-card :is(.text-slate-950, .text-slate-700) { color: var(--security-text); }
+        .security-card .bg-slate-50 { background: var(--security-surface-soft); }
+        .security-card .bg-white { background: var(--security-surface); }
+        .security-card :is(.border-slate-200, .border-slate-300) { border-color: var(--security-border-strong); }
+        .security-card .bg-green-50 { background: var(--ui-color-primary-soft); }
+        .security-card .text-green-600 { color: var(--security-primary); }
+        .security-card :is(.ring-green-100, .focus\:ring-green-100:focus, .focus\:ring-green-200:focus) { --tw-ring-color: var(--ui-color-primary-border); }
+        .security-card .focus\:border-green-500:focus { border-color: var(--ui-color-focus); }
+        .security-card button.bg-green-600 { background: var(--security-primary); color: var(--sgc-on-primary); }
+        .security-card button.hover\:bg-green-700:hover { background: var(--security-primary-dark); }
+        .security-card button.disabled\:bg-slate-100:disabled { background: var(--security-surface-muted); color: var(--security-text-secondary); }
+        .security-card .bg-red-50 { background: var(--security-danger-soft); }
+        .security-card .text-red-700 { color: var(--security-danger); }
+        .security-card .border-red-200 { border-color: var(--ui-color-danger-border); }
     </style>
 
+    @include('components.campo-public-style')
     @stack('head')
 </head>
 
 <body>
     <main class="security-layout">
-        <div class="security-pattern" aria-hidden="true"></div>
+
 
         <div class="security-container">
             <section
@@ -805,20 +714,10 @@
                     <div class="security-brand-row">
                         <div class="security-brand">
                             <span
-                                class="security-brand-mark"
+                                class="security-brand-mark campo-public-brand"
                                 aria-hidden="true"
                             >
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                >
-                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"></path>
-                                    <path d="m9 12 2 2 4-4"></path>
-                                </svg>
+                                @include('components.campo-mark')
                             </span>
 
                             <span class="security-brand-copy">
@@ -832,14 +731,7 @@
                             </span>
                         </div>
 
-                        <span class="security-badge">
-                            <span
-                                class="security-badge-dot"
-                                aria-hidden="true"
-                            ></span>
-
-                            Protegido
-                        </span>
+                        @include('components.campo-public-toggle')
                     </div>
 
                     <div class="security-heading">

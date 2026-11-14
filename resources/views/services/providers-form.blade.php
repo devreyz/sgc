@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', $provider->exists ? 'Editar prestador' : 'Novo prestador')
 @section('page-title', $provider->exists ? 'Editar prestador' : 'Novo prestador')

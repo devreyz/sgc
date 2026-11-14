@@ -5,6 +5,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.os.Bundle;
 import android.os.Build;
 import android.graphics.Color;
@@ -20,6 +21,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.activity.OnBackPressedCallback;
+import androidx.core.content.ContextCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
@@ -27,11 +29,27 @@ import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
     private static final String APP_ORIGIN = "https://sgc.rzin.com.br";
-    static final String LOGIN_URL = "https://sgc.rzin.com.br/login";
+    static final String APP_ENTRY_URL = "https://sgc.rzin.com.br/app";
     private static final String APP_PREFERENCES = "sgc_app";
     private static final String ONBOARDING_COMPLETE = "onboarding_complete";
     private final PathNavigationEngine navigationEngine = new PathNavigationEngine();
     private View navigationLoading;
+
+    private void applySystemBarTheme() {
+        int color = ContextCompat.getColor(this, R.color.campo_system_bar);
+        getWindow().setStatusBarColor(color);
+        getWindow().setNavigationBarColor(color);
+        WindowInsetsControllerCompat controller =
+            new WindowInsetsControllerCompat(getWindow(), getWindow().getDecorView());
+        controller.setAppearanceLightStatusBars(false);
+        controller.setAppearanceLightNavigationBars(false);
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        applySystemBarTheme();
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,10 +61,8 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(NativeQrScannerPlugin.class);
         super.onCreate(savedInstanceState);
         createHighPriorityNotificationChannels();
-        getWindow().setStatusBarColor(Color.rgb(17, 92, 66));
-        getWindow().setNavigationBarColor(Color.rgb(238, 244, 240));
         WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
-        new WindowInsetsControllerCompat(getWindow(), getWindow().getDecorView()).setAppearanceLightStatusBars(false);
+        applySystemBarTheme();
 
         if (getBridge() != null) {
             WebView webView = getBridge().getWebView();
@@ -68,6 +84,22 @@ public class MainActivity extends BridgeActivity {
             public void handleOnBackPressed() {
                 WebView webView = getBridge() == null ? null : getBridge().getWebView();
 
+                if (webView != null) {
+                    webView.evaluateJavascript(
+                        "(() => { if (window.sgcOverlayBack) return window.sgcOverlayBack(); "
+                            + "const dialog = Array.from(document.querySelectorAll('dialog[open]')).pop(); "
+                            + "if (!dialog) return false; "
+                            + "if (typeof dialog.requestClose === 'function') dialog.requestClose(); "
+                            + "else if (dialog.dispatchEvent(new Event('cancel', {cancelable:true}))) dialog.close(); "
+                            + "return true; })()",
+                        closed -> { if (!"true".equals(closed)) navigateBack(webView); }
+                    );
+                } else {
+                    navigateBack(null);
+                }
+            }
+
+            private void navigateBack(WebView webView) {
                 if (webView != null) {
                     if (navigationEngine.isBackNavigationPending()) {
                         return;
@@ -104,7 +136,7 @@ public class MainActivity extends BridgeActivity {
             .edit()
             .putBoolean(ONBOARDING_COMPLETE, true)
             .apply();
-        webView.loadUrl(LOGIN_URL);
+        webView.loadUrl(APP_ENTRY_URL);
     }
 
     void showNavigationLoading(String message) {

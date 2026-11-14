@@ -1,4 +1,4 @@
-@extends('layouts.bento')
+@extends('layouts.campo')
 
 @section('title', $order->number)
 @section('page-title', $order->service->name)
@@ -260,3602 +260,899 @@
 @section('content')
 <link
     rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css"
->
-<link
-    rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css"
 >
 
+
 <style>
-    .service-execution {
-        --svc-green: #219653;
-        --svc-green-dark: #177c43;
-        --svc-green-soft: #edf8f1;
-        --svc-green-border: #cde8d6;
-
-        --svc-blue: #3478d4;
-        --svc-blue-soft: #eef4ff;
-        --svc-blue-border: #d4e2f8;
-
-        --svc-violet: #8a4bd2;
-        --svc-violet-soft: #f5effc;
-        --svc-violet-border: #e5d8f5;
-
-        --svc-cyan: #168eae;
-        --svc-cyan-soft: #edf8fb;
-        --svc-cyan-border: #d2eaf0;
-
-        --svc-amber: #c38418;
-        --svc-amber-soft: #fff7e8;
-        --svc-amber-border: #efdcb8;
-
-        --svc-red: #cf5050;
-        --svc-red-soft: #fff1f1;
-        --svc-red-border: #f1cccc;
-
-        --svc-slate: #64748b;
-        --svc-slate-soft: #f2f5f7;
-
-        --svc-text: var(--color-text, #17251c);
-        --svc-text-2: var(--color-text-secondary, #58685e);
-        --svc-muted: var(--color-text-muted, #87938b);
-        --svc-border: var(--color-border, #d7e2da);
-        --svc-border-strong: var(--color-border-strong, #becdc3);
-        --svc-surface: var(--color-surface, #fff);
-        --svc-soft: var(--color-surface-soft, #f7faf8);
-        --svc-shadow: 0 5px 18px rgba(25, 61, 39, .055);
-
-        display: grid;
-        width: min(100%, 1380px);
-        min-width: 0;
-        grid-column: 1 / -1;
-        gap: .72rem;
-        margin: 0 auto;
-        padding-bottom: 1rem;
-        color: var(--svc-text);
-    }
-
-    .service-execution *,
-    .service-execution *::before,
-    .service-execution *::after {
-        box-sizing: border-box;
-    }
-
-    /* =========================================================
-       SUPERFÍCIES
-       ========================================================= */
-
-    .svc-panel {
-        min-width: 0;
-        overflow: hidden;
-        border: 1px solid var(--svc-border);
-        border-radius: 12px;
-        background: var(--svc-surface);
-        box-shadow: var(--svc-shadow);
-    }
-
-    .svc-panel-head {
-        display: flex;
-        min-width: 0;
-        min-height: 62px;
-        gap: .65rem;
-        align-items: center;
-        justify-content: space-between;
-        padding: .65rem .72rem;
-        border-bottom: 1px solid var(--svc-border);
-        background:
-            linear-gradient(
-                180deg,
-                #fafcfb,
-                #fff
-            );
-    }
-
-    .svc-panel-title {
-        display: flex;
-        min-width: 0;
-        gap: .58rem;
-        align-items: center;
-    }
-
-    .svc-panel-icon {
-        display: grid;
-        width: 39px;
-        height: 39px;
-        flex: 0 0 auto;
-        place-items: center;
-        border-radius: 9px;
-        background:
-            var(
-                --panel-soft,
-                var(--svc-blue-soft)
-            );
-        color:
-            var(
-                --panel-tone,
-                var(--svc-blue)
-            );
-    }
-
-    .svc-panel-icon > i {
-        display: block;
-        font-size: 1.05rem;
-        line-height: 1;
-    }
-
-    .svc-panel-copy {
-        min-width: 0;
-    }
-
-    .svc-panel-copy h2,
-    .svc-panel-copy p {
-        margin: 0;
-    }
-
-    .svc-panel-copy h2 {
-        color: var(--svc-text);
-        font-size: .92rem;
-        font-weight: 840;
-        letter-spacing: -.02em;
-    }
-
-    .svc-panel-copy p {
-        margin-top: .08rem;
-        color: var(--svc-muted);
-        font-size: .69rem;
-        line-height: 1.35;
-    }
-
-    /* =========================================================
-       CABEÇALHO PRINCIPAL
-       ========================================================= */
-
-    .svc-header {
-        --status-tone: var(--svc-slate);
-        --status-soft: var(--svc-slate-soft);
-        --status-border: var(--svc-border);
-
-        display: grid;
-        min-width: 0;
-        grid-template-columns:
-            minmax(0, 1fr)
-            auto;
-        gap: .72rem;
-        align-items: center;
-        min-height: 84px;
-        padding: .76rem .8rem;
-        border: 1px solid var(--svc-border);
-        border-radius: 12px;
-        background:
-            radial-gradient(
-                circle at 100% 0,
-                color-mix(
-                    in srgb,
-                    var(--status-tone) 9%,
-                    transparent
-                ),
-                transparent 18rem
-            ),
-            linear-gradient(
-                180deg,
-                #fbfdfb,
-                #fff
-            );
-        box-shadow: var(--svc-shadow);
-    }
-
-    .svc-header.is-draft {
-        --status-tone: var(--svc-slate);
-        --status-soft: var(--svc-slate-soft);
-    }
-
-    .svc-header.is-rejected {
-        --status-tone: var(--svc-red);
-        --status-soft: var(--svc-red-soft);
-        --status-border: var(--svc-red-border);
-    }
-
-    .svc-header.is-progress {
-        --status-tone: var(--svc-cyan);
-        --status-soft: var(--svc-cyan-soft);
-        --status-border: var(--svc-cyan-border);
-    }
-
-    .svc-header.is-submitted {
-        --status-tone: var(--svc-amber);
-        --status-soft: var(--svc-amber-soft);
-        --status-border: var(--svc-amber-border);
-    }
-
-    .svc-header.is-validated {
-        --status-tone: var(--svc-green);
-        --status-soft: var(--svc-green-soft);
-        --status-border: var(--svc-green-border);
-    }
-
-    .svc-header-main {
-        display: flex;
-        min-width: 0;
-        gap: .62rem;
-        align-items: center;
-    }
-
-    .svc-back,
-    .svc-header-icon {
-        display: grid;
-        width: 42px;
-        height: 42px;
-        flex: 0 0 auto;
-        place-items: center;
-        border-radius: 9px;
-    }
-
-    .svc-back {
-        border: 1px solid var(--svc-border);
-        background: #fff;
-        color: var(--svc-text-2);
-        text-decoration: none;
-        transition: .14s ease;
-    }
-
-    .svc-back:hover,
-    .svc-back:focus-visible {
-        border-color: var(--svc-blue-border);
-        background: var(--svc-blue-soft);
-        color: var(--svc-blue);
-        outline: none;
-    }
-
-    .svc-header-icon {
-        background: var(--status-soft);
-        color: var(--status-tone);
-    }
-
-    .svc-header-copy {
-        min-width: 0;
-    }
-
-    .svc-header-copy h1,
-    .svc-header-copy p {
-        margin: 0;
-    }
-
-    .svc-header-copy h1 {
-        overflow: hidden;
-        color: var(--svc-text);
-        font-size: clamp(1.05rem, 2vw, 1.28rem);
-        font-weight: 860;
-        letter-spacing: -.03em;
-        line-height: 1.25;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .svc-header-copy p {
-        margin-top: .12rem;
-        color: var(--svc-muted);
-        font-size: .69rem;
-        line-height: 1.4;
-    }
-
-    .svc-header-side {
-        display: flex;
-        gap: .38rem;
-        align-items: center;
-    }
-
-    .svc-status {
-        display: inline-flex;
-        min-height: 32px;
-        gap: .28rem;
-        align-items: center;
-        padding: .3rem .5rem;
-        border: 1px solid var(--status-border);
-        border-radius: 999px;
-        background: var(--status-soft);
-        color: var(--status-tone);
-        font-size: .66rem;
-        font-weight: 820;
-        white-space: nowrap;
-    }
-
-    /* =========================================================
-       ETAPAS
-       ========================================================= */
-
-    .svc-workflow {
-        min-width: 0;
-        padding: .62rem .7rem;
-        border-top: 1px solid var(--svc-border);
-        background: var(--svc-soft);
-    }
-
-    .svc-steps {
-        position: relative;
-        display: grid;
-        grid-template-columns:
-            repeat(4, minmax(0, 1fr));
-        min-width: 0;
-        gap: .35rem;
-    }
-
-    .svc-step {
-        --step-tone: var(--svc-slate);
-        --step-soft: #fff;
-        --step-border: var(--svc-border);
-
-        position: relative;
-        z-index: 1;
-        display: grid;
-        min-width: 0;
-        grid-template-columns:
-            auto
-            minmax(0, 1fr);
-        gap: .35rem;
-        align-items: center;
-        min-height: 42px;
-        padding: .38rem .48rem;
-        border: 1px solid var(--step-border);
-        border-radius: 8px;
-        background: var(--step-soft);
-        color: var(--step-tone);
-    }
-
-    .svc-step.done {
-        --step-tone: var(--svc-green);
-        --step-soft: var(--svc-green-soft);
-        --step-border: var(--svc-green-border);
-    }
-
-    .svc-step.current {
-        --step-tone: var(--svc-blue);
-        --step-soft: var(--svc-blue-soft);
-        --step-border: var(--svc-blue-border);
-        box-shadow:
-            inset 0 -2px 0
-            color-mix(
-                in srgb,
-                var(--svc-blue) 48%,
-                transparent
-            );
-    }
-
-    .svc-step.rejected.current {
-        --step-tone: var(--svc-red);
-        --step-soft: var(--svc-red-soft);
-        --step-border: var(--svc-red-border);
-    }
-
-    .svc-step-icon {
-        display: grid;
-        width: 25px;
-        height: 25px;
-        place-items: center;
-        border-radius: 6px;
-        background: #fff;
-        color: var(--step-tone);
-        font-size: .73rem;
-    }
-
-    .svc-step-copy {
-        min-width: 0;
-    }
-
-    .svc-step-copy strong,
-    .svc-step-copy span {
-        display: block;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .svc-step-copy strong {
-        font-size: .64rem;
-        font-weight: 800;
-    }
-
-    .svc-step-copy span {
-        margin-top: .03rem;
-        color: var(--svc-muted);
-        font-size: .53rem;
-        font-weight: 650;
-    }
-
-    /* =========================================================
-       RESUMO TABULAR
-       ========================================================= */
-
-    .svc-summary-grid {
-        display: grid;
-        min-width: 0;
-        grid-template-columns:
-            minmax(0, 1.12fr)
-            minmax(320px, .88fr);
-        gap: .72rem;
-        align-items: start;
-    }
-
-    .svc-info-table,
-    .svc-money-table,
-    .svc-review-table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-        background: #fff;
-        font-size: .69rem;
-    }
-
-    .svc-info-table th,
-    .svc-info-table td,
-    .svc-money-table th,
-    .svc-money-table td,
-    .svc-review-table th,
-    .svc-review-table td {
-        padding: .52rem .62rem;
-        border-bottom: 1px solid var(--svc-border);
-        vertical-align: middle;
-    }
-
-    .svc-info-table tr:last-child th,
-    .svc-info-table tr:last-child td,
-    .svc-money-table tr:last-child th,
-    .svc-money-table tr:last-child td,
-    .svc-review-table tr:last-child th,
-    .svc-review-table tr:last-child td {
-        border-bottom: 0;
-    }
-
-    .svc-info-table th,
-    .svc-money-table th,
-    .svc-review-table th {
-        width: 145px;
-        background: #fbfdfc;
-        color: var(--svc-muted);
-        font-size: .58rem;
-        font-weight: 800;
-        letter-spacing: .025em;
-        text-align: left;
-        text-transform: uppercase;
-    }
-
-    .svc-info-table td,
-    .svc-review-table td {
-        color: var(--svc-text);
-        font-weight: 720;
-    }
-
-    .svc-money-table td {
-        text-align: right;
-    }
-
-    .svc-money-value {
-        display: block;
-        color: var(--svc-text);
-        font-size: .85rem;
-        font-weight: 860;
-        font-variant-numeric: tabular-nums;
-        white-space: nowrap;
-    }
-
-    .svc-money-value.receivable {
-        color: var(--svc-green);
-    }
-
-    .svc-money-value.payable {
-        color: var(--svc-blue);
-    }
-
-    .svc-money-note {
-        display: block;
-        margin-top: .06rem;
-        color: var(--svc-muted);
-        font-size: .56rem;
-        font-weight: 620;
-        line-height: 1.38;
-    }
-
-    /* =========================================================
-       FORMULÁRIOS DINÂMICOS
-       ========================================================= */
-
-    .svc-form-body {
-        padding: .72rem;
-    }
-
     /*
-     * Formulário em colunas tipo masonry/Pinterest.
-     *
-     * Diferente do CSS Grid tradicional, cada campo mantém
-     * sua altura natural. Um textarea, ajuda, evidência ou
-     * preview maior não aumenta a altura dos campos vizinhos.
-     *
-     * A ordem do DOM continua preservada:
-     * a leitura flui verticalmente dentro de cada coluna.
-     */
-    .svc-form {
-        display: block;
-        width: 100%;
-        min-width: 0;
-        column-count: 3;
-        column-gap: .68rem;
-        column-fill: balance;
-    }
-
-    /*
-     * O partial provider._service-fields pode usar as classes
-     * globais já existentes no layout. Aqui apenas harmonizamos
-     * os campos dentro deste módulo.
-     */
-    .svc-form .form-group,
-    .svc-form .field-group,
-    .svc-form .svc-field {
-        width: 100%;
-        min-width: 0;
-        max-width: 100%;
-        margin: 0 0 .62rem;
-        break-inside: avoid;
-        page-break-inside: avoid;
-        -webkit-column-break-inside: avoid;
-    }
-
-    /*
-     * Os partials atuais usam .svc-field como unidade principal.
-     * inline-grid faz o bloco participar corretamente do fluxo
-     * multicoluna sem esticar a altura da coluna vizinha.
-     */
-    .svc-form .svc-field {
-        display: inline-grid;
-        vertical-align: top;
-    }
-
-    .svc-form label,
-    .svc-form .form-label {
-        display: block;
-        margin-bottom: .2rem;
-        color: var(--svc-text-2);
-        font-size: .62rem;
-        font-weight: 770;
-    }
-
-    .svc-form input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]),
-    .svc-form select,
-    .svc-form textarea {
-        width: 100%;
-        min-height: 40px;
-        border: 1px solid var(--svc-border-strong);
-        border-radius: 8px;
-        outline: none;
-        background: #fff;
-        color: var(--svc-text);
-        font: inherit;
-        font-size: .7rem;
-    }
-
-    .svc-form input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]),
-    .svc-form select {
-        padding: .48rem .56rem;
-    }
-
-    .svc-form textarea {
-        min-height: 88px;
-        padding: .5rem .56rem;
-        resize: vertical;
-    }
-
-    .svc-form input:focus,
-    .svc-form select:focus,
-    .svc-form textarea:focus {
-        border-color: var(--svc-blue);
-        box-shadow:
-            0 0 0 3px
-            rgba(52, 120, 212, .1);
-    }
-
-    .svc-file {
-        width: 100%;
-        min-height: 42px;
-        padding: .52rem;
-        border: 1px dashed var(--svc-border-strong);
-        border-radius: 8px;
-        background: var(--svc-soft);
-        color: var(--svc-text-2);
-    }
-
-    .svc-file-preview {
-        min-width: 0;
-        margin-top: .35rem;
-    }
-
-    .svc-file-preview small {
-        color: var(--svc-muted);
-        font-size: .6rem;
-    }
-
-    .svc-file-preview img {
-        display: block;
-        max-width: 100%;
-        max-height: 12rem;
-        object-fit: contain;
-        border: 1px solid var(--svc-border);
-        border-radius: 8px;
-        background: #fff;
-    }
-
-    .svc-form-actions {
-        column-span: all;
-        width: 100%;
-        break-inside: avoid;
-        display: flex;
-        gap: .42rem;
-        align-items: center;
-        justify-content: flex-end;
-        flex-wrap: wrap;
-        margin-top: .05rem;
-        padding-top: .68rem;
-        border-top: 1px solid var(--svc-border);
-    }
-
-    /* =========================================================
-       BOTÕES
-       ========================================================= */
-
-    .svc-btn {
-        display: inline-flex;
-        min-height: 39px;
-        gap: .34rem;
-        align-items: center;
-        justify-content: center;
-        padding: .44rem .64rem;
-        border: 1px solid var(--svc-border-strong);
-        border-radius: 8px;
-        background: #fff;
-        color: var(--svc-text);
-        cursor: pointer;
-        font: inherit;
-        font-size: .7rem;
-        font-weight: 790;
-        text-decoration: none;
-        transition: .14s ease;
-        white-space: nowrap;
-    }
-
-    .svc-btn:hover,
-    .svc-btn:focus-visible {
-        border-color: var(--svc-blue-border);
-        background: var(--svc-blue-soft);
-        color: var(--svc-blue);
-        outline: none;
-    }
-
-    .svc-btn.primary {
-        border-color: var(--svc-green-dark);
-        background:
-            linear-gradient(
-                180deg,
-                #25a95f,
-                #1d914f
-            );
-        color: #fff;
-        box-shadow:
-            0 6px 14px rgba(33, 150, 83, .14);
-    }
-
-    .svc-btn.primary:hover,
-    .svc-btn.primary:focus-visible {
-        border-color: var(--svc-green-dark);
-        background: var(--svc-green-dark);
-        color: #fff;
-    }
-
-    /* =========================================================
-       ALERTA DE CORREÇÃO
-       ========================================================= */
-
-    .svc-alert {
-        --alert-tone: var(--svc-blue);
-        --alert-soft: var(--svc-blue-soft);
-        --alert-border: var(--svc-blue-border);
-
-        display: flex;
-        min-width: 0;
-        gap: .5rem;
-        align-items: flex-start;
-        margin-bottom: .65rem;
-        padding: .55rem .6rem;
-        border: 1px solid var(--alert-border);
-        border-radius: 8px;
-        background: var(--alert-soft);
-        color: var(--svc-text-2);
-        font-size: .67rem;
-        line-height: 1.45;
-    }
-
-    .svc-alert.danger {
-        --alert-tone: var(--svc-red);
-        --alert-soft: var(--svc-red-soft);
-        --alert-border: var(--svc-red-border);
-    }
-
-    .svc-alert.warning {
-        --alert-tone: var(--svc-amber);
-        --alert-soft: var(--svc-amber-soft);
-        --alert-border: var(--svc-amber-border);
-    }
-
-    .svc-alert.success {
-        --alert-tone: var(--svc-green);
-        --alert-soft: var(--svc-green-soft);
-        --alert-border: var(--svc-green-border);
-    }
-
-    .svc-alert-icon {
-        display: grid;
-        width: 29px;
-        height: 29px;
-        flex: 0 0 auto;
-        place-items: center;
-        border-radius: 7px;
-        background: #fff;
-        color: var(--alert-tone);
-    }
-
-    .svc-alert strong {
-        color: var(--svc-text);
-    }
-
-    /* =========================================================
-       PREVIEW DE MEDIÇÃO
-       ========================================================= */
-
-    .svc-preview {
-        column-span: all;
-        width: 100%;
-        break-inside: avoid;
-        display: none;
-        grid-template-columns:
-            auto
-            minmax(0, 1fr)
-            auto;
-        gap: .5rem;
-        align-items: center;
-        padding: .54rem .6rem;
-        border: 1px solid var(--svc-blue-border);
-        border-radius: 8px;
-        background: var(--svc-blue-soft);
-    }
-
-    .svc-preview-icon {
-        display: grid;
-        width: 31px;
-        height: 31px;
-        place-items: center;
-        border-radius: 7px;
-        background: #fff;
-        color: var(--svc-blue);
-    }
-
-    .svc-preview-copy {
-        min-width: 0;
-    }
-
-    .svc-preview-copy span,
-    .svc-preview-copy small {
-        display: block;
-    }
-
-    .svc-preview-copy span {
-        color: var(--svc-text-2);
-        font-size: .61rem;
-        font-weight: 720;
-    }
-
-    .svc-preview-copy small {
-        margin-top: .04rem;
-        color: var(--svc-muted);
-        font-size: .56rem;
-    }
-
-    .svc-preview-result {
-        color: var(--svc-blue);
-        font-size: .9rem;
-        font-weight: 860;
-        white-space: nowrap;
-    }
-
-    .svc-preview.is-invalid {
-        border-color: var(--svc-red-border);
-        background: var(--svc-red-soft);
-    }
-
-    .svc-preview.is-invalid
-    .svc-preview-icon,
-    .svc-preview.is-invalid
-    .svc-preview-result {
-        color: var(--svc-red);
-    }
-
-    /* =========================================================
-       EVIDÊNCIAS
-       ========================================================= */
-
-    .svc-evidence-wrap {
-        min-width: 0;
-        overflow-x: auto;
-    }
-
-    .svc-evidence-table {
-        width: 100%;
-        min-width: 620px;
-        border-collapse: separate;
-        border-spacing: 0;
-        font-size: .68rem;
-    }
-
-    .svc-evidence-table th {
-        padding: .5rem .6rem;
-        border-bottom: 1px solid var(--svc-border-strong);
-        background:
-            linear-gradient(
-                180deg,
-                #f5f8f6,
-                #eff4f1
-            );
-        color: #6f7c74;
-        font-size: .57rem;
-        font-weight: 820;
-        letter-spacing: .04em;
-        text-align: left;
-        text-transform: uppercase;
-    }
-
-    .svc-evidence-table td {
-        padding: .54rem .6rem;
-        border-bottom: 1px solid var(--svc-border);
-        color: var(--svc-text-2);
-        vertical-align: middle;
-    }
-
-    .svc-evidence-table tbody tr:last-child td {
-        border-bottom: 0;
-    }
-
-    .evidence-name {
-        display: flex;
-        min-width: 0;
-        gap: .38rem;
-        align-items: center;
-    }
-
-    .evidence-icon {
-        display: grid;
-        width: 30px;
-        height: 30px;
-        flex: 0 0 auto;
-        place-items: center;
-        border-radius: 7px;
-        background: var(--svc-violet-soft);
-        color: var(--svc-violet);
-    }
-
-    .evidence-name strong {
-        min-width: 0;
-        overflow: hidden;
-        color: var(--svc-text);
-        font-size: .67rem;
-        font-weight: 790;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .svc-table-link {
-        display: inline-flex;
-        min-height: 31px;
-        gap: .28rem;
-        align-items: center;
-        justify-content: center;
-        padding: .3rem .45rem;
-        border: 1px solid var(--svc-border);
-        border-radius: 7px;
-        background: #fff;
-        color: var(--svc-blue);
-        font-size: .62rem;
-        font-weight: 770;
-        text-decoration: none;
-    }
-
-    /* =========================================================
-       CONFERÊNCIA
-       ========================================================= */
-
-    .svc-review-body {
-        padding: .7rem;
-    }
-
-    .svc-review-layout {
-        display: grid;
-        grid-template-columns:
-            minmax(0, 1fr)
-            auto;
-        gap: .65rem;
-        align-items: end;
-    }
-
-    .svc-review-table-wrap {
-        overflow: hidden;
-        border: 1px solid var(--svc-border);
-        border-radius: 8px;
-    }
-
-    .svc-review-table th {
-        width: 145px;
-    }
-
-    .svc-review-result {
-        color: var(--svc-blue);
-        font-weight: 840;
-    }
-
-    .svc-review-action {
-        display: flex;
-        justify-content: flex-end;
-    }
-
-    /* =========================================================
-       BADGES AUXILIARES
-       ========================================================= */
-
-    .svc-count {
-        display: inline-flex;
-        min-height: 28px;
-        gap: .25rem;
-        align-items: center;
-        padding: .24rem .42rem;
-        border-radius: 999px;
-        background: var(--svc-slate-soft);
-        color: var(--svc-text-2);
-        font-size: .6rem;
-        font-weight: 780;
-        white-space: nowrap;
-    }
-
-    /* =========================================================
-       RESPONSIVO
-       ========================================================= */
-
-    @media (max-width: 980px) {
-        .svc-summary-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .svc-review-layout {
-            grid-template-columns: 1fr;
-        }
-
-        .svc-review-action .svc-btn {
-            width: 100%;
-        }
-    }
-
-    /*
-     * Tablet: duas colunas independentes.
-     * Mobile: uma coluna, mantendo a ordem natural do formulário.
-     */
-    @media (max-width: 1120px) and (min-width: 721px) {
-        .svc-form {
-            column-count: 2;
-            column-gap: .62rem;
-        }
-    }
-
-    @media (max-width: 720px) {
-        .svc-form {
-            column-count: 1;
-            column-gap: 0;
-        }
-
-        .svc-form .svc-field {
-            display: grid;
-            margin-bottom: .5rem;
-        }
-
-        .svc-header {
-            grid-template-columns: 1fr;
-        }
-
-        .svc-header-side {
-            justify-content: flex-start;
-        }
-
-        .svc-panel-copy p {
-            display: none;
-        }
-
-        .svc-steps {
-            grid-template-columns:
-                repeat(2, minmax(0, 1fr));
-        }
-
-        .svc-form-actions {
-            display: grid;
-            grid-template-columns: 1fr;
-        }
-
-        .svc-form-actions .svc-btn,
-        .svc-form-actions .btn {
-            width: 100%;
-        }
-
-        .svc-evidence-wrap {
-            overflow: visible;
-            padding: .55rem;
-        }
-
-        .svc-evidence-table {
-            display: block;
-            min-width: 0;
-        }
-
-        .svc-evidence-table thead {
-            display: none;
-        }
-
-        .svc-evidence-table tbody {
-            display: grid;
-            gap: .42rem;
-        }
-
-        .svc-evidence-table tr {
-            display: grid;
-            grid-template-columns:
-                minmax(0, 1fr)
-                auto;
-            gap: .4rem;
-            padding: .5rem;
-            border: 1px solid var(--svc-border);
-            border-left: 3px solid var(--svc-violet);
-            border-radius: 8px;
-            background: #fff;
-        }
-
-        .svc-evidence-table td {
-            padding: 0;
-            border: 0;
-        }
-    }
-
-    @media (max-width: 560px) {
-        .svc-header-icon {
-            display: none;
-        }
-
-        .svc-header-copy h1 {
-            white-space: normal;
-        }
-
-        .svc-info-table,
-        .svc-money-table,
-        .svc-review-table {
-            display: block;
-        }
-
-        .svc-info-table tbody,
-        .svc-money-table tbody,
-        .svc-review-table tbody {
-            display: grid;
-        }
-
-        .svc-info-table tr,
-        .svc-money-table tr,
-        .svc-review-table tr {
-            display: grid;
-            grid-template-columns: 1fr;
-            padding: .44rem .55rem;
-            border-bottom: 1px solid var(--svc-border);
-        }
-
-        .svc-info-table tr:last-child,
-        .svc-money-table tr:last-child,
-        .svc-review-table tr:last-child {
-            border-bottom: 0;
-        }
-
-        .svc-info-table th,
-        .svc-info-table td,
-        .svc-money-table th,
-        .svc-money-table td,
-        .svc-review-table th,
-        .svc-review-table td {
-            width: auto;
-            padding: 0;
-            border: 0;
-            background: transparent;
-            text-align: left;
-        }
-
-        .svc-info-table th,
-        .svc-money-table th,
-        .svc-review-table th {
-            margin-bottom: .08rem;
-        }
-
-        .svc-money-table td {
-            margin-top: .05rem;
-        }
-
-        .svc-preview {
-            grid-template-columns:
-                auto
-                minmax(0, 1fr);
-        }
-
-        .svc-preview-result {
-            grid-column: 2;
-            justify-self: start;
-        }
-    }
-
-    @media (max-width: 420px) {
-        .svc-steps {
-            grid-template-columns: 1fr;
-        }
-
-        .svc-header-main {
-            align-items: flex-start;
-        }
-
-        .svc-back {
-            width: 38px;
-            height: 38px;
-        }
-
-        .svc-evidence-table tr {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .service-execution *,
-        .service-execution *::before,
-        .service-execution *::after {
-            animation-duration: .01ms !important;
-            animation-iteration-count: 1 !important;
-            scroll-behavior: auto !important;
-            transition-duration: .01ms !important;
-        }
-    }
-
-    /* =========================================================
-       WORKSPACE V2 — coerência com Project Workspace
-       ========================================================= */
-
-    .service-execution {
-        --svc-green: #219653;
-        --svc-green-dark: #177c43;
-        --svc-green-soft: #edf8f1;
-        --svc-green-border: #cde8d6;
-
-        --svc-blue: #3478d4;
-        --svc-blue-soft: #eef4ff;
-        --svc-blue-border: #d4e2f8;
-
-        --svc-violet: #8a4bd2;
-        --svc-violet-soft: #f5effc;
-        --svc-violet-border: #e5d8f5;
-
-        --svc-cyan: #168eae;
-        --svc-cyan-soft: #edf8fb;
-        --svc-cyan-border: #d2eaf0;
-
-        --svc-amber: #c38418;
-        --svc-amber-soft: #fff7e8;
-        --svc-amber-border: #efdcb8;
-
-        --svc-red: #cf5050;
-        --svc-red-soft: #fff1f1;
-        --svc-red-border: #f1cccc;
-
-        --svc-slate: #64748b;
-        --svc-slate-soft: #f2f5f7;
-
-        --svc-text: var(--color-text, #17251c);
-        --svc-text-2: var(--color-text-secondary, #58685e);
-        --svc-muted: var(--color-text-muted, #87938b);
-        --svc-border: var(--color-border, #d7e2da);
-        --svc-border-strong: var(--color-border-strong, #becdc3);
-        --svc-surface: var(--color-surface, #fff);
-        --svc-soft: var(--color-surface-soft, #f7faf8);
-        --svc-shadow: 0 5px 18px rgba(25, 61, 39, .055);
-
-        width: min(100%, 1380px);
-        gap: .78rem;
-    }
-
-    /* O topo passa a ser composto por duas peças:
-       cabeçalho + stepper sticky, como header + tabs do Project Workspace. */
-    .svc-top {
-        display: grid;
-        gap: .58rem;
-        overflow: visible;
-        border: 0;
-        border-radius: 0;
-        background: transparent;
-        box-shadow: none;
-    }
-
-    .svc-top .svc-header {
-        --status-tone: var(--svc-blue);
-        --status-soft: var(--svc-blue-soft);
-        --status-border: var(--svc-blue-border);
-
-        min-height: 76px;
-        padding: .72rem .78rem;
-        border: 1px solid var(--svc-border);
-        border-radius: 12px;
-        background:
-            radial-gradient(
-                circle at 100% 0,
-                color-mix(
-                    in srgb,
-                    var(--status-tone) 10%,
-                    transparent
-                ),
-                transparent 19rem
-            ),
-            linear-gradient(
-                180deg,
-                #fbfdfb,
-                #fff
-            );
-        box-shadow: var(--svc-shadow);
-    }
-
-    .svc-top .svc-header.is-draft {
-        --status-tone: var(--svc-slate);
-        --status-soft: var(--svc-slate-soft);
-        --status-border: var(--svc-border);
-    }
-
-    .svc-top .svc-header.is-rejected {
-        --status-tone: var(--svc-red);
-        --status-soft: var(--svc-red-soft);
-        --status-border: var(--svc-red-border);
-    }
-
-    .svc-top .svc-header.is-progress {
-        --status-tone: var(--svc-cyan);
-        --status-soft: var(--svc-cyan-soft);
-        --status-border: var(--svc-cyan-border);
-    }
-
-    .svc-top .svc-header.is-submitted {
-        --status-tone: var(--svc-amber);
-        --status-soft: var(--svc-amber-soft);
-        --status-border: var(--svc-amber-border);
-    }
-
-    .svc-top .svc-header.is-validated {
-        --status-tone: var(--svc-green);
-        --status-soft: var(--svc-green-soft);
-        --status-border: var(--svc-green-border);
-    }
-
-    .svc-header-main {
-        gap: .62rem;
-    }
-
-    .svc-back,
-    .svc-header-icon {
-        width: 42px;
-        height: 42px;
-        border-radius: 9px;
-    }
-
-    .svc-header-copy h1 {
-        font-size: clamp(1.03rem, 2vw, 1.25rem);
-        font-weight: 850;
-        letter-spacing: -.03em;
-    }
-
-    .svc-meta {
-        display: flex;
-        min-width: 0;
-        flex-wrap: wrap;
-        gap: .16rem .65rem;
-        margin-top: .2rem;
-        color: var(--svc-muted);
-        font-size: .68rem;
-        font-weight: 610;
-    }
-
-    .svc-meta > span {
-        display: inline-flex;
-        min-width: 0;
-        gap: .25rem;
-        align-items: center;
-    }
-
-    .svc-meta i {
-        flex: 0 0 auto;
-        color: var(--svc-blue);
-        font-size: .76rem;
-    }
-
-    .svc-meta-text {
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    /* STEPS NO TOPO */
-    .svc-top .svc-workflow {
-        position: sticky;
-        z-index: 34;
-        top: .2rem;
-        min-width: 0;
-        padding: .34rem;
-        overflow: hidden;
-        border: 1px solid var(--svc-border);
-        border-radius: 12px;
-        background: rgba(255, 255, 255, .97);
-        box-shadow:
-            0 4px 15px rgba(25, 61, 39, .05);
-    }
-
-    .svc-top .svc-steps {
-        display: grid;
-        min-width: 0;
-        grid-template-columns:
-            repeat(4, minmax(145px, 1fr));
-        gap: .22rem;
-        overflow-x: auto;
-        scrollbar-width: none;
-        overscroll-behavior-inline: contain;
-    }
-
-    .svc-top .svc-steps::-webkit-scrollbar {
-        display: none;
-    }
-
-    .svc-top .svc-step {
-        --step-tone: var(--svc-slate);
-        --step-soft: transparent;
-        --step-border: transparent;
-
-        position: relative;
-        display: grid;
-        min-width: 145px;
-        min-height: 44px;
-        grid-template-columns: 28px minmax(0, 1fr);
-        gap: .38rem;
-        align-items: center;
-        padding: .36rem .48rem;
-        overflow: hidden;
-        border: 1px solid var(--step-border);
-        border-radius: 8px;
-        background: var(--step-soft);
-        color: var(--step-tone);
-        box-shadow: none;
-    }
-
-    .svc-top .svc-step:nth-child(1) {
-        --step-tone: var(--svc-blue);
-    }
-
-    .svc-top .svc-step:nth-child(2) {
-        --step-tone: var(--svc-cyan);
-    }
-
-    .svc-top .svc-step:nth-child(3) {
-        --step-tone: var(--svc-amber);
-    }
-
-    .svc-top .svc-step:nth-child(4) {
-        --step-tone: var(--svc-green);
-    }
-
-    .svc-top .svc-step.done {
-        --step-soft: var(--svc-green-soft);
-        --step-border: var(--svc-green-border);
-        --step-tone: var(--svc-green);
-    }
-
-    .svc-top .svc-step.current {
-        --step-soft:
-            color-mix(
-                in srgb,
-                var(--step-tone) 9%,
-                #fff
-            );
-        --step-border:
-            color-mix(
-                in srgb,
-                var(--step-tone) 27%,
-                var(--svc-border)
-            );
-        box-shadow:
-            inset 0 -2px 0
-            color-mix(
-                in srgb,
-                var(--step-tone) 52%,
-                transparent
-            );
-    }
-
-    .svc-top .svc-step.rejected.current {
-        --step-tone: var(--svc-red);
-        --step-soft: var(--svc-red-soft);
-        --step-border: var(--svc-red-border);
-    }
-
-    .svc-top .svc-step-icon {
-        position: relative;
-        width: 28px;
-        height: 28px;
-        border: 1px solid
-            color-mix(
-                in srgb,
-                var(--step-tone) 18%,
-                var(--svc-border)
-            );
-        border-radius: 7px;
-        background: #fff;
-        color: var(--step-tone);
-    }
-
-    .svc-top .svc-step-copy strong {
-        color: var(--step-tone);
-        font-size: .66rem;
-        font-weight: 810;
-    }
-
-    .svc-top .svc-step-copy span {
-        margin-top: .02rem;
-        color: var(--svc-muted);
-        font-size: .54rem;
-        font-weight: 660;
-    }
-
-    /* Seções no mesmo vocabulário do Project Workspace. */
-    .svc-panel {
-        border-radius: 12px;
-        box-shadow: var(--svc-shadow);
-    }
-
-    .svc-panel-head {
-        min-height: 62px;
-        padding: .65rem .72rem;
-        background:
-            linear-gradient(
-                180deg,
-                #fafcfb,
-                #fff
-            );
-    }
-
-    .svc-panel-icon {
-        width: 39px;
-        height: 39px;
-        border-radius: 9px;
-    }
-
-    .svc-panel-copy h2 {
-        font-size: .92rem;
-        font-weight: 840;
-        letter-spacing: -.02em;
-    }
-
-    .svc-panel-copy p {
-        margin-top: .08rem;
-        font-size: .69rem;
-    }
-
-    /*
-     * Resumo vira uma única superfície visual.
-     * Continua usando exatamente as duas tabelas e os mesmos dados.
-     */
-    .svc-summary-grid {
-        gap: 0;
-        overflow: hidden;
-        border: 1px solid var(--svc-border);
-        border-radius: 12px;
-        background: #fff;
-        box-shadow: var(--svc-shadow);
-    }
-
-    .svc-summary-grid > .svc-panel {
-        border: 0;
-        border-radius: 0;
-        box-shadow: none;
-    }
-
-    .svc-summary-grid > .svc-panel + .svc-panel {
-        border-left: 1px solid var(--svc-border);
-    }
-
-    .svc-summary-grid .svc-panel-head {
-        background:
-            linear-gradient(
-                180deg,
-                #fbfdfc,
-                #fff
-            );
-    }
-
-    /* Tabelas mais próximas da linguagem data-table do workspace. */
-    .svc-info-table th,
-    .svc-money-table th,
-    .svc-review-table th,
-    .svc-evidence-table th {
-        background:
-            linear-gradient(
-                180deg,
-                #f5f8f6,
-                #eff4f1
-            );
-    }
-
-    .svc-info-table tr:hover td,
-    .svc-money-table tr:hover td,
-    .svc-review-table tr:hover td,
-    .svc-evidence-table tbody tr:hover td {
-        background: #fafcfb;
-    }
-
-    .svc-money-value {
-        font-size: .82rem;
-    }
-
-    /* Formulários são área operacional, sem "cards dentro de cards". */
-    .svc-form-body {
-        padding: .7rem;
-        background: #fff;
-    }
-
-    .svc-form {
-        gap: .62rem;
-    }
-
-    .svc-form input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]),
-    .svc-form select,
-    .svc-form textarea,
-    .svc-file {
-        border-radius: 8px;
-    }
-
-    .svc-form-actions {
-        margin-top: .08rem;
-        padding-top: .62rem;
-        border-top: 1px solid var(--svc-border);
-    }
-
-    .svc-btn {
-        min-height: 38px;
-        border-radius: 8px;
-    }
-
-    .svc-alert {
-        border-radius: 9px;
-    }
-
-    /* Conferência mais tabular / operacional. */
-    .svc-review-table-wrap {
-        border-radius: 9px;
-    }
-
-    .svc-evidence-table {
-        background: #fff;
-    }
-
-    /* Desktop largo: mantém leitura densa. */
-    @media (min-width: 1100px) {
-        .svc-summary-grid {
-            grid-template-columns:
-                minmax(0, 1.15fr)
-                minmax(320px, .85fr);
-        }
-
-        .svc-info-table th {
-            width: 150px;
-        }
-
-        .svc-money-table th {
-            width: auto;
-        }
-    }
-
-    @media (max-width: 980px) {
-        .svc-summary-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-        }
-
-        .svc-summary-grid > .svc-panel + .svc-panel {
-            border-top: 1px solid var(--svc-border);
-            border-left: 0;
-        }
-    }
-
-    @media (max-width: 720px) {
-        .svc-top .svc-header {
-            grid-template-columns: 1fr;
-        }
-
-        .svc-top .svc-header-side {
-            justify-content: flex-start;
-        }
-
-        .svc-top .svc-steps {
-            display: flex;
-            gap: .2rem;
-        }
-
-        .svc-top .svc-step {
-            flex: 0 0 154px;
-            min-width: 154px;
-        }
-
-        .svc-meta {
-            display: grid;
-            grid-template-columns:
-                repeat(2, minmax(0, 1fr));
-            width: 100%;
-            gap: .15rem .55rem;
-        }
-
-        .svc-meta > span {
-            min-width: 0;
-        }
-
-        .svc-meta-text {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-    }
-
-    @media (max-width: 520px) {
-        .svc-top .svc-header {
-            padding: .64rem;
-        }
-
-        .svc-header-icon {
-            display: grid;
-        }
-
-        .svc-header-copy h1 {
-            white-space: normal;
-        }
-
-        .svc-meta {
-            grid-template-columns: 1fr;
-        }
-
-        .svc-top .svc-workflow {
-            top: .12rem;
-            padding: .3rem;
-        }
-
-        .svc-top .svc-step {
-            flex-basis: 142px;
-            min-width: 142px;
-        }
-
-        .svc-summary-grid {
-            border-radius: 10px;
-        }
-    }
-
-    @media (max-width: 390px) {
-        .svc-header-icon {
-            display: none;
-        }
-    }
-
-
-    /* Campos dinâmicos e evidências */
-    .svc-field {
-        display: grid;
-        width: 100%;
-        min-width: 0;
-        gap: .42rem;
-        padding: .54rem .58rem;
-        border: 1px solid var(--svc-border);
-        border-radius: 8px;
-        background: #fff;
-        box-shadow: none;
-    }
-
-    .svc-field > label {
-        display: grid;
-        gap: .35rem;
-    }
-
-    .svc-field > label > span,
-    .svc-evidence-label {
-        color: var(--svc-text);
-        font-size: .66rem;
-        font-weight: 770;
-    }
-
-    .svc-required {
-        color: var(--svc-red);
-    }
-
-    .svc-field-unit,
-    .svc-optional,
-    .svc-field-help {
-        color: var(--svc-muted);
-        font-size: .58rem;
-        font-weight: 560;
-        line-height: 1.4;
-    }
-
-    .svc-evidence-field {
-        display: grid;
-        min-width: 0;
-        gap: .35rem;
-        padding: .5rem .52rem;
-        border: 1px dashed var(--svc-border-strong);
-        border-radius: 7px;
-        background: var(--svc-soft);
-    }
-
-    .svc-form .svc-field > label,
-    .svc-form .svc-evidence-field {
-        min-width: 0;
-        max-width: 100%;
-    }
-
-    .svc-form .svc-field > label > span,
-    .svc-form .svc-evidence-label {
-        display: block;
-        min-width: 0;
-        overflow-wrap: anywhere;
-        word-break: normal;
-        line-height: 1.35;
-    }
-
-    .svc-form .svc-field input,
-    .svc-form .svc-field select,
-    .svc-form .svc-field textarea {
-        min-width: 0;
-        max-width: 100%;
-    }
-
-    .svc-form .svc-field textarea {
-        min-height: 92px;
-    }
-
-    .svc-form .svc-file-preview img {
-        width: auto;
-        max-width: 100%;
-        height: auto;
-    }
-
-    /*
-     * Selects muito longos não devem forçar a largura da coluna.
-     */
-    .svc-form select {
-        text-overflow: ellipsis;
-    }
-
-
-    .svc-evidence-field[hidden],
-    .svc-field[hidden] {
-        display: none !important;
-    }
-
-
-    /* =========================================================
-       TOPO COMPACTO — prioridade para a ação atual
-       ========================================================= */
-
-    .svc-top {
-        gap: .38rem;
-    }
-
-    .svc-top .svc-header {
-        min-height: 66px;
-        padding: .56rem .68rem;
-    }
-
-    .svc-back,
-    .svc-header-icon {
-        width: 38px;
-        height: 38px;
-    }
-
-    .svc-header-copy h1 {
-        font-size: clamp(.98rem, 1.8vw, 1.15rem);
-    }
-
-    .svc-meta {
-        margin-top: .12rem;
-        gap: .14rem .55rem;
-        font-size: .63rem;
-    }
-
-    .svc-status {
-        min-height: 28px;
-        padding: .24rem .42rem;
-        font-size: .61rem;
-    }
-
-    /* Stepper deliberadamente baixo e sem subtítulos. */
-    .svc-top .svc-workflow {
-        padding: .26rem;
-        border-radius: 10px;
-    }
-
-    .svc-top .svc-steps {
-        grid-template-columns:
-            repeat(4, minmax(110px, 1fr));
-        gap: .16rem;
-    }
-
-    .svc-top .svc-step {
-        min-width: 110px;
-        min-height: 34px;
-        grid-template-columns: 22px minmax(0, 1fr);
-        gap: .28rem;
-        padding: .26rem .38rem;
-        border-radius: 7px;
-    }
-
-    .svc-top .svc-step-icon {
-        width: 22px;
-        height: 22px;
-        border: 0;
-        border-radius: 6px;
-        font-size: .62rem;
-    }
-
-    .svc-top .svc-step-copy strong {
-        font-size: .61rem;
-    }
-
-    /* =========================================================
-       CONTEXTO COMPACTO
-       ========================================================= */
-
-    .svc-context-strip {
-        display: grid;
-        grid-template-columns:
-            minmax(0, 1fr)
-            auto;
-        gap: .45rem;
-        align-items: stretch;
-        min-width: 0;
-        padding: .44rem .52rem;
-        border: 1px solid var(--svc-border);
-        border-radius: 10px;
-        background: #fff;
-        box-shadow: var(--svc-shadow);
-    }
-
-    .svc-context-main {
-        display: grid;
-        grid-template-columns:
-            repeat(3, minmax(0, 1fr));
-        min-width: 0;
-    }
-
-    .svc-context-item {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: 27px minmax(0, 1fr);
-        gap: .34rem;
-        align-items: center;
-        padding: .12rem .48rem;
-    }
-
-    .svc-context-item + .svc-context-item {
-        border-left: 1px solid var(--svc-border);
-    }
-
-    .svc-context-item > i {
-        display: grid;
-        width: 27px;
-        height: 27px;
-        place-items: center;
-        border-radius: 7px;
-        background: var(--svc-blue-soft);
-        color: var(--svc-blue);
-        font-size: .74rem;
-    }
-
-    .svc-context-item span {
-        min-width: 0;
-    }
-
-    .svc-context-item small,
-    .svc-context-item strong {
-        display: block;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .svc-context-item small {
-        color: var(--svc-muted);
-        font-size: .52rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: .025em;
-    }
-
-    .svc-context-item strong {
-        margin-top: .03rem;
-        color: var(--svc-text);
-        font-size: .65rem;
-        font-weight: 790;
-    }
-
-    .svc-order-details {
-        position: relative;
-        align-self: center;
-    }
-
-    .svc-order-details > summary {
-        display: inline-flex;
-        min-height: 34px;
-        gap: .28rem;
-        align-items: center;
-        padding: .3rem .42rem;
-        border: 1px solid var(--svc-border);
-        border-radius: 7px;
-        background: var(--svc-soft);
-        color: var(--svc-text-2);
-        cursor: pointer;
-        font-size: .61rem;
-        font-weight: 760;
-        list-style: none;
-        white-space: nowrap;
-    }
-
-    .svc-order-details > summary::-webkit-details-marker {
-        display: none;
-    }
-
-    .svc-details-caret {
-        transition: transform .15s ease;
-    }
-
-    .svc-order-details[open] .svc-details-caret {
-        transform: rotate(180deg);
-    }
-
-    .svc-order-details-body {
-        position: absolute;
-        z-index: 45;
-        top: calc(100% + .4rem);
-        right: 0;
-        width: min(88vw, 430px);
-        overflow: hidden;
-        border: 1px solid var(--svc-border);
-        border-radius: 9px;
-        background: #fff;
-        box-shadow: 0 18px 42px rgba(19, 50, 30, .16);
-    }
-
-    .svc-details-list {
-        display: grid;
-        grid-template-columns:
-            repeat(2, minmax(0, 1fr));
-        margin: 0;
-    }
-
-    .svc-details-list > div {
-        min-width: 0;
-        padding: .52rem .58rem;
-        border-bottom: 1px solid var(--svc-border);
-    }
-
-    .svc-details-list > div:nth-child(odd) {
-        border-right: 1px solid var(--svc-border);
-    }
-
-    .svc-details-list dt,
-    .svc-details-list dd {
-        margin: 0;
-    }
-
-    .svc-details-list dt {
-        color: var(--svc-muted);
-        font-size: .54rem;
-        font-weight: 760;
-        text-transform: uppercase;
-    }
-
-    .svc-details-list dd {
-        margin-top: .08rem;
-        color: var(--svc-text);
-        font-size: .65rem;
-        font-weight: 740;
-        overflow-wrap: anywhere;
-    }
-
-    /* Financeiro vira faixa curta, não seção/card. */
-    .svc-finance-strip {
-        display: grid;
-        grid-template-columns:
-            minmax(0, 1fr)
-            1px
-            minmax(0, 1fr);
-        gap: .48rem;
-        align-items: center;
-        min-width: 0;
-        padding: .4rem .54rem;
-        border: 1px solid var(--svc-border);
-        border-radius: 10px;
-        background: #fff;
-    }
-
-    .svc-finance-divider {
-        align-self: stretch;
-        background: var(--svc-border);
-    }
-
-    .svc-finance-item {
-        display: grid;
-        min-width: 0;
-        grid-template-columns:
-            minmax(0, 1fr)
-            auto;
-        gap: .04rem .5rem;
-        align-items: center;
-    }
-
-    .svc-finance-item > span {
-        display: inline-flex;
-        min-width: 0;
-        gap: .25rem;
-        align-items: center;
-        color: var(--svc-muted);
-        font-size: .57rem;
-        font-weight: 730;
-    }
-
-    .svc-finance-item > span i {
-        color: currentColor;
-        font-size: .72rem;
-    }
-
-    .svc-finance-item strong {
-        grid-row: 1 / span 2;
-        grid-column: 2;
-        color: var(--svc-text);
-        font-size: .73rem;
-        font-weight: 850;
-        white-space: nowrap;
-    }
-
-    .svc-finance-item small {
-        min-width: 0;
-        overflow: hidden;
-        color: var(--svc-muted);
-        font-size: .53rem;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .svc-finance-item.receivable strong {
-        color: var(--svc-green);
-    }
-
-    .svc-finance-item.payable strong {
-        color: var(--svc-blue);
-    }
-
-    /* =========================================================
-       IMAGEM: seletor normal + preview clicável
-       ========================================================= */
-
-    .svc-file-preview img {
-        cursor: zoom-in;
-    }
-
-    .svc-image-preview-button {
-        position: relative;
-        display: block;
-        width: 100%;
-        padding: 0;
-        overflow: hidden;
-        border: 1px solid var(--svc-border);
-        border-radius: 8px;
-        background: #fff;
-        cursor: zoom-in;
-    }
-
-    .svc-image-preview-button img {
-        display: block;
-        width: 100%;
-        max-height: 210px;
-        object-fit: contain;
-        background: #f3f6f4;
-    }
-
-    .svc-image-preview-hint {
-        position: absolute;
-        right: .38rem;
-        bottom: .38rem;
-        display: inline-flex;
-        gap: .22rem;
-        align-items: center;
-        padding: .22rem .35rem;
-        border-radius: 6px;
-        background: rgba(23, 37, 28, .82);
-        color: #fff;
-        font-size: .55rem;
-        font-weight: 760;
-        pointer-events: none;
-    }
-
-    .svc-image-viewer {
-        position: fixed;
-        z-index: 2600;
-        inset: 0;
-        width: 100%;
-        max-width: none;
-        height: 100%;
-        max-height: none;
-        margin: 0;
-        padding: 0;
-        border: 0;
-        background: rgba(8, 18, 12, .96);
-    }
-
-    .svc-image-viewer:not([open]) {
-        display: none;
-    }
-
-    .svc-image-viewer[open] {
-        display: grid;
-        grid-template-rows: auto minmax(0, 1fr);
-    }
-
-    .svc-image-viewer::backdrop {
-        background: rgba(8, 18, 12, .96);
-    }
-
-    .svc-image-viewer-toolbar {
-        display: flex;
-        min-height: 54px;
-        gap: .5rem;
-        align-items: center;
-        justify-content: space-between;
-        padding:
-            max(.5rem, env(safe-area-inset-top))
+ * SGC CAMPO · Serviço / ordem de execução · redesign v3
+ * Integração com theme.css e design-system.css.
+ * Escopo: somente .service-execution. Sem alterar os contratos do Laravel/JS.
+ * Design: Campo Claro + Grafite & Ouro. As cores vivem no tema global.
+ */
+.service-execution {
+  --svc-canvas:var(--ui-color-canvas,#f4f4ef);
+  --svc-surface:var(--ui-color-surface,#fffefb);
+  --svc-soft:var(--ui-color-surface-soft,#f0f0e9);
+  --svc-raised:var(--ui-color-surface-raised,var(--svc-surface));
+  --svc-text:var(--ui-color-text,#1d2922);
+  --svc-text-2:var(--ui-color-text-secondary,#647167);
+  --svc-muted:var(--ui-color-text-muted,#879087);
+  --svc-border:var(--ui-color-border,#d9e0d7);
+  --svc-border-strong:var(--ui-color-border-strong,#b9c7bc);
+  --svc-accent:var(--sgc-accent,#d9f172);
+  --svc-on-accent:var(--sgc-on-accent,#233523);
+  --svc-hero:var(--sgc-rail,#173c2e);
+  --svc-hero-ink:var(--sgc-rail-text,#eff5ed);
+  --svc-success:var(--ui-color-success,#207346);
+  --svc-success-soft:var(--ui-color-success-soft,#e8f4e9);
+  --svc-info:var(--ui-color-info,#386a8b);
+  --svc-info-soft:var(--ui-color-info-soft,#e9f2f6);
+  --svc-warning:var(--ui-color-warning,#926122);
+  --svc-warning-soft:var(--ui-color-warning-soft,#fbf1db);
+  --svc-danger:var(--ui-color-danger,#a94a3b);
+  --svc-danger-soft:var(--ui-color-danger-soft,#f9e9e5);
+  --svc-neutral:var(--ui-color-neutral,var(--svc-text-2));
+  --svc-green:var(--svc-success);--svc-green-dark:var(--svc-success);
+  --svc-green-soft:var(--svc-success-soft);--svc-green-border:var(--ui-color-success-border,var(--svc-border));
+  --svc-blue:var(--svc-info);--svc-blue-soft:var(--svc-info-soft);--svc-blue-border:var(--ui-color-info-border,var(--svc-border));
+  --svc-violet:var(--ui-color-violet,#8a4bd2);--svc-violet-soft:var(--ui-color-violet-soft,var(--svc-soft));--svc-violet-border:var(--ui-color-violet-border,var(--svc-border));
+  --svc-cyan:var(--ui-color-cyan,var(--svc-info));--svc-cyan-soft:var(--ui-color-cyan-soft,var(--svc-info-soft));--svc-cyan-border:var(--ui-color-cyan-border,var(--svc-border));
+  --svc-amber:var(--svc-warning);--svc-amber-soft:var(--svc-warning-soft);--svc-amber-border:var(--ui-color-warning-border,var(--svc-border));
+  --svc-red:var(--svc-danger);--svc-red-soft:var(--svc-danger-soft);--svc-red-border:var(--ui-color-danger-border,var(--svc-border));
+  --svc-slate:var(--svc-neutral);--svc-slate-soft:var(--ui-color-neutral-soft,var(--svc-soft));
+  --svc-shadow:var(--ui-shadow-sm,0 5px 18px rgba(25,61,39,.045));
+  display:grid;gap:20px;width:min(100%,1500px);min-width:0;max-width:100%;
+  grid-column:1/-1;margin:0 auto;padding:3px 0 52px;color:var(--svc-text);
+  font:400 14px/1.48 Inter,ui-sans-serif,system-ui,sans-serif;
+}
+.service-execution *, .service-execution *::before, .service-execution *::after {box-sizing:border-box}
+.service-execution [hidden] {display:none!important}
+.service-execution :focus-visible {outline:2px solid var(--ui-color-focus,var(--svc-info));outline-offset:3px}
+.service-execution a {text-decoration:none}
+.service-execution button {font:inherit;cursor:pointer}
+.service-execution :is(button,input,select,textarea) {max-width:100%}
+.service-execution :is(.svc-panel,.svc-quick-context,.svc-finance-strip) {min-width:0}
+
+/* 01 / Cabeçalho editorial de operação, sem cards soltos e sem gradientes. */
+.service-execution .svc-top {min-width:0;display:grid;gap:0;overflow:visible;border:1px solid var(--svc-border);border-radius:14px;background:var(--svc-surface);box-shadow:var(--svc-shadow)}
+.service-execution .svc-header {--status-tone:var(--svc-neutral);--status-soft:var(--svc-slate-soft);position:relative;display:flex;align-items:stretch;justify-content:space-between;gap:26px;min-width:0;overflow:hidden;padding:27px 30px 29px;background:var(--svc-hero);color:var(--svc-hero-ink);border-radius:13px 13px 0 0}
+.service-execution .svc-header::after {content:'SGC  /  CAMPO';position:absolute;right:28px;bottom:-9px;opacity:.055;font-size:clamp(35px,6vw,80px);font-weight:950;letter-spacing:-.075em;line-height:1;pointer-events:none;white-space:nowrap}
+.service-execution .svc-header.is-rejected {--status-tone:var(--svc-red);--status-soft:var(--svc-red-soft)}
+.service-execution .svc-header.is-progress {--status-tone:var(--svc-cyan);--status-soft:var(--svc-cyan-soft)}
+.service-execution .svc-header.is-submitted {--status-tone:var(--svc-amber);--status-soft:var(--svc-amber-soft)}
+.service-execution .svc-header.is-validated {--status-tone:var(--svc-green);--status-soft:var(--svc-green-soft)}
+.service-execution .svc-header-main {min-width:0;display:flex;align-items:flex-start;gap:15px;position:relative;z-index:1;flex:1}
+.service-execution .svc-back {display:grid;place-items:center;width:40px;height:40px;flex:0 0 40px;border:1px solid rgba(255,255,255,.21);border-radius:9px;color:inherit;background:rgba(255,255,255,.075);transition:background-color .15s}
+.service-execution .svc-back:hover {background:rgba(255,255,255,.18)}
+.service-execution .svc-back i {font-size:18px}
+.service-execution .svc-header-icon {display:none}
+.service-execution .svc-header-copy {min-width:0;max-width:740px}
+.service-execution .svc-hero-kicker {display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-height:20px;color:color-mix(in srgb,var(--svc-hero-ink) 68%,transparent);font-size:10px;font-weight:850;letter-spacing:.145em}
+.service-execution .svc-kicker-rule {display:inline-block;width:22px;height:2px;background:var(--svc-accent)}
+.service-execution .svc-hero-number {padding:3px 7px;background:rgba(255,255,255,.085);color:var(--svc-hero-ink);border:1px solid rgba(255,255,255,.12);border-radius:5px;font-size:10px;letter-spacing:.06em;font-variant-numeric:tabular-nums}
+.service-execution .svc-header-copy h1 {margin:12px 0 8px;color:inherit;max-width:710px;font-size:clamp(26px,2.55vw,39px);line-height:1.11;font-weight:900;letter-spacing:-.048em;overflow-wrap:anywhere}
+.service-execution .svc-hero-description {max-width:590px;margin:0;color:color-mix(in srgb,var(--svc-hero-ink) 73%,transparent);font-size:12px;line-height:1.55}
+.service-execution .svc-meta {display:flex;gap:9px 18px;align-items:center;flex-wrap:wrap;margin-top:19px;color:var(--svc-hero-ink);font-size:12px;font-weight:620}
+.service-execution .svc-meta>span {display:inline-flex;align-items:center;gap:7px;min-width:0}
+.service-execution .svc-meta i {font-size:15px;color:var(--svc-accent);opacity:.92}
+.service-execution .svc-meta-text {min-width:0;overflow-wrap:anywhere}
+.service-execution .svc-header-side {position:relative;z-index:1;display:flex;align-items:flex-start;flex-direction:column;gap:9px;width:210px;flex:0 0 210px;border-left:1px solid rgba(255,255,255,.16);padding:3px 0 0 25px}
+.service-execution .svc-status-caption {font-size:9px;font-weight:850;letter-spacing:.13em;color:color-mix(in srgb,var(--svc-hero-ink) 58%,transparent)}
+.service-execution .svc-status {display:inline-flex;align-items:center;gap:7px;padding:6px 9px;min-height:31px;border:1px solid rgba(255,255,255,.17);border-radius:6px;background:rgba(255,255,255,.08);color:var(--svc-hero-ink);font-size:11px;font-weight:770;line-height:1.3}
+.service-execution .svc-status i {color:var(--svc-accent);font-size:16px}
+.service-execution .svc-hero-stage {font-size:11px;color:color-mix(in srgb,var(--svc-hero-ink) 73%,transparent)}
+.service-execution .svc-hero-jump {display:inline-flex;align-items:center;gap:7px;justify-content:center;margin-top:auto;min-height:38px;padding:8px 10px;border-radius:7px;background:var(--svc-accent);color:var(--svc-on-accent);font-size:11px;font-weight:850;transition:background-color .15s;white-space:nowrap}
+.service-execution .svc-hero-jump:hover {background:var(--sgc-accent-hover,var(--svc-accent))}
+.service-execution .svc-hero-jump i {font-size:15px}
+
+/* Etapas: régua operacional contínua em vez de cartões independentes. */
+.service-execution .svc-workflow {padding:17px 25px;background:var(--svc-surface);border-radius:0 0 13px 13px;min-width:0}
+.service-execution .svc-steps {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;min-width:0}
+.service-execution .svc-step {--step-tone:var(--svc-muted);--step-fill:var(--svc-soft);position:relative;display:flex;align-items:center;gap:9px;min-width:0;min-height:48px;color:var(--step-tone)}
+.service-execution .svc-step:not(:last-child)::after {content:'';position:absolute;left:44px;right:11px;top:23px;height:1px;background:var(--svc-border);z-index:0;pointer-events:none}
+.service-execution .svc-step.done {--step-tone:var(--svc-success);--step-fill:var(--svc-success-soft)}
+.service-execution .svc-step.current {--step-tone:var(--svc-text);--step-fill:var(--svc-accent)}
+.service-execution .svc-step.rejected.current {--step-tone:var(--svc-danger);--step-fill:var(--svc-danger-soft)}
+.service-execution .svc-step.done:not(:last-child)::after {background:var(--svc-success)}
+.service-execution .svc-step-icon {position:relative;z-index:1;display:grid;place-items:center;flex:0 0 39px;width:39px;height:39px;border:1px solid var(--svc-border);border-radius:50%;background:var(--svc-surface);color:var(--step-tone);font-size:16px}
+.service-execution .svc-step.done .svc-step-icon {background:var(--step-fill);border-color:var(--svc-green-border);color:var(--svc-success)}
+.service-execution .svc-step.current .svc-step-icon {background:var(--step-fill);color:var(--svc-on-accent);border-color:var(--svc-accent)}
+.service-execution .svc-step.rejected.current .svc-step-icon {color:var(--svc-danger);border-color:var(--svc-red-border)}
+.service-execution .svc-step-copy {position:relative;z-index:1;display:grid;gap:2px;min-width:0;padding:0 8px 0 3px;background:var(--svc-surface)}
+.service-execution .svc-step-counter {font-size:9px;font-weight:820;letter-spacing:.1em;color:var(--svc-muted)}
+.service-execution .svc-step-copy strong {font-size:12px;font-weight:800;color:var(--step-tone);line-height:1.2;overflow-wrap:anywhere}
+.service-execution .svc-step.current .svc-step-copy strong {color:var(--svc-text)}
+
+/* 02 / Área de trabalho principal + ficha lateral contextual. */
+.service-execution .svc-workbench {display:grid;grid-template-columns:minmax(0,1fr) minmax(284px,325px);gap:22px;align-items:start;min-width:0;scroll-margin-top:100px}
+.service-execution .svc-primary-lane {min-width:0;display:grid;gap:16px}
+.service-execution .svc-context-lane {min-width:0;display:grid;align-content:start;gap:0;position:sticky;top:94px;border:1px solid var(--svc-border);border-radius:12px;background:var(--svc-surface);overflow:hidden}
+.service-execution .svc-aside-overline {display:flex;align-items:center;gap:7px;padding:20px 19px 0;font-size:10px;font-weight:840;letter-spacing:.125em;color:var(--svc-text-2)}
+.service-execution .svc-aside-overline>span {height:2px;width:16px;background:var(--svc-accent)}
+.service-execution .svc-aside-heading {margin:5px 19px 18px;color:var(--svc-text);font-size:20px;font-weight:850;letter-spacing:-.045em;line-height:1.12}
+.service-execution .svc-task-heading {--task-tone:var(--svc-info);display:flex;align-items:center;justify-content:space-between;gap:18px;padding:17px 20px 19px;border:1px solid var(--svc-border);border-left:4px solid var(--svc-accent);border-radius:10px;background:var(--svc-surface)}
+.service-execution .svc-task-heading.is-rejected {border-left-color:var(--svc-danger);--task-tone:var(--svc-danger)}
+.service-execution .svc-task-heading.is-validated {border-left-color:var(--svc-success);--task-tone:var(--svc-success)}
+.service-execution .svc-task-heading.is-submitted {border-left-color:var(--svc-warning);--task-tone:var(--svc-warning)}
+.service-execution .svc-task-label {font-size:10px;font-weight:870;letter-spacing:.125em;color:var(--task-tone)}
+.service-execution .svc-task-label span {font-size:9px;margin-right:4px}
+.service-execution .svc-task-heading h2 {margin:6px 0 4px;color:var(--svc-text);font-size:clamp(19px,2vw,25px);font-weight:860;letter-spacing:-.04em;line-height:1.18}
+.service-execution .svc-task-heading p {margin:0;max-width:650px;color:var(--svc-text-2);font-size:12px;line-height:1.52}
+.service-execution .svc-task-heading-icon {display:grid;place-items:center;width:48px;height:48px;flex:0 0 48px;border:1px solid var(--svc-border);border-radius:10px;background:var(--svc-soft);color:var(--task-tone);font-size:24px}
+
+/* Área principal: etapas preenchidas, dados persistidos e conferência. */
+.service-execution .svc-panel {min-width:0;overflow:hidden;border:1px solid var(--svc-border);border-radius:12px;background:var(--svc-surface);box-shadow:var(--svc-shadow)}
+.service-execution .svc-panel-head {display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:75px;padding:17px 20px;border-bottom:1px solid var(--svc-border);background:var(--svc-surface)}
+.service-execution .svc-panel-title {display:flex;gap:12px;align-items:center;min-width:0}
+.service-execution .svc-panel-icon {display:grid;place-items:center;flex:0 0 41px;width:41px;height:41px;border-radius:9px;border:1px solid var(--svc-border);background:var(--svc-soft);color:var(--panel-tone,var(--svc-info));font-size:19px}
+.service-execution .svc-panel-copy {min-width:0}
+.service-execution .svc-panel-copy h2 {margin:0;color:var(--svc-text);font-size:17px;font-weight:850;letter-spacing:-.03em;line-height:1.2}
+.service-execution .svc-panel-copy p {margin:4px 0 0;color:var(--svc-text-2);font-size:12px;line-height:1.45}
+.service-execution .svc-action-panel {border-top:3px solid var(--svc-accent)}
+.service-execution .svc-action-panel .svc-panel-head {background:var(--svc-soft)}
+.service-execution .svc-form-body,.service-execution .svc-review-body {padding:18px 20px 20px;background:var(--svc-surface)}
+.service-execution .svc-form {display:grid;width:100%;min-width:0;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
+.service-execution .svc-form .svc-field,.service-execution .svc-form .field-group,.service-execution .svc-form .form-group {display:block;width:100%;min-width:0;max-width:100%;margin:0;padding:13px 14px 14px;border:1px solid var(--svc-border);border-radius:9px;background:var(--svc-surface);vertical-align:top}
+.service-execution .svc-form .svc-field[hidden] {display:none!important}
+.service-execution .svc-field>label {display:block;color:var(--svc-text);font-size:13px;font-weight:750;line-height:1.4}
+.service-execution .svc-form :is(label,.form-label) {color:var(--svc-text);font-size:13px;font-weight:750}
+.service-execution .svc-form .svc-field>label>span,.service-execution .svc-evidence-label {display:block;margin-bottom:6px;color:var(--svc-text);font-size:13px;font-weight:760}
+.service-execution .svc-form input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]),.service-execution .svc-form select,.service-execution .svc-form textarea {display:block;width:100%;min-width:0;min-height:44px;padding:10px 12px;border:1px solid var(--svc-border-strong);border-radius:8px;outline:0;background:var(--svc-surface);color:var(--svc-text);font:inherit;font-size:14px;line-height:1.4}
+.service-execution .svc-form textarea {min-height:100px;resize:vertical}
+.service-execution .svc-form input::placeholder,.service-execution .svc-form textarea::placeholder {color:var(--svc-muted)}
+.service-execution .svc-form :is(input,select,textarea):focus {border-color:var(--svc-info);outline:2px solid color-mix(in srgb,var(--svc-info) 25%,transparent);outline-offset:0}
+.service-execution .svc-form input[type="checkbox"],.service-execution .svc-form input[type="radio"] {accent-color:var(--ui-color-primary)}
+.service-execution .svc-required {color:var(--svc-danger);font-weight:850}
+.service-execution .svc-field-unit,.service-execution .svc-optional,.service-execution .svc-field-help {display:block;margin-top:4px;color:var(--svc-text-2);font-size:12px;font-weight:500;line-height:1.45}
+.service-execution .svc-file {width:100%;border:1px dashed var(--svc-border-strong);border-radius:9px;padding:12px;background:var(--svc-soft);color:var(--svc-text-2)}
+.service-execution .svc-form-actions {display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap;grid-column:1/-1;border-top:1px solid var(--svc-border);padding:17px 0 0;margin:3px 0 0}
+.service-execution .svc-live-totals {grid-column:1/-1;padding:1rem;border:1px solid var(--svc-border);border-radius:12px;background:var(--svc-soft)}
+.svc-live-totals dl {display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;margin:.5rem 0}
+.svc-live-totals dt,.svc-live-totals p {font-size:.8125rem;color:var(--svc-text-2)}
+.svc-live-totals dd {font-weight:750;font-variant-numeric:tabular-nums}
+.service-execution .svc-async-feedback {grid-column:1/-1}
+.svc-save-spinner {display:inline-block;animation:svc-spin .82s linear infinite}
+@media (prefers-reduced-motion: reduce) {
+    .svc-save-spinner,.svc-reload-spinner i {animation:none}
+}
+.service-execution .svc-btn,.service-execution .svc-table-link {display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:43px;padding:10px 15px;border:1px solid var(--svc-border-strong);border-radius:8px;background:var(--svc-surface);color:var(--svc-text);font-size:12px;font-weight:800;line-height:1.2;text-decoration:none;transition:background-color .15s,border-color .15s;white-space:normal}
+.service-execution .svc-btn:hover,.service-execution .svc-table-link:hover {background:var(--svc-soft);border-color:var(--svc-muted)}
+.service-execution .svc-btn.primary {background:var(--svc-accent);border-color:var(--svc-accent);color:var(--svc-on-accent);font-weight:850}
+.service-execution .svc-btn.primary:hover {background:var(--sgc-accent-hover,var(--svc-accent));border-color:var(--sgc-accent-hover,var(--svc-accent))}
+.service-execution .svc-btn i {font-size:16px}
+.service-execution .svc-alert {display:flex;align-items:flex-start;gap:11px;padding:12px 14px;margin:0 0 15px;border:1px solid var(--svc-blue-border);border-radius:9px;background:var(--svc-blue-soft);color:var(--svc-text-2);font-size:12px;line-height:1.5}
+.service-execution .svc-alert.danger {border-color:var(--svc-red-border);background:var(--svc-red-soft)}
+.service-execution .svc-alert.warning {border-color:var(--svc-amber-border);background:var(--svc-amber-soft)}
+.service-execution .svc-alert.success {border-color:var(--svc-green-border);background:var(--svc-green-soft)}
+.service-execution .svc-alert-icon {display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;border-radius:8px;background:var(--svc-surface);color:var(--svc-info);font-size:17px}
+.service-execution .svc-alert.danger .svc-alert-icon {color:var(--svc-danger)}
+.service-execution .svc-alert strong {color:var(--svc-text)}
+.service-execution .svc-preview {display:none;grid-template-columns:32px minmax(0,1fr) auto;grid-column:1/-1;gap:12px;align-items:center;padding:13px 15px;margin:0 0 14px;border:1px solid var(--svc-blue-border);border-radius:9px;background:var(--svc-blue-soft)}
+.service-execution .svc-preview-icon {display:grid;place-items:center;width:32px;height:32px;background:var(--svc-surface);color:var(--svc-info);border-radius:7px}
+.service-execution .svc-preview-copy span {color:var(--svc-text);font-size:13px;font-weight:800}
+.service-execution .svc-preview-copy small {display:block;color:var(--svc-text-2);font-size:11px}
+.service-execution .svc-preview-result {color:var(--svc-info);font-size:18px;font-weight:900;font-variant-numeric:tabular-nums}
+.service-execution .svc-preview.is-invalid {border-color:var(--svc-red-border);background:var(--svc-red-soft)}
+.service-execution .svc-preview.is-invalid .svc-preview-result {color:var(--svc-danger)}
+
+/* 03 / Sidebar: contexto conciso, sem cartões concorrentes com o formulário. */
+.service-execution .svc-quick-context {background:transparent;border-top:1px solid var(--svc-border)}
+.service-execution .svc-quick-facts {display:grid;grid-template-columns:1fr}
+.service-execution .svc-quick-fact {display:flex;align-items:center;gap:11px;min-width:0;padding:14px 18px;border-bottom:1px solid var(--svc-border)}
+.service-execution .svc-quick-icon {display:grid;place-items:center;width:34px;height:34px;flex:0 0 34px;border-radius:8px;background:var(--svc-soft);color:var(--svc-text-2);font-size:17px}
+.service-execution .svc-quick-copy {min-width:0;display:grid;gap:3px}
+.service-execution .svc-quick-copy small {color:var(--svc-muted);font-size:10px;font-weight:790;letter-spacing:.045em;text-transform:uppercase}
+.service-execution .svc-quick-copy strong {color:var(--svc-text);font-size:13px;font-weight:760;line-height:1.3;overflow-wrap:anywhere}
+.service-execution .svc-order-details {border-bottom:1px solid var(--svc-border)}
+.service-execution .svc-order-details>summary {display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:46px;padding:10px 18px;cursor:pointer;color:var(--svc-text-2);font-size:12px;font-weight:800;list-style:none}
+.service-execution .svc-order-details>summary::-webkit-details-marker {display:none}
+.service-execution .svc-order-details>summary>span {display:inline-flex;align-items:center;gap:8px}
+.service-execution .svc-order-details>summary:hover {background:var(--svc-soft)}
+.service-execution .svc-details-caret {font-size:14px;transition:transform .15s}
+.service-execution .svc-order-details[open] .svc-details-caret {transform:rotate(180deg)}
+.service-execution .svc-order-details-body {padding:5px 15px 14px;background:var(--svc-surface)}
+.service-execution .svc-details-list {display:grid;gap:0;margin:0}
+.service-execution .svc-detail-item {display:flex;align-items:center;gap:10px;min-width:0;padding:10px 0;border-bottom:1px solid var(--svc-border)}
+.service-execution .svc-detail-item:last-child {border-bottom:0}
+.service-execution .svc-detail-icon {display:grid;place-items:center;width:27px;height:27px;flex:0 0 27px;border-radius:7px;background:var(--svc-soft);color:var(--svc-text-2);font-size:14px}
+.service-execution .svc-detail-copy {min-width:0}
+.service-execution .svc-detail-copy dt {margin:0 0 2px;color:var(--svc-muted);font-size:10px;font-weight:700}
+.service-execution .svc-detail-copy dd {margin:0;color:var(--svc-text);font-size:12px;font-weight:760;overflow-wrap:anywhere}
+.service-execution .svc-finance-strip {display:grid;grid-template-columns:1fr;background:var(--svc-soft);padding:15px 19px 19px}
+.service-execution .svc-finance-strip::before {content:'REFERÊNCIA FINANCEIRA';display:block;margin-bottom:3px;font-size:10px;letter-spacing:.12em;font-weight:850;color:var(--svc-text-2)}
+.service-execution .svc-finance-item {min-width:0;display:grid;gap:3px;padding:10px 0}
+.service-execution .svc-finance-item>span {display:flex;gap:6px;align-items:center;color:var(--svc-text-2);font-size:11px;font-weight:760}
+.service-execution .svc-finance-item strong {color:var(--svc-text);font-size:clamp(21px,2vw,26px);font-weight:880;letter-spacing:-.05em;font-variant-numeric:tabular-nums;line-height:1.15;overflow-wrap:anywhere}
+.service-execution .svc-finance-item small {color:var(--svc-text-2);font-size:11px;line-height:1.4}
+.service-execution .svc-finance-divider {height:1px;width:100%;background:var(--svc-border)}
+.service-execution .svc-finance-item.receivable>span i {color:var(--svc-success)}
+.service-execution .svc-finance-item.payable>span i {color:var(--svc-info)}
+
+/* 04 / Dados registrados, conferência e evidências. */
+.service-execution .svc-info-table,.service-execution .svc-money-table,.service-execution .svc-review-table,.service-execution .svc-evidence-table {width:100%;border-collapse:collapse;background:var(--svc-surface);font-size:13px}
+.service-execution :is(.svc-info-table,.svc-money-table,.svc-review-table,.svc-evidence-table) :is(th,td) {padding:12px 15px;border-bottom:1px solid var(--svc-border);text-align:left;vertical-align:middle}
+.service-execution :is(.svc-info-table,.svc-money-table,.svc-review-table,.svc-evidence-table) th {color:var(--svc-text-2);font-size:11px;font-weight:780}
+.service-execution :is(.svc-info-table,.svc-money-table,.svc-review-table) th {width:41%;background:var(--svc-soft)}
+.service-execution :is(.svc-info-table,.svc-money-table,.svc-review-table,.svc-evidence-table) tr:last-child :is(td,th) {border-bottom:0}
+.service-execution :is(.svc-info-table,.svc-money-table,.svc-review-table) td {color:var(--svc-text);font-weight:650;overflow-wrap:anywhere}
+.service-execution .svc-money-table td {text-align:right}
+.service-execution .svc-money-value {display:block;font-size:18px;font-weight:860;color:var(--svc-text);font-variant-numeric:tabular-nums;letter-spacing:-.035em}
+.service-execution .svc-money-value.receivable {color:var(--svc-success)}
+.service-execution .svc-money-value.payable {color:var(--svc-info)}
+.service-execution .svc-money-note {display:block;color:var(--svc-text-2);font-size:11px;line-height:1.4}
+.service-execution .svc-evidence-wrap {min-width:0;overflow-x:auto}
+.service-execution .svc-evidence-table {min-width:620px}
+.service-execution .svc-evidence-table th {background:var(--svc-soft);font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+.service-execution .svc-evidence-table td {font-size:12px;min-width:0}
+.service-execution .svc-evidence-table tbody tr:hover {background:var(--svc-soft)}
+.service-execution .evidence-name {display:flex;align-items:center;gap:10px;min-width:0}
+.service-execution .evidence-icon {display:grid;place-items:center;width:36px;height:36px;flex:0 0 36px;border-radius:8px;background:var(--svc-violet-soft);color:var(--svc-violet);font-size:18px}
+.service-execution .evidence-name strong {color:var(--svc-text);font-size:12px;font-weight:800;overflow-wrap:anywhere}
+.service-execution .evidence-copy {display:grid;gap:3px;min-width:0}
+.service-execution .evidence-copy strong {color:var(--svc-text);font-size:12px}
+.service-execution .evidence-copy small {color:var(--svc-muted);font-size:11px}
+.service-execution .svc-evidence-reference {color:var(--svc-text-2);font-size:12px}
+.service-execution .svc-evidence-preview-cell {text-align:right}
+.service-execution .svc-evidence-thumb {display:block;width:80px;height:56px;overflow:hidden;border:1px solid var(--svc-border);border-radius:7px;background:var(--svc-soft)}
+.service-execution .svc-evidence-thumb img {width:100%;height:100%;object-fit:cover}
+.service-execution .svc-evidence-link {display:flex;align-items:center;gap:9px;min-width:0;color:var(--svc-text);text-decoration:none}
+.service-execution .svc-evidence-link-icon {display:grid;place-items:center;flex:0 0 35px;width:35px;height:35px;background:var(--svc-soft);border-radius:7px;color:var(--svc-info)}
+.service-execution .svc-evidence-link-copy {min-width:0;display:grid;gap:2px}
+.service-execution .svc-evidence-link-copy strong {color:var(--svc-text);font-size:12px;font-weight:780;overflow-wrap:anywhere}
+.service-execution .svc-evidence-link-copy small {color:var(--svc-text-2);font-size:11px}
+.service-execution .svc-review-layout {display:grid;grid-template-columns:minmax(0,1fr) auto;gap:15px;align-items:end}
+.service-execution .svc-review-table-wrap {min-width:0;overflow:hidden;border:1px solid var(--svc-border);border-radius:8px}
+.service-execution .svc-review-result {color:var(--svc-info);font-weight:820}
+.service-execution .svc-review-action {display:flex;justify-content:flex-end}
+.service-execution .svc-count {display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border:1px solid var(--svc-border);border-radius:7px;background:var(--svc-soft);color:var(--svc-text-2);font-size:11px;font-weight:800}
+
+/* 05 / Acessibilidade e breakpoints: prioridade ao formulário. */
+@media(max-width:1230px) {
+  .service-execution .svc-workbench {grid-template-columns:minmax(0,1fr) minmax(260px,290px);gap:15px}
+  .service-execution .svc-header {padding:24px}
+}
+@media(max-width:1050px) {
+  .service-execution .svc-workbench {grid-template-columns:1fr;gap:15px}
+  .service-execution .svc-context-lane {position:static}
+  .service-execution .svc-quick-facts {grid-template-columns:repeat(3,minmax(0,1fr))}
+  .service-execution .svc-quick-fact {border-right:1px solid var(--svc-border)}
+  .service-execution .svc-quick-fact:last-child {border-right:0}
+  .service-execution .svc-finance-strip {grid-template-columns:1fr 1px 1fr;gap:15px}
+  .service-execution .svc-finance-strip::before {grid-column:1/-1}
+  .service-execution .svc-finance-divider {height:100%;width:1px}
+}
+@media(max-width:767px) {
+  .service-execution {gap:13px;padding-bottom:calc(90px + env(safe-area-inset-bottom,0px))}
+  .service-execution .svc-top {border-radius:11px}
+  .service-execution .svc-header {padding:18px 16px 19px;flex-direction:column;gap:16px;border-radius:10px 10px 0 0}
+  .service-execution .svc-header-main {gap:11px}
+  .service-execution .svc-header-copy h1 {font-size:clamp(23px,6vw,31px);margin-top:10px}
+  .service-execution .svc-hero-description {font-size:12px}
+  .service-execution .svc-header-side {width:100%;flex:unset;border-left:0;border-top:1px solid rgba(255,255,255,.16);padding:11px 0 0;display:grid;grid-template-columns:1fr auto;align-items:center;gap:6px 9px}
+  .service-execution .svc-status-caption {grid-column:1/-1}
+  .service-execution .svc-hero-stage {justify-self:end}
+  .service-execution .svc-hero-jump {grid-column:1/-1;margin-top:5px}
+  .service-execution .svc-workflow {padding:11px 9px}
+  .service-execution .svc-step {justify-content:center;gap:4px;display:grid;grid-template-columns:1fr;justify-items:center;text-align:center;min-height:69px;padding:0 2px}
+  .service-execution .svc-step:not(:last-child)::after {left:calc(50% + 19px);right:calc(-50% + 19px);top:19px}
+  .service-execution .svc-step-icon {width:36px;height:36px;flex-basis:36px}
+  .service-execution .svc-step-copy {padding:0;background:transparent}
+  .service-execution .svc-step-counter {display:none}
+  .service-execution .svc-step-copy strong {font-size:10px;line-height:1.2}
+  .service-execution .svc-form {grid-template-columns:1fr}
+  .service-execution .svc-panel-head {min-height:67px;padding:13px 14px}
+  .service-execution .svc-panel-copy h2 {font-size:16px}
+  .service-execution .svc-form-body,.service-execution .svc-review-body {padding:13px 13px 16px}
+  .service-execution .svc-form-actions {display:grid;grid-template-columns:1fr;gap:9px}
+  .service-execution .svc-form-actions .svc-btn,.service-execution .svc-review-action .svc-btn {width:100%;min-height:46px}
+  .service-execution .svc-quick-facts {grid-template-columns:1fr}
+  .service-execution .svc-quick-fact {border-right:0}
+  .service-execution .svc-finance-strip {grid-template-columns:1fr;gap:0}
+  .service-execution .svc-finance-strip::before {grid-column:auto}
+  .service-execution .svc-finance-divider {height:1px;width:100%}
+  .service-execution .svc-review-layout {grid-template-columns:1fr}
+  .service-execution .svc-review-action {display:block}
+  .service-execution .svc-evidence-wrap {overflow:visible;padding:10px}
+  .service-execution .svc-evidence-table {min-width:0;display:block}
+  .service-execution .svc-evidence-table thead {display:none}
+  .service-execution .svc-evidence-table tbody {display:grid;gap:8px}
+  .service-execution .svc-evidence-table tr {display:grid;grid-template-columns:minmax(0,1fr);gap:8px;border:1px solid var(--svc-border);border-radius:8px;padding:12px;background:var(--svc-surface)}
+  .service-execution .svc-evidence-table td {display:block;border:0;padding:0;min-width:0}
+  .service-execution .svc-evidence-table td::before {content:attr(data-label);display:block;margin:3px 0 5px;color:var(--svc-muted);font-size:10px;font-weight:820;text-transform:uppercase;letter-spacing:.06em}
+  .service-execution .svc-evidence-preview-cell {text-align:left}
+  .service-execution .svc-evidence-thumb {width:100%;height:122px}
+  .service-execution .svc-task-heading {padding:14px 15px}
+  .service-execution .svc-task-heading h2 {font-size:20px}
+  .service-execution .svc-task-heading-icon {width:39px;height:39px;flex-basis:39px;font-size:19px}
+}
+@media(max-width:390px) {
+  .service-execution .svc-meta {display:grid;gap:7px}
+  .service-execution .svc-header-copy h1 {font-size:23px}
+  .service-execution .svc-back {width:36px;height:36px;flex-basis:36px}
+  .service-execution .svc-hero-kicker {font-size:9px;gap:6px}
+  .service-execution .svc-step-copy strong {font-size:9px}
+  .service-execution .svc-task-heading-icon {display:none}
+  .service-execution .svc-panel-icon {width:37px;height:37px;flex-basis:37px}
+  .service-execution .svc-panel-copy p {font-size:11px}
+}
+@media(prefers-reduced-motion:reduce) {
+  .service-execution *, .service-execution *::before, .service-execution *::after {animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+}
+@media print {
+  .service-execution {color:#111;background:#fff;padding:0}
+  .service-execution .svc-top,.service-execution .svc-panel,.service-execution .svc-context-lane {box-shadow:none;break-inside:avoid}
+  .service-execution .svc-header {background:#173c2e!important;color:white!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .service-execution .svc-hero-jump,.service-execution .svc-form-actions,.service-execution .svc-back {display:none!important}
+  .service-execution .svc-workbench {display:block}
+  .service-execution .svc-context-lane {position:static;margin-top:18px}
+}
+/* Preservado do módulo anterior: campos de evidência, câmera, arquivos, viewer, loading */
+.svc-file-preview {
+    min-width: 0;
+    margin-top: .35rem;
+  }
+.svc-file-preview small {
+    color: var(--svc-muted);
+    font-size: .6rem;
+  }
+.svc-file-preview img {
+    display: block;
+    max-width: 100%;
+    max-height: 12rem;
+    object-fit: contain;
+    border: 1px solid var(--svc-border);
+    border-radius: 8px;
+    background: var(--svc-surface);
+    cursor: zoom-in;
+  }
+.svc-evidence-field {
+    display: grid;
+    min-width: 0;
+    gap: .35rem;
+    padding: .5rem .52rem;
+    border: 1px dashed var(--svc-border-strong);
+    border-radius: 7px;
+    background: var(--svc-soft);
+  }
+.svc-form .svc-field > label,     .svc-form .svc-evidence-field {
+    min-width: 0;
+    max-width: 100%;
+  }
+.service-execution .svc-field > label + .svc-evidence-field {
+    margin-top: .875rem;
+    padding: .75rem;
+}
+[data-theme="dark"] .service-execution .svc-form :is(input:not([type="hidden"], [type="file"], [type="checkbox"], [type="radio"]), select, textarea) {
+    color-scheme: dark;
+}
+[data-theme="dark"] .service-execution .svc-form input:autofill {
+    box-shadow: 0 0 0 100px var(--app-surface) inset !important;
+    -webkit-text-fill-color: var(--ui-color-text);
+}
+.svc-form .svc-file-preview img {
+    width: auto;
+    max-width: 100%;
+    height: auto;
+  }
+.svc-evidence-field[hidden],     .svc-field[hidden] {
+    display: none !important;
+  }
+.svc-image-preview-button {
+    position: relative;
+    display: block;
+    width: 100%;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--svc-border);
+    border-radius: 8px;
+    background: var(--svc-surface);
+    cursor: zoom-in;
+  }
+.svc-image-preview-button img {
+    display: block;
+    width: 100%;
+    max-height: 210px;
+    object-fit: contain;
+    background: var(--svc-soft);
+  }
+.svc-image-preview-hint {
+    position: absolute;
+    right: .38rem;
+    bottom: .38rem;
+    display: inline-flex;
+    gap: .22rem;
+    align-items: center;
+    padding: .22rem .35rem;
+    border-radius: 6px;
+    background: rgba(23, 37, 28, .82);
+    color: var(--svc-surface);
+    font-size: .55rem;
+    font-weight: 760;
+    pointer-events: none;
+  }
+.svc-image-viewer {
+    position: fixed;
+    z-index: 2600;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: rgba(8, 18, 12, .96);
+  }
+.svc-image-viewer:not([open]) {
+    display: none;
+  }
+.svc-image-viewer[open] {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+.svc-image-viewer::backdrop {
+    background: rgba(8, 18, 12, .96);
+  }
+.svc-image-viewer-toolbar {
+    display: flex;
+    min-height: 54px;
+    gap: .5rem;
+    align-items: center;
+    justify-content: space-between;
+    padding: max(.5rem, env(safe-area-inset-top))
             max(.65rem, env(safe-area-inset-right))
             .5rem
             max(.65rem, env(safe-area-inset-left));
-        border-bottom: 1px solid rgba(255, 255, 255, .12);
-        color: #fff;
-    }
-
-    .svc-image-viewer-title {
-        min-width: 0;
-        overflow: hidden;
-        font-size: .71rem;
-        font-weight: 760;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .svc-image-viewer-close {
-        display: grid;
-        width: 38px;
-        height: 38px;
-        flex: 0 0 auto;
-        place-items: center;
-        border: 1px solid rgba(255, 255, 255, .18);
-        border-radius: 8px;
-        background: rgba(255, 255, 255, .08);
-        color: #fff;
-        cursor: pointer;
-    }
-
-    .svc-image-viewer-stage {
-        display: grid;
-        min-height: 0;
-        place-items: center;
-        overflow: auto;
-        padding: .7rem;
-    }
-
-    .svc-image-viewer-stage img {
-        display: block;
-        max-width: 100%;
-        max-height: calc(100dvh - 80px);
-        object-fit: contain;
-    }
-
-    @media (max-width: 720px) {
-        .svc-top .svc-steps {
-            display: grid;
-            grid-template-columns:
-                repeat(4, minmax(0, 1fr));
-            overflow: visible;
-        }
-
-        .svc-top .svc-step {
-            min-width: 0;
-            grid-template-columns: 1fr;
-            justify-items: center;
-            gap: .12rem;
-            padding: .24rem .15rem;
-            text-align: center;
-        }
-
-        .svc-top .svc-step-copy strong {
-            font-size: .55rem;
-        }
-
-        .svc-context-strip {
-            grid-template-columns: 1fr;
-        }
-
-        .svc-context-main {
-            grid-template-columns:
-                repeat(3, minmax(0, 1fr));
-        }
-
-        .svc-context-item {
-            grid-template-columns: 1fr;
-            justify-items: center;
-            padding: .14rem .22rem;
-            text-align: center;
-        }
-
-        .svc-context-item > i {
-            width: 24px;
-            height: 24px;
-        }
-
-        .svc-order-details {
-            justify-self: stretch;
-        }
-
-        .svc-order-details > summary {
-            width: 100%;
-            justify-content: center;
-        }
-
-        .svc-order-details-body {
-            position: static;
-            width: 100%;
-            margin-top: .35rem;
-            box-shadow: none;
-        }
-
-        .svc-finance-strip {
-            grid-template-columns: 1fr;
-        }
-
-        .svc-finance-divider {
-            width: 100%;
-            height: 1px;
-        }
-    }
-
-    @media (max-width: 430px) {
-        .svc-header-icon {
-            display: none;
-        }
-
-        .svc-top .svc-step-icon {
-            width: 20px;
-            height: 20px;
-        }
-
-        .svc-context-main {
-            grid-template-columns: 1fr 1fr;
-        }
-
-        .svc-context-item:nth-child(3) {
-            grid-column: 1 / -1;
-            border-top: 1px solid var(--svc-border);
-            border-left: 0;
-            padding-top: .3rem;
-        }
-
-        .svc-details-list {
-            grid-template-columns: 1fr;
-        }
-
-        .svc-details-list > div:nth-child(odd) {
-            border-right: 0;
-        }
-    }
-
-
-    /* =========================================================
-       AJUSTES FINAIS — clareza, estado e responsividade
-       ========================================================= */
-
-    .svc-top .svc-header-icon {
-        background: var(--status-soft);
-        color: var(--status-tone);
-    }
-
-    /* Stepper */
-    .svc-top .svc-workflow {
-        padding: .34rem .5rem .4rem;
-        overflow: visible;
-        border-radius: 10px;
-        background: #fff;
-    }
-
-    .svc-top .svc-steps {
-        position: relative;
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 0;
-        overflow: visible;
-    }
-
-    .svc-top .svc-step {
-        --step-tone: var(--svc-slate);
-        --step-soft: #fff;
-        --step-border: var(--svc-border);
-
-        position: relative;
-        z-index: 1;
-        display: grid;
-        min-width: 0;
-        min-height: 42px;
-        grid-template-columns: 1fr;
-        gap: .16rem;
-        align-content: start;
-        justify-items: center;
-        padding: 0 .18rem;
-        overflow: visible;
-        border: 0;
-        border-radius: 0;
-        background: transparent;
-        color: var(--step-tone);
-        box-shadow: none;
-        text-align: center;
-    }
-
-    .svc-top .svc-step::after {
-        position: absolute;
-        z-index: -1;
-        top: 14px;
-        left: calc(50% + 17px);
-        width: calc(100% - 34px);
-        height: 2px;
-        background: var(--svc-border);
-        content: "";
-    }
-
-    .svc-top .svc-step:last-child::after {
-        display: none;
-    }
-
-    .svc-top .svc-step.done {
-        --step-tone: var(--svc-green);
-        --step-soft: var(--svc-green-soft);
-        --step-border: var(--svc-green-border);
-    }
-
-    .svc-top .svc-step.done::after {
-        background: var(--svc-green);
-    }
-
-    .svc-top .svc-step:nth-child(1).current {
-        --step-tone: var(--svc-blue);
-        --step-soft: var(--svc-blue-soft);
-        --step-border: var(--svc-blue-border);
-    }
-
-    .svc-top .svc-step:nth-child(2).current {
-        --step-tone: var(--svc-cyan);
-        --step-soft: var(--svc-cyan-soft);
-        --step-border: var(--svc-cyan-border);
-    }
-
-    .svc-top .svc-step:nth-child(3).current {
-        --step-tone: var(--svc-amber);
-        --step-soft: var(--svc-amber-soft);
-        --step-border: var(--svc-amber-border);
-    }
-
-    .svc-top .svc-step:nth-child(4).current {
-        --step-tone: var(--svc-green);
-        --step-soft: var(--svc-green-soft);
-        --step-border: var(--svc-green-border);
-    }
-
-    .svc-top .svc-step.rejected.current {
-        --step-tone: var(--svc-red);
-        --step-soft: var(--svc-red-soft);
-        --step-border: var(--svc-red-border);
-    }
-
-    .svc-top .svc-step-icon {
-        display: grid;
-        width: 29px;
-        height: 29px;
-        place-items: center;
-        border: 1px solid var(--step-border);
-        border-radius: 50%;
-        background: var(--step-soft);
-        color: var(--step-tone);
-        font-size: .72rem;
-        box-shadow: 0 0 0 4px #fff;
-    }
-
-    .svc-top .svc-step.current .svc-step-icon {
-        box-shadow:
-            0 0 0 4px #fff,
-            0 0 0 5px var(--step-border);
-    }
-
-    .svc-top .svc-step-copy strong {
-        display: block;
-        max-width: 100%;
-        overflow: hidden;
-        color: var(--step-tone);
-        font-size: .58rem;
-        font-weight: 800;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    /* Context */
-    .svc-quick-context {
-        position: relative;
-        display: grid;
-        min-width: 0;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: .45rem;
-        align-items: center;
-        padding: .42rem .48rem;
-        border: 1px solid var(--svc-border);
-        border-radius: 10px;
-        background: #fff;
-        box-shadow: var(--svc-shadow);
-    }
-
-    .svc-quick-facts {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        overflow: hidden;
-        border: 1px solid var(--svc-border);
-        border-radius: 8px;
-        background: #fff;
-    }
-
-    .svc-quick-fact {
-        --fact-tone: var(--svc-blue);
-        --fact-soft: var(--svc-blue-soft);
-
-        display: grid;
-        min-width: 0;
-        grid-template-columns: 30px minmax(0, 1fr);
-        gap: .38rem;
-        align-items: center;
-        min-height: 48px;
-        padding: .35rem .46rem;
-        background: #fff;
-    }
-
-    .svc-quick-fact + .svc-quick-fact {
-        border-left: 1px solid var(--svc-border);
-    }
-
-    .svc-quick-fact.provider {
-        --fact-tone: var(--svc-violet);
-        --fact-soft: var(--svc-violet-soft);
-    }
-
-    .svc-quick-fact.evidence {
-        --fact-tone: var(--svc-cyan);
-        --fact-soft: var(--svc-cyan-soft);
-    }
-
-    .svc-quick-icon {
-        display: grid;
-        width: 30px;
-        height: 30px;
-        place-items: center;
-        border-radius: 7px;
-        background: var(--fact-soft);
-        color: var(--fact-tone);
-        font-size: .8rem;
-    }
-
-    .svc-quick-copy {
-        min-width: 0;
-    }
-
-    .svc-quick-copy small,
-    .svc-quick-copy strong {
-        display: block;
-        min-width: 0;
-    }
-
-    .svc-quick-copy small {
-        color: var(--svc-muted);
-        font-size: .5rem;
-        font-weight: 760;
-        letter-spacing: .025em;
-        text-transform: uppercase;
-    }
-
-    .svc-quick-copy strong {
-        margin-top: .03rem;
-        overflow: hidden;
-        color: var(--svc-text);
-        font-size: .63rem;
-        font-weight: 800;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    /* Details */
-    .svc-order-details {
-        position: relative;
-        min-width: 0;
-        align-self: stretch;
-    }
-
-    .svc-order-details > summary {
-        display: flex;
-        min-width: 150px;
-        height: 100%;
-        min-height: 48px;
-        gap: .5rem;
-        align-items: center;
-        justify-content: space-between;
-        padding: .4rem .52rem;
-        border: 1px solid var(--svc-border);
-        border-radius: 8px;
-        background: #fff;
-        color: var(--svc-text-2);
-        cursor: pointer;
-        font-size: .61rem;
-        font-weight: 780;
-        list-style: none;
-        white-space: nowrap;
-    }
-
-    .svc-order-details > summary > span {
-        display: inline-flex;
-        gap: .3rem;
-        align-items: center;
-    }
-
-    .svc-order-details > summary > span i {
-        color: var(--svc-blue);
-    }
-
-    .svc-order-details > summary::-webkit-details-marker {
-        display: none;
-    }
-
-    .svc-details-caret {
-        flex: 0 0 auto;
-        color: var(--svc-muted);
-        transition: transform .15s ease;
-    }
-
-    .svc-order-details[open] .svc-details-caret {
-        transform: rotate(180deg);
-    }
-
-    .svc-order-details-body {
-        position: absolute;
-        z-index: 55;
-        top: calc(100% + .4rem);
-        right: 0;
-        width: min(92vw, 540px);
-        overflow: hidden;
-        border: 1px solid var(--svc-border);
-        border-radius: 10px;
-        background: #fff;
-        box-shadow: 0 18px 44px rgba(19, 50, 30, .16);
-    }
-
-    .svc-details-list {
-        display: grid;
-        grid-template-columns: 1fr;
-        margin: 0;
-    }
-
-    .svc-details-list > div {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: 112px minmax(0, 1fr);
-        gap: .65rem;
-        align-items: start;
-        padding: .5rem .62rem;
-        border-bottom: 1px solid var(--svc-border);
-    }
-
-    .svc-details-list > div:last-child {
-        border-bottom: 0;
-    }
-
-    .svc-details-list > div:nth-child(odd) {
-        border-right: 0;
-    }
-
-    .svc-details-list dt,
-    .svc-details-list dd {
-        margin: 0;
-    }
-
-    .svc-details-list dt {
-        color: var(--svc-muted);
-        font-size: .55rem;
-        font-weight: 780;
-        letter-spacing: .02em;
-        text-transform: uppercase;
-        white-space: nowrap;
-    }
-
-    .svc-details-list dd {
-        min-width: 0;
-        color: var(--svc-text);
-        font-size: .65rem;
-        font-weight: 740;
-        line-height: 1.4;
-        overflow-wrap: break-word;
-        word-break: normal;
-    }
-
-    /* Finance */
-    .svc-finance-strip {
-        padding: 0;
-        overflow: hidden;
-        border-radius: 10px;
-        background: #fff;
-    }
-
-    .svc-finance-item {
-        min-height: 56px;
-        padding: .48rem .58rem;
-        border-left: 3px solid transparent;
-    }
-
-    .svc-finance-item.receivable {
-        border-left-color: var(--svc-green);
-    }
-
-    .svc-finance-item.payable {
-        border-left-color: var(--svc-blue);
-    }
-
-    .svc-finance-item.receivable > span i {
-        color: var(--svc-green);
-    }
-
-    .svc-finance-item.payable > span i {
-        color: var(--svc-blue);
-    }
-
-    /* Files */
-    .evidence-name {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: 34px minmax(0, 1fr) auto;
-        gap: .45rem;
-        align-items: center;
-    }
-
-    .evidence-icon {
-        width: 34px;
-        height: 34px;
-        border-radius: 8px;
-        background: var(--svc-slate-soft);
-        color: var(--svc-slate);
-    }
-
-    .evidence-icon.image {
-        background: var(--svc-violet-soft);
-        color: var(--svc-violet);
-    }
-
-    .evidence-icon.pdf {
-        background: var(--svc-red-soft);
-        color: var(--svc-red);
-    }
-
-    .evidence-icon.signature {
-        background: var(--svc-blue-soft);
-        color: var(--svc-blue);
-    }
-
-    .evidence-copy {
-        min-width: 0;
-    }
-
-    .evidence-copy strong,
-    .evidence-copy small {
-        display: block;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .evidence-copy strong {
-        color: var(--svc-text);
-        font-size: .66rem;
-        font-weight: 800;
-    }
-
-    .evidence-copy small {
-        margin-top: .04rem;
-        color: var(--svc-muted);
-        font-size: .55rem;
-        font-weight: 650;
-    }
-
-    .svc-evidence-reference {
-        color: var(--svc-text-2);
-        font-size: .64rem;
-        font-weight: 690;
-        overflow-wrap: break-word;
-    }
-
-    .svc-evidence-thumb {
-        position: relative;
-        display: block;
-        width: 58px;
-        height: 40px;
-        padding: 0;
-        overflow: hidden;
-        border: 1px solid var(--svc-border);
-        border-radius: 7px;
-        background: var(--svc-soft);
-        cursor: zoom-in;
-    }
-
-    .svc-evidence-thumb img {
-        display: block;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-
-    .svc-evidence-thumb > span {
-        position: absolute;
-        right: 3px;
-        bottom: 3px;
-        display: grid;
-        width: 18px;
-        height: 18px;
-        place-items: center;
-        border-radius: 5px;
-        background: rgba(23, 37, 28, .82);
-        color: #fff;
-        font-size: .52rem;
-    }
-
-    .svc-table-link {
-        cursor: pointer;
-    }
-
-    /* Viewer */
-    .svc-file-viewer {
-        position: fixed;
-        z-index: 2700;
-        inset: 0;
-        width: 100%;
-        max-width: none;
-        height: 100%;
-        max-height: none;
-        margin: 0;
-        padding: 0;
-        border: 0;
-        background: rgba(8, 18, 12, .97);
-    }
-
-    .svc-file-viewer:not([open]) {
-        display: none;
-    }
-
-    .svc-file-viewer[open] {
-        display: grid;
-        grid-template-rows: auto minmax(0, 1fr);
-    }
-
-    .svc-file-viewer::backdrop {
-        background: rgba(8, 18, 12, .97);
-    }
-
-    .svc-file-viewer-toolbar {
-        display: flex;
-        min-height: 54px;
-        gap: .6rem;
-        align-items: center;
-        justify-content: space-between;
-        padding:
-            max(.48rem, env(safe-area-inset-top))
+    border-bottom: 1px solid rgba(255, 255, 255, .12);
+    color: var(--svc-surface);
+  }
+.svc-image-viewer-title {
+    min-width: 0;
+    overflow: hidden;
+    font-size: .71rem;
+    font-weight: 760;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+.svc-image-viewer-close {
+    display: grid;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, .18);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .08);
+    color: var(--svc-surface);
+    cursor: pointer;
+  }
+.svc-image-viewer-stage {
+    display: grid;
+    min-height: 0;
+    place-items: center;
+    overflow: auto;
+    padding: .7rem;
+  }
+.svc-image-viewer-stage img {
+    display: block;
+    max-width: 100%;
+    max-height: calc(100dvh - 80px);
+    object-fit: contain;
+  }
+.svc-evidence-thumb {
+    position: relative;
+    display: block;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--svc-border);
+    border-radius: 7px;
+    background: var(--svc-soft);
+    cursor: zoom-in;
+    width: 76px;
+    height: 52px;
+    flex: 0 0 auto;
+  }
+.svc-evidence-thumb img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+.svc-evidence-thumb > span {
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    display: grid;
+    width: 18px;
+    height: 18px;
+    place-items: center;
+    border-radius: 5px;
+    background: rgba(23, 37, 28, .82);
+    color: var(--svc-surface);
+    font-size: .52rem;
+  }
+.svc-file-viewer {
+    position: fixed;
+    z-index: 2700;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: rgba(8, 18, 12, .97);
+  }
+.svc-file-viewer:not([open]) {
+    display: none;
+  }
+.svc-file-viewer[open] {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+.svc-file-viewer::backdrop {
+    background: rgba(8, 18, 12, .97);
+  }
+.svc-file-viewer-toolbar {
+    display: flex;
+    min-height: 54px;
+    gap: .6rem;
+    align-items: center;
+    justify-content: space-between;
+    padding: max(.48rem, env(safe-area-inset-top))
             max(.65rem, env(safe-area-inset-right))
             .48rem
             max(.65rem, env(safe-area-inset-left));
-        border-bottom: 1px solid rgba(255, 255, 255, .12);
-        color: #fff;
+    border-bottom: 1px solid rgba(255, 255, 255, .12);
+    color: var(--svc-surface);
+  }
+.svc-file-viewer-title {
+    min-width: 0;
+    overflow: hidden;
+    font-size: .7rem;
+    font-weight: 780;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+.svc-file-viewer-close {
+    display: grid;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, .16);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .08);
+    color: var(--svc-surface);
+    cursor: pointer;
+    font-size: 1rem;
+  }
+.svc-file-viewer-stage {
+    display: grid;
+    min-height: 0;
+    place-items: center;
+    overflow: hidden;
+    padding: .7rem;
+  }
+.svc-file-viewer-image {
+    display: block;
+    max-width: 100%;
+    max-height: calc(100dvh - 80px);
+    object-fit: contain;
+  }
+.svc-file-viewer-frame {
+    width: min(100%, 1080px);
+    height: 100%;
+    min-height: 0;
+    border: 0;
+    border-radius: 8px;
+    background: var(--svc-surface);
+  }
+.svc-file-viewer-fallback {
+    display: grid;
+    width: min(100%, 360px);
+    gap: .55rem;
+    justify-items: center;
+    padding: 1rem;
+    border: 1px solid rgba(255, 255, 255, .14);
+    border-radius: 10px;
+    color: var(--svc-surface);
+    text-align: center;
+  }
+.svc-file-viewer-fallback[hidden],     .svc-file-viewer-image[hidden],     .svc-file-viewer-frame[hidden] {
+    display: none !important;
+  }
+.svc-file-viewer-fallback-icon {
+    display: grid;
+    width: 48px;
+    height: 48px;
+    place-items: center;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, .08);
+    font-size: 1.2rem;
+  }
+.svc-evidence-link {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: .4rem;
+    align-items: center;
+  }
+.svc-evidence-link-icon {
+    display: grid;
+    width: 30px;
+    height: 30px;
+    place-items: center;
+    border-radius: 7px;
+    background: var(--svc-cyan-soft);
+    color: var(--svc-cyan);
+    font-size: .75rem;
+  }
+.svc-evidence-link-copy {
+    min-width: 0;
+  }
+.svc-evidence-link-copy strong,     .svc-evidence-link-copy small {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+.svc-evidence-link-copy strong {
+    color: var(--svc-text);
+    font-size: .64rem;
+    font-weight: 800;
+  }
+.svc-evidence-link-copy small {
+    margin-top: .05rem;
+    color: var(--svc-blue);
+    font-size: .6rem;
+    font-weight: 780;
+    font-variant-numeric: tabular-nums;
+  }
+.svc-evidence-preview-cell {
+    display: inline-flex;
+    gap: .38rem;
+    align-items: center;
+    justify-content: flex-end;
+  }
+.svc-file-preview-button {
+    --preview-tone: var(--svc-slate);
+    --preview-soft: var(--svc-slate-soft);
+    display: grid;
+    width: 52px;
+    height: 52px;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 1px solid var(--svc-border);
+    border-radius: 8px;
+    background: var(--preview-soft);
+    color: var(--preview-tone);
+    cursor: pointer;
+    font-size: 1.05rem;
+  }
+.svc-file-preview-button.pdf {
+    --preview-tone: var(--svc-red);
+    --preview-soft: var(--svc-red-soft);
+  }
+.svc-file-preview-button.signature {
+    --preview-tone: var(--svc-blue);
+    --preview-soft: var(--svc-blue-soft);
+  }
+.svc-evidence-preview-cell:has(.svc-evidence-thumb) {
+    align-items: center;
+  }
+.svc-evidence-picker {
+    display: grid;
+    min-width: 0;
+    gap: .34rem;
+  }
+.svc-evidence-native-input,     .svc-evidence-camera-input {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+    opacity: 0 !important;
+  }
+.svc-evidence-picker-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .38rem;
+  }
+.svc-evidence-pick-btn {
+    --picker-tone: var(--svc-blue);
+    --picker-soft: var(--svc-blue-soft);
+    --picker-border: var(--svc-blue-border);
+    display: inline-flex;
+    min-width: 0;
+    min-height: 39px;
+    gap: .32rem;
+    align-items: center;
+    justify-content: center;
+    padding: .4rem .52rem;
+    border: 1px solid var(--picker-border);
+    border-radius: 8px;
+    background: var(--picker-soft);
+    color: var(--picker-tone);
+    cursor: pointer;
+    font: inherit;
+    font-size: .65rem;
+    font-weight: 790;
+  }
+.svc-evidence-pick-btn.camera {
+    --picker-tone: var(--svc-green);
+    --picker-soft: var(--svc-green-soft);
+    --picker-border: var(--svc-green-border);
+  }
+.svc-evidence-pick-btn i {
+    flex: 0 0 auto;
+    font-size: .84rem;
+  }
+.svc-evidence-pick-btn:focus-visible {
+    outline: 2px solid var(--picker-tone);
+    outline-offset: 2px;
+  }
+.svc-evidence-selection {
+    display: inline-flex;
+    min-width: 0;
+    gap: .24rem;
+    align-items: center;
+    color: var(--svc-muted);
+    font-size: .56rem;
+    font-weight: 650;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+.svc-evidence-selection.is-selected,     .svc-evidence-selection.is-saved {
+    color: var(--svc-green);
+    font-weight: 740;
+  }
+.svc-evidence-field.has-evidence-error {
+    border-color: var(--svc-red);
+    background: var(--svc-red-soft);
+  }
+.svc-reload-overlay {
+    position: fixed;
+    z-index: 3100;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: rgba(14, 25, 18, .72);
+  }
+.svc-reload-overlay[hidden] {
+    display: none !important;
+  }
+.svc-reload-card {
+    display: grid;
+    width: min(100%, 310px);
+    gap: .42rem;
+    justify-items: center;
+    padding: 1rem;
+    border: 1px solid var(--svc-border);
+    border-radius: 12px;
+    background: var(--svc-surface);
+    color: var(--svc-text);
+    box-shadow: 0 18px 50px rgba(12, 28, 18, .2);
+    text-align: center;
+  }
+.svc-reload-spinner {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border-radius: 10px;
+    background: var(--svc-green-soft);
+    color: var(--svc-green);
+    font-size: 1.2rem;
+  }
+.svc-reload-spinner i {
+    animation: svc-spin .82s linear infinite;
+  }
+.svc-reload-card strong {
+    font-size: .78rem;
+    font-weight: 840;
+  }
+.svc-reload-card small {
+    color: var(--svc-muted);
+    font-size: .61rem;
+    line-height: 1.4;
+  }
+.svc-evidence-file-error {
+    display: inline-flex;
+    gap: .25rem;
+    align-items: flex-start;
+    color: var(--svc-red);
+    font-size: .58rem;
+    font-weight: 740;
+    line-height: 1.4;
+  }
+.svc-evidence-file-error i {
+    flex: 0 0 auto;
+    margin-top: .04rem;
+    font-size: .72rem;
+  }
+@media (max-width: 820px){
+.svc-evidence-preview-cell {
+    display: grid;
+    justify-items: start;
+  }
+.svc-evidence-thumb {
+    width: 82px;
+    height: 58px;
+  }
+}
+@media (max-width: 520px){
+.svc-evidence-preview-cell .svc-table-link {
+    width: 100%;
+    min-height: 32px;
+    padding-inline: .3rem;
+    font-size: 0;
+  }
+.svc-evidence-preview-cell .svc-table-link i {
+    font-size: .75rem;
+  }
+.svc-evidence-thumb,         .svc-file-preview-button {
+    width: 72px;
+  }
+.svc-evidence-thumb {
+    height: 58px;
+  }
+}
+@media (max-width: 470px){
+.svc-evidence-thumb {
+    grid-column: 1 / -1;
+    width: 100%;
+    height: 92px;
+  }
+}
+.service-execution .svc-evidence-table .svc-evidence-thumb {
+    width: 112px;
+    height: 76px;
+}
+.service-execution .svc-evidence-table .svc-evidence-thumb img {
+    object-fit: contain;
+}
+@media (max-width: 820px) {
+    .service-execution .svc-evidence-table tr {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .75rem 1rem;
     }
-
-    .svc-file-viewer-title {
-        min-width: 0;
-        overflow: hidden;
-        font-size: .7rem;
-        font-weight: 780;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .svc-file-viewer-close {
-        display: grid;
-        width: 38px;
-        height: 38px;
-        flex: 0 0 auto;
-        place-items: center;
-        border: 1px solid rgba(255, 255, 255, .16);
-        border-radius: 8px;
-        background: rgba(255, 255, 255, .08);
-        color: #fff;
-        cursor: pointer;
-        font-size: 1rem;
-    }
-
-    .svc-file-viewer-stage {
-        display: grid;
-        min-height: 0;
-        place-items: center;
-        overflow: hidden;
-        padding: .7rem;
-    }
-
-    .svc-file-viewer-image {
-        display: block;
-        max-width: 100%;
-        max-height: calc(100dvh - 80px);
-        object-fit: contain;
-    }
-
-    .svc-file-viewer-frame {
-        width: min(100%, 1080px);
-        height: 100%;
-        min-height: 0;
-        border: 0;
-        border-radius: 8px;
-        background: #fff;
-    }
-
-    .svc-file-viewer-fallback {
-        display: grid;
-        width: min(100%, 360px);
-        gap: .55rem;
-        justify-items: center;
-        padding: 1rem;
-        border: 1px solid rgba(255, 255, 255, .14);
-        border-radius: 10px;
-        color: #fff;
-        text-align: center;
-    }
-
-    .svc-file-viewer-fallback[hidden],
-    .svc-file-viewer-image[hidden],
-    .svc-file-viewer-frame[hidden] {
-        display: none !important;
-    }
-
-    .svc-file-viewer-fallback-icon {
-        display: grid;
-        width: 48px;
-        height: 48px;
-        place-items: center;
-        border-radius: 10px;
-        background: rgba(255, 255, 255, .08);
-        font-size: 1.2rem;
-    }
-
-    @media (max-width: 880px) {
-        .svc-quick-context {
-            grid-template-columns: 1fr;
-        }
-
-        .svc-order-details {
-            width: 100%;
-        }
-
-        .svc-order-details > summary {
-            width: 100%;
-            min-height: 38px;
-            justify-content: center;
-        }
-
-        .svc-order-details-body {
-            right: auto;
-            left: 0;
-            width: min(100%, 540px);
-        }
-    }
-
-    @media (max-width: 720px) {
-        .svc-top .svc-step {
-            min-height: 40px;
-            padding-inline: .08rem;
-        }
-
-        .svc-top .svc-step::after {
-            left: calc(50% + 15px);
-            width: calc(100% - 30px);
-        }
-
-        .svc-top .svc-step-icon {
-            width: 27px;
-            height: 27px;
-        }
-
-        .svc-quick-facts {
-            display: flex;
-            min-width: 0;
-            overflow-x: auto;
-            scroll-snap-type: x proximity;
-            scrollbar-width: none;
-        }
-
-        .svc-quick-facts::-webkit-scrollbar {
-            display: none;
-        }
-
-        .svc-quick-fact {
-            flex: 0 0 min(72vw, 200px);
-            scroll-snap-align: start;
-        }
-
-        .svc-quick-fact + .svc-quick-fact {
-            border-left: 1px solid var(--svc-border);
-        }
-
-        .svc-order-details-body {
-            position: static;
-            width: 100%;
-            margin-top: .36rem;
-            box-shadow: none;
-        }
-
-        .svc-finance-strip {
-            grid-template-columns: 1fr;
-            gap: 0;
-        }
-
-        .svc-finance-divider {
-            width: auto;
-            height: 1px;
-        }
-
-        .svc-evidence-table tr {
-            grid-template-columns: minmax(0, 1fr) auto;
-        }
-
-        .svc-evidence-table td[data-label="Referência"] {
-            grid-column: 1 / -1;
-        }
-    }
-
-    @media (max-width: 470px) {
-        .svc-top .svc-step-copy strong {
-            font-size: .52rem;
-        }
-
-        .svc-details-list > div {
-            grid-template-columns: 92px minmax(0, 1fr);
-            gap: .45rem;
-        }
-
-        .evidence-name {
-            grid-template-columns: 32px minmax(0, 1fr);
-        }
-
-        .svc-evidence-thumb {
-            grid-column: 1 / -1;
-            width: 100%;
-            height: 92px;
-        }
-    }
-
-
-    /* =========================================================
-       AJUSTES — detalhes no fluxo + evidência vinculada
-       ========================================================= */
-
-    /*
-     * Detalhes passam a fazer parte do fluxo normal.
-     * Ao abrir, empurram o restante da página para baixo;
-     * nada fica sobreposto.
-     */
-    .svc-quick-context {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: .42rem;
-        align-items: stretch;
-    }
-
-    .svc-order-details {
-        position: static;
+    .service-execution .svc-evidence-table td:nth-child(n+3) { grid-column: 1 / -1; }
+    .service-execution .svc-evidence-table .svc-evidence-thumb {
         width: 100%;
-        min-width: 0;
+        height: clamp(120px, 42vw, 240px);
     }
-
-    .svc-order-details > summary {
-        width: 100%;
-        height: auto;
-        min-height: 38px;
-        justify-content: space-between;
-        padding: .36rem .5rem;
-        background: var(--svc-soft);
-    }
-
-    .svc-order-details-body {
-        position: static;
-        z-index: auto;
-        top: auto;
-        right: auto;
-        left: auto;
-        width: 100%;
-        margin-top: .38rem;
-        overflow: hidden;
-        border: 1px solid var(--svc-border);
-        border-radius: 9px;
-        background: #fff;
-        box-shadow: none;
-    }
-
-    .svc-details-list {
-        display: grid;
-        grid-template-columns:
-            repeat(2, minmax(0, 1fr));
-        gap: 0;
-        margin: 0;
-    }
-
-    .svc-details-list > .svc-detail-item {
-        --detail-tone: var(--svc-blue);
-        --detail-soft: var(--svc-blue-soft);
-
-        display: grid;
-        min-width: 0;
-        grid-template-columns: 34px minmax(0, 1fr);
-        gap: .48rem;
-        align-items: center;
-        min-height: 58px;
-        padding: .46rem .55rem;
-        border-bottom: 1px solid var(--svc-border);
-        background: #fff;
-    }
-
-    .svc-details-list > .svc-detail-item:nth-child(odd) {
-        border-right: 1px solid var(--svc-border);
-    }
-
-    .svc-details-list > .svc-detail-item.order {
-        --detail-tone: var(--svc-blue);
-        --detail-soft: var(--svc-blue-soft);
-    }
-
-    .svc-details-list > .svc-detail-item.service {
-        --detail-tone: var(--svc-cyan);
-        --detail-soft: var(--svc-cyan-soft);
-    }
-
-    .svc-details-list > .svc-detail-item.beneficiary {
-        --detail-tone: var(--svc-green);
-        --detail-soft: var(--svc-green-soft);
-    }
-
-    .svc-details-list > .svc-detail-item.provider {
-        --detail-tone: var(--svc-violet);
-        --detail-soft: var(--svc-violet-soft);
-    }
-
-    .svc-details-list > .svc-detail-item.schedule {
-        --detail-tone: var(--svc-amber);
-        --detail-soft: var(--svc-amber-soft);
-    }
-
-    .svc-details-list > .svc-detail-item.location {
-        --detail-tone: var(--svc-red);
-        --detail-soft: var(--svc-red-soft);
-    }
-
-    .svc-detail-icon {
-        display: grid;
-        width: 34px;
-        height: 34px;
-        place-items: center;
-        border-radius: 8px;
-        background: var(--detail-soft);
-        color: var(--detail-tone);
-        font-size: .86rem;
-    }
-
-    .svc-detail-copy {
-        display: block;
-        min-width: 0;
-    }
-
-    .svc-detail-copy dt,
-    .svc-detail-copy dd {
-        margin: 0;
-    }
-
-    .svc-detail-copy dt {
-        color: var(--svc-muted);
-        font-size: .52rem;
-        font-weight: 780;
-        letter-spacing: .025em;
-        text-transform: uppercase;
-    }
-
-    .svc-detail-copy dd {
-        margin-top: .06rem;
-        min-width: 0;
-        color: var(--svc-text);
-        font-size: .65rem;
-        font-weight: 760;
-        line-height: 1.38;
-        overflow-wrap: break-word;
-        word-break: normal;
-    }
-
-    /*
-     * Arquivos enviados:
-     * arquivo à esquerda, vínculo/valor no centro, preview à direita.
-     */
-    .svc-files-panel .svc-evidence-table {
-        min-width: 760px;
-    }
-
-    .svc-files-panel .svc-evidence-table th:nth-child(1) {
-        width: 38%;
-    }
-
-    .svc-files-panel .svc-evidence-table th:nth-child(2) {
-        width: 34%;
-    }
-
-    .svc-files-panel .svc-evidence-table th:nth-child(3) {
-        width: 28%;
-        text-align: right;
-    }
-
-    .svc-files-panel .svc-evidence-table td:nth-child(3) {
-        text-align: right;
-    }
-
-    .svc-evidence-link {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: 30px minmax(0, 1fr);
-        gap: .4rem;
-        align-items: center;
-    }
-
-    .svc-evidence-link-icon {
-        display: grid;
-        width: 30px;
-        height: 30px;
-        place-items: center;
-        border-radius: 7px;
-        background: var(--svc-cyan-soft);
-        color: var(--svc-cyan);
-        font-size: .75rem;
-    }
-
-    .svc-evidence-link-copy {
-        min-width: 0;
-    }
-
-    .svc-evidence-link-copy strong,
-    .svc-evidence-link-copy small {
-        display: block;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .svc-evidence-link-copy strong {
-        color: var(--svc-text);
-        font-size: .64rem;
-        font-weight: 800;
-    }
-
-    .svc-evidence-link-copy small {
-        margin-top: .05rem;
-        color: var(--svc-blue);
-        font-size: .6rem;
-        font-weight: 780;
-        font-variant-numeric: tabular-nums;
-    }
-
-    .svc-evidence-preview-cell {
-        display: inline-flex;
-        gap: .38rem;
-        align-items: center;
-        justify-content: flex-end;
-    }
-
-    .svc-evidence-thumb {
-        width: 76px;
-        height: 52px;
-        flex: 0 0 auto;
-    }
-
-    .svc-file-preview-button {
-        --preview-tone: var(--svc-slate);
-        --preview-soft: var(--svc-slate-soft);
-
-        display: grid;
-        width: 52px;
-        height: 52px;
-        flex: 0 0 auto;
-        place-items: center;
-        border: 1px solid var(--svc-border);
-        border-radius: 8px;
-        background: var(--preview-soft);
-        color: var(--preview-tone);
-        cursor: pointer;
-        font-size: 1.05rem;
-    }
-
-    .svc-file-preview-button.pdf {
-        --preview-tone: var(--svc-red);
-        --preview-soft: var(--svc-red-soft);
-    }
-
-    .svc-file-preview-button.signature {
-        --preview-tone: var(--svc-blue);
-        --preview-soft: var(--svc-blue-soft);
-    }
-
-    @media (max-width: 820px) {
-        .svc-details-list {
-            grid-template-columns: 1fr;
-        }
-
-        .svc-details-list > .svc-detail-item:nth-child(odd) {
-            border-right: 0;
-        }
-
-        .svc-files-panel .svc-evidence-table {
-            min-width: 0;
-        }
-
-        .svc-files-panel .svc-evidence-table tr {
-            display: grid;
-            grid-template-columns:
-                minmax(0, 1fr)
-                auto;
-            gap: .42rem;
-        }
-
-        .svc-files-panel .svc-evidence-table td[data-label="Vinculado a"] {
-            grid-column: 1;
-        }
-
-        .svc-files-panel .svc-evidence-table td[data-label="Prévia"] {
-            grid-column: 2;
-            grid-row: 1 / span 2;
-            align-self: center;
-        }
-
-        .svc-evidence-preview-cell {
-            display: grid;
-            justify-items: end;
-        }
-
-        .svc-evidence-thumb {
-            width: 82px;
-            height: 58px;
-        }
-    }
-
-    @media (max-width: 520px) {
-        .svc-detail-item {
-            min-height: 54px;
-        }
-
-        .svc-files-panel .svc-evidence-table tr {
-            grid-template-columns:
-                minmax(0, 1fr)
-                72px;
-        }
-
-        .svc-files-panel .svc-evidence-table td[data-label="Prévia"] {
-            width: 72px;
-        }
-
-        .svc-evidence-preview-cell .svc-table-link {
-            width: 100%;
-            min-height: 32px;
-            padding-inline: .3rem;
-            font-size: 0;
-        }
-
-        .svc-evidence-preview-cell .svc-table-link i {
-            font-size: .75rem;
-        }
-
-        .svc-evidence-thumb,
-        .svc-file-preview-button {
-            width: 72px;
-        }
-
-        .svc-evidence-thumb {
-            height: 58px;
-        }
-    }
-
-
-    /* =========================================================
-       CORREÇÃO DO STEPPER
-       ========================================================= */
-
-    /*
-     * Etapa concluída mantém o ícone que representa a própria etapa.
-     * A conclusão é indicada pela cor verde, não por um visto genérico.
-     */
-    .svc-top .svc-step.done .svc-step-icon {
-        background: var(--svc-green-soft);
-        border-color: var(--svc-green-border);
-        color: var(--svc-green);
-    }
-
-    /*
-     * "Concluído" recebe o check somente quando o status da execução
-     * realmente é validated.
-     */
-    .svc-top .svc-step.validated-step .svc-step-icon {
-        background: var(--svc-green);
-        border-color: var(--svc-green);
-        color: #fff;
-        box-shadow:
-            0 0 0 4px #fff,
-            0 0 0 5px var(--svc-green-border);
-    }
-
-    .svc-top .svc-step.validated-step .svc-step-copy strong {
-        color: var(--svc-green);
-    }
-
-    /*
-     * Em Conferência, a última etapa continua visualmente futura/neutra.
-     */
-    .svc-top .svc-step:not(.done):not(.current):not(.validated-step) {
-        --step-tone: var(--svc-slate);
-        --step-soft: #fff;
-        --step-border: var(--svc-border);
-    }
-
-    .svc-top .svc-step:not(.done):not(.current):not(.validated-step)
-    .svc-step-icon {
-        background: #fff;
-        border-color: var(--svc-border);
-        color: var(--svc-muted);
-    }
-
-    .svc-top .svc-step:not(.done):not(.current):not(.validated-step)
-    .svc-step-copy strong {
-        color: var(--svc-muted);
-    }
-
-    /*
-     * Imagem já é a própria ação de visualização.
-     * Sem botão redundante abaixo dela.
-     */
-    .svc-evidence-preview-cell:has(.svc-evidence-thumb) {
-        align-items: center;
-    }
-
-
-    /* =========================================================
-       EVIDÊNCIA — ARQUIVOS / CÂMERA
-       ========================================================= */
-
-    .svc-evidence-picker {
-        display: grid;
-        min-width: 0;
-        gap: .34rem;
-    }
-
-    /*
-     * O input que realmente será enviado permanece no formulário,
-     * mas a interação visual é feita pelos dois botões explícitos.
-     */
-    .svc-evidence-native-input,
-    .svc-evidence-camera-input {
-        position: absolute !important;
-        width: 1px !important;
-        height: 1px !important;
-        padding: 0 !important;
-        margin: -1px !important;
-        overflow: hidden !important;
-        clip: rect(0, 0, 0, 0) !important;
-        white-space: nowrap !important;
-        border: 0 !important;
-        opacity: 0 !important;
-    }
-
-    .svc-evidence-picker-actions {
-        display: grid;
-        grid-template-columns:
-            repeat(2, minmax(0, 1fr));
-        gap: .38rem;
-    }
-
-    .svc-evidence-pick-btn {
-        --picker-tone: var(--svc-blue);
-        --picker-soft: var(--svc-blue-soft);
-        --picker-border: var(--svc-blue-border);
-
-        display: inline-flex;
-        min-width: 0;
-        min-height: 39px;
-        gap: .32rem;
-        align-items: center;
-        justify-content: center;
-        padding: .4rem .52rem;
-        border: 1px solid var(--picker-border);
-        border-radius: 8px;
-        background: var(--picker-soft);
-        color: var(--picker-tone);
-        cursor: pointer;
-        font: inherit;
-        font-size: .65rem;
-        font-weight: 790;
-    }
-
-    .svc-evidence-pick-btn.camera {
-        --picker-tone: var(--svc-green);
-        --picker-soft: var(--svc-green-soft);
-        --picker-border: var(--svc-green-border);
-    }
-
-    .svc-evidence-pick-btn i {
-        flex: 0 0 auto;
-        font-size: .84rem;
-    }
-
-    .svc-evidence-pick-btn:focus-visible {
-        outline: 2px solid var(--picker-tone);
-        outline-offset: 2px;
-    }
-
-    .svc-evidence-selection {
-        display: inline-flex;
-        min-width: 0;
-        gap: .24rem;
-        align-items: center;
-        color: var(--svc-muted);
-        font-size: .56rem;
-        font-weight: 650;
-        line-height: 1.35;
-        overflow-wrap: anywhere;
-    }
-
-    .svc-evidence-selection.is-selected,
-    .svc-evidence-selection.is-saved {
-        color: var(--svc-green);
-        font-weight: 740;
-    }
-
-    .svc-evidence-field.has-evidence-error {
-        border-color: var(--svc-red);
-        background: var(--svc-red-soft);
-    }
-
-    /* =========================================================
-       FEEDBACK DE TRANSIÇÃO / RELOAD
-       ========================================================= */
-
-    .svc-reload-overlay {
-        position: fixed;
-        z-index: 3100;
-        inset: 0;
-        display: grid;
-        place-items: center;
-        padding: 1rem;
-        background: rgba(14, 25, 18, .72);
-    }
-
-    .svc-reload-overlay[hidden] {
-        display: none !important;
-    }
-
-    .svc-reload-card {
-        display: grid;
-        width: min(100%, 310px);
-        gap: .42rem;
-        justify-items: center;
-        padding: 1rem;
-        border: 1px solid var(--svc-border);
-        border-radius: 12px;
-        background: #fff;
-        color: var(--svc-text);
-        box-shadow: 0 18px 50px rgba(12, 28, 18, .2);
-        text-align: center;
-    }
-
-    .svc-reload-spinner {
-        display: grid;
-        width: 42px;
-        height: 42px;
-        place-items: center;
-        border-radius: 10px;
-        background: var(--svc-green-soft);
-        color: var(--svc-green);
-        font-size: 1.2rem;
-    }
-
-    .svc-reload-spinner i {
-        animation: svc-spin .82s linear infinite;
-    }
-
-    .svc-reload-card strong {
-        font-size: .78rem;
-        font-weight: 840;
-    }
-
-    .svc-reload-card small {
-        color: var(--svc-muted);
-        font-size: .61rem;
-        line-height: 1.4;
-    }
-
-    @keyframes svc-spin {
+}
+@media (max-width: 420px){
+.svc-evidence-picker-actions {
+    grid-template-columns: 1fr;
+  }
+}
+@media (prefers-reduced-motion: reduce){
+.svc-reload-spinner i {
+    animation-duration: 1.8s;
+  }
+}
+@keyframes svc-spin {
         to {
             transform: rotate(360deg);
         }
     }
-
-    @media (prefers-reduced-motion: reduce) {
-        .svc-reload-spinner i {
-            animation-duration: 1.8s;
-        }
-    }
-
-    @media (max-width: 420px) {
-        .svc-evidence-picker-actions {
-            grid-template-columns: 1fr;
-        }
-    }
-
-
-    .svc-evidence-file-error {
-        display: inline-flex;
-        gap: .25rem;
-        align-items: flex-start;
-        color: var(--svc-red);
-        font-size: .58rem;
-        font-weight: 740;
-        line-height: 1.4;
-    }
-
-    .svc-evidence-file-error i {
-        flex: 0 0 auto;
-        margin-top: .04rem;
-        font-size: .72rem;
-    }
-
+.service-execution .svc-file-viewer { background: #0b0d11; }
+.service-execution .svc-reload-overlay { background: rgb(10 12 16 / .77); }
 </style>
 
 <main
-    class="service-execution"
+    class="service-execution ui-scope"
     data-draft-url="{{ $draftUrl }}"
     data-local-key="{{ $serviceLocalKey }}"
     data-meter-start="{{ $meterStartField }}"
@@ -3902,41 +1199,38 @@
                 </span>
 
                 <div class="svc-header-copy">
-                    <h1>
-                        {{ $order->number }}
-                        ·
-                        {{ $order->service->name }}
-                    </h1>
-
+                    <div class="svc-hero-kicker">
+                        <span class="svc-kicker-rule" aria-hidden="true"></span>
+                        ORDEM DE SERVIÇO
+                        <span class="svc-hero-number">{{ $order->number }}</span>
+                    </div>
+                    <h1>{{ $order->service->name }}</h1>
                     <div class="svc-meta">
                         <span>
-                            <i class="ph-fill ph-user-circle" aria-hidden="true"></i>
-                            <span class="svc-meta-text">
-                                {{ $beneficiaryName }}
-                            </span>
+                            <i class="ph ph-user-circle" aria-hidden="true"></i>
+                            <span class="svc-meta-text">{{ $beneficiaryName }}</span>
                         </span>
-
                         <span>
-                            <i class="ph-fill ph-map-pin" aria-hidden="true"></i>
-                            <span class="svc-meta-text">
-                                {{ $locationLabel }}
-                            </span>
+                            <i class="ph ph-map-pin" aria-hidden="true"></i>
+                            <span class="svc-meta-text">{{ $locationLabel }}</span>
                         </span>
                     </div>
                 </div>
             </div>
 
             <div class="svc-header-side">
+                <span class="svc-status-caption">SITUAÇÃO ATUAL</span>
                 <span class="svc-status">
-                    <i
-                        class="
-                            ph-fill
-                            {{ $executionStatusMeta['icon'] }}
-                        "
-                    ></i>
-
+                    <i class="ph-fill {{ $executionStatusMeta['icon'] }}" aria-hidden="true"></i>
                     {{ $executionStatusLabel }}
                 </span>
+                <span class="svc-hero-stage">Etapa {{ $stepIndex + 1 }} de 4</span>
+                @if(in_array($executionStatus, ['draft', 'rejected', 'in_progress'], true))
+                    <a class="svc-hero-jump" href="#svc-work-area">
+                        Continuar operação
+                        <i class="ph ph-arrow-down-right" aria-hidden="true"></i>
+                    </a>
+                @endif
             </div>
         </header>
 
@@ -3994,6 +1288,7 @@
                         </span>
 
                         <span class="svc-step-copy">
+                            <span class="svc-step-counter">ETAPA 0{{ $index + 1 }}</span>
                             <strong>
                                 {{ $executionStatus === 'rejected' && $index === 0
                                     ? 'Corrigir'
@@ -4006,177 +1301,31 @@
         </div>
     </section>
 
-    {{-- =========================================================
-         CONTEXTO RÁPIDO DA ORDEM
-         ========================================================= --}}
-    <section class="svc-quick-context">
-        <div class="svc-quick-facts">
-            <div class="svc-quick-fact schedule">
-                <span class="svc-quick-icon" aria-hidden="true">
-                    <i class="ph-fill ph-calendar-check"></i>
-                </span>
-                <span class="svc-quick-copy">
-                    <small>Agendamento</small>
-                    <strong>{{ $scheduledLabel }}</strong>
-                </span>
+    {{-- Área operacional: ação primeiro, ficha da ordem em segundo plano. --}}
+    <div class="svc-workbench" id="svc-work-area">
+        <div class="svc-primary-lane">
+            <div class="svc-task-heading {{ $executionStatusMeta['class'] }}">
+                <div class="svc-task-heading-copy">
+                    <span class="svc-task-label"><span aria-hidden="true">●</span> ETAPA ATUAL</span>
+                    <h2>{{ match($executionStatus) {
+                        'draft' => 'Tudo pronto para começar',
+                        'rejected' => 'Uma correção precisa de você',
+                        'in_progress' => 'Registre o trabalho realizado',
+                        'submitted' => 'Serviço enviado para conferência',
+                        'validated' => 'Execução concluída',
+                        default => 'Acompanhe esta ordem',
+                    } }}</h2>
+                    <p>{{ match($executionStatus) {
+                        'draft' => 'Preencha as informações iniciais para colocar esta ordem em execução.',
+                        'rejected' => 'Confira a observação da revisão e reenvie os dados corrigidos.',
+                        'in_progress' => 'Complete os dados da operação, anexe evidências e envie para conferência.',
+                        'submitted' => 'Os dados foram enviados. A conclusão depende da conferência autorizada.',
+                        'validated' => 'Consulte os dados registrados e as evidências desta operação.',
+                        default => 'Consulte os dados desta ordem.',
+                    } }}</p>
+                </div>
+                <span class="svc-task-heading-icon" aria-hidden="true"><i class="ph-fill {{ $executionStatusMeta['icon'] }}"></i></span>
             </div>
-
-            <div class="svc-quick-fact provider">
-                <span class="svc-quick-icon" aria-hidden="true">
-                    <i class="ph-fill ph-user-gear"></i>
-                </span>
-                <span class="svc-quick-copy">
-                    <small>Prestador</small>
-                    <strong>{{ $providerName }}</strong>
-                </span>
-            </div>
-
-            <div class="svc-quick-fact evidence">
-                <span class="svc-quick-icon" aria-hidden="true">
-                    <i class="ph-fill ph-images-square"></i>
-                </span>
-                <span class="svc-quick-copy">
-                    <small>Evidências</small>
-                    <strong>
-                        {{ $evidenceTotal }}
-                        @if($evidenceConfiguredTotal > 0)
-                            de {{ $evidenceConfiguredTotal }}
-                        @else
-                            enviada(s)
-                        @endif
-                    </strong>
-                </span>
-            </div>
-        </div>
-
-        <details class="svc-order-details">
-            <summary>
-                <span>
-                    <i class="ph-fill ph-info"></i>
-                    Detalhes da ordem
-                </span>
-
-                <i
-                    class="ph-fill ph-caret-down svc-details-caret"
-                    aria-hidden="true"
-                ></i>
-            </summary>
-
-            <div class="svc-order-details-body">
-                <dl class="svc-details-list">
-                    <div class="svc-detail-item order">
-                        <span class="svc-detail-icon" aria-hidden="true">
-                            <i class="ph-fill ph-receipt"></i>
-                        </span>
-
-                        <span class="svc-detail-copy">
-                            <dt>Ordem</dt>
-                            <dd>{{ $order->number }}</dd>
-                        </span>
-                    </div>
-
-                    <div class="svc-detail-item service">
-                        <span class="svc-detail-icon" aria-hidden="true">
-                            <i class="ph-fill ph-wrench"></i>
-                        </span>
-
-                        <span class="svc-detail-copy">
-                            <dt>Serviço</dt>
-                            <dd>{{ $order->service->name }}</dd>
-                        </span>
-                    </div>
-
-                    <div class="svc-detail-item beneficiary">
-                        <span class="svc-detail-icon" aria-hidden="true">
-                            <i class="ph-fill ph-user-circle"></i>
-                        </span>
-
-                        <span class="svc-detail-copy">
-                            <dt>Beneficiário</dt>
-                            <dd>{{ $beneficiaryName }}</dd>
-                        </span>
-                    </div>
-
-                    <div class="svc-detail-item provider">
-                        <span class="svc-detail-icon" aria-hidden="true">
-                            <i class="ph-fill ph-user-gear"></i>
-                        </span>
-
-                        <span class="svc-detail-copy">
-                            <dt>Prestador</dt>
-                            <dd>{{ $providerName }}</dd>
-                        </span>
-                    </div>
-
-                    <div class="svc-detail-item schedule">
-                        <span class="svc-detail-icon" aria-hidden="true">
-                            <i class="ph-fill ph-calendar-check"></i>
-                        </span>
-
-                        <span class="svc-detail-copy">
-                            <dt>Agendamento</dt>
-                            <dd>{{ $scheduledLabel }}</dd>
-                        </span>
-                    </div>
-
-                    <div class="svc-detail-item location">
-                        <span class="svc-detail-icon" aria-hidden="true">
-                            <i class="ph-fill ph-map-pin"></i>
-                        </span>
-
-                        <span class="svc-detail-copy">
-                            <dt>Local</dt>
-                            <dd>{{ $locationLabel }}</dd>
-                        </span>
-                    </div>
-                </dl>
-            </div>
-        </details>
-    </section>
-
-    <section class="svc-finance-strip">
-        <div class="svc-finance-item receivable">
-            <span>
-                <i class="ph-fill ph-bank"></i>
-                Organização recebe
-            </span>
-
-            <strong>
-                {{ $receivablePreview !== null
-                    ? $formatMoney($receivablePreview)
-                    : 'A calcular' }}
-            </strong>
-
-            <small>
-                {{ $formatMethod($customerPricingMethod) }}
-                @if($order->serviceVersion?->customer_rate)
-                    · {{ $formatMoney($order->serviceVersion->customer_rate) }}
-                @endif
-            </small>
-        </div>
-
-        <div class="svc-finance-divider" aria-hidden="true"></div>
-
-        <div class="svc-finance-item payable">
-            <span>
-                <i class="ph-fill ph-hand-coins"></i>
-                Prestador recebe
-            </span>
-
-            <strong>
-                {{ $payablePreview !== null
-                    ? $formatMoney($payablePreview)
-                    : 'A calcular' }}
-            </strong>
-
-            <small>
-                {{ $formatMethod($providerPricingMethod) }}
-                @if($providerConfiguredRate)
-                    · {{ $formatMoney($providerConfiguredRate) }}
-                @endif
-            </small>
-        </div>
-    </section>
 
     {{-- =========================================================
          INÍCIO / CORREÇÃO
@@ -4188,7 +1337,7 @@
             true
         )
     )
-        <section class="svc-panel">
+        <section class="svc-panel svc-action-panel">
             <header
                 class="svc-panel-head"
                 style="
@@ -4224,10 +1373,6 @@
                                 : 'Iniciar serviço' }}
                         </h2>
 
-                        <p>
-                            Preencha somente os dados solicitados
-                            para esta etapa.
-                        </p>
                     </div>
                 </div>
             </header>
@@ -4304,7 +1449,7 @@
          EXECUÇÃO
          ========================================================= --}}
     @if($executionStatus === 'in_progress')
-        <section class="svc-panel">
+        <section class="svc-panel svc-action-panel">
             <header
                 class="svc-panel-head"
                 style="
@@ -4323,33 +1468,15 @@
                     <div class="svc-panel-copy">
                         <h2>Registrar execução</h2>
 
-                        <p>
-                            Dados realizados e evidências
-                            ficam no mesmo fluxo.
-                        </p>
                     </div>
                 </div>
             </header>
 
             <div class="svc-form-body">
-                <div class="svc-alert">
-                    <span
-                        class="svc-alert-icon"
-                        aria-hidden="true"
-                    >
-                        <i class="ph-fill ph-info"></i>
-                    </span>
-
-                    <div>
-                        Preencha cada dado e seu comprovante
-                        no mesmo bloco. Evidências opcionais
-                        podem permanecer vazias.
-                    </div>
-                </div>
-
                 <form
                     id="execution-form"
                     data-async-service-form
+                    data-preview-url="{{ route(($managementExecution ?? false) ? 'services.management.execute.preview' : 'provider.orders.preview', [$tenantSlug, $order]) }}"
                     method="post"
                     enctype="multipart/form-data"
                     action="{{ route(
@@ -4427,6 +1554,15 @@
                         </div>
                     @endif
 
+                    <section class="svc-live-totals" data-service-totals hidden aria-labelledby="svc-live-totals-title">
+                        <h3 id="svc-live-totals-title"><strong>Valores estimados</strong></h3>
+                        <dl>
+                            <div><dt>Organização recebe</dt><dd data-total="receivable">—</dd></div>
+                            <div><dt>Prestador recebe</dt><dd data-total="payable">—</dd></div>
+                        </dl>
+                        <p role="status" data-total-status></p>
+                    </section>
+
                     <div class="svc-form-actions">
                         <button
                             type="button"
@@ -4451,7 +1587,7 @@
     @endif
 
     @if($savedValues->isNotEmpty())
-        <section class="svc-panel">
+        <section class="svc-panel svc-recorded-panel">
             <header
                 class="svc-panel-head"
                 style="
@@ -4909,7 +2045,7 @@
             true
         )
     )
-        <section class="svc-panel">
+        <section class="svc-panel svc-review-panel">
             <header
                 class="svc-panel-head"
                 style="
@@ -5088,6 +2224,187 @@
         </section>
     @endif
 
+        </div> {{-- /svc-primary-lane --}}
+        <aside class="svc-context-lane" aria-label="Ficha da ordem">
+            <div class="svc-aside-overline"><span aria-hidden="true"></span> FICHA DA ORDEM</div>
+            <h2 class="svc-aside-heading">Informações essenciais</h2>
+    {{-- =========================================================
+         CONTEXTO RÁPIDO DA ORDEM
+         ========================================================= --}}
+    <section class="svc-quick-context">
+        <div class="svc-quick-facts">
+            <div class="svc-quick-fact schedule">
+                <span class="svc-quick-icon" aria-hidden="true">
+                    <i class="ph-fill ph-calendar-check"></i>
+                </span>
+                <span class="svc-quick-copy">
+                    <small>Agendamento</small>
+                    <strong>{{ $scheduledLabel }}</strong>
+                </span>
+            </div>
+
+            <div class="svc-quick-fact provider">
+                <span class="svc-quick-icon" aria-hidden="true">
+                    <i class="ph-fill ph-user-gear"></i>
+                </span>
+                <span class="svc-quick-copy">
+                    <small>Prestador</small>
+                    <strong>{{ $providerName }}</strong>
+                </span>
+            </div>
+
+            <div class="svc-quick-fact evidence">
+                <span class="svc-quick-icon" aria-hidden="true">
+                    <i class="ph-fill ph-images-square"></i>
+                </span>
+                <span class="svc-quick-copy">
+                    <small>Evidências</small>
+                    <strong>
+                        {{ $evidenceTotal }}
+                        @if($evidenceConfiguredTotal > 0)
+                            de {{ $evidenceConfiguredTotal }}
+                        @else
+                            enviada(s)
+                        @endif
+                    </strong>
+                </span>
+            </div>
+        </div>
+
+        <details class="svc-order-details">
+            <summary>
+                <span>
+                    <i class="ph-fill ph-info"></i>
+                    Detalhes da ordem
+                </span>
+
+                <i
+                    class="ph-fill ph-caret-down svc-details-caret"
+                    aria-hidden="true"
+                ></i>
+            </summary>
+
+            <div class="svc-order-details-body">
+                <dl class="svc-details-list">
+                    <div class="svc-detail-item order">
+                        <span class="svc-detail-icon" aria-hidden="true">
+                            <i class="ph-fill ph-receipt"></i>
+                        </span>
+
+                        <span class="svc-detail-copy">
+                            <dt>Ordem</dt>
+                            <dd>{{ $order->number }}</dd>
+                        </span>
+                    </div>
+
+                    <div class="svc-detail-item service">
+                        <span class="svc-detail-icon" aria-hidden="true">
+                            <i class="ph-fill ph-wrench"></i>
+                        </span>
+
+                        <span class="svc-detail-copy">
+                            <dt>Serviço</dt>
+                            <dd>{{ $order->service->name }}</dd>
+                        </span>
+                    </div>
+
+                    <div class="svc-detail-item beneficiary">
+                        <span class="svc-detail-icon" aria-hidden="true">
+                            <i class="ph-fill ph-user-circle"></i>
+                        </span>
+
+                        <span class="svc-detail-copy">
+                            <dt>Beneficiário</dt>
+                            <dd>{{ $beneficiaryName }}</dd>
+                        </span>
+                    </div>
+
+                    <div class="svc-detail-item provider">
+                        <span class="svc-detail-icon" aria-hidden="true">
+                            <i class="ph-fill ph-user-gear"></i>
+                        </span>
+
+                        <span class="svc-detail-copy">
+                            <dt>Prestador</dt>
+                            <dd>{{ $providerName }}</dd>
+                        </span>
+                    </div>
+
+                    <div class="svc-detail-item schedule">
+                        <span class="svc-detail-icon" aria-hidden="true">
+                            <i class="ph-fill ph-calendar-check"></i>
+                        </span>
+
+                        <span class="svc-detail-copy">
+                            <dt>Agendamento</dt>
+                            <dd>{{ $scheduledLabel }}</dd>
+                        </span>
+                    </div>
+
+                    <div class="svc-detail-item location">
+                        <span class="svc-detail-icon" aria-hidden="true">
+                            <i class="ph-fill ph-map-pin"></i>
+                        </span>
+
+                        <span class="svc-detail-copy">
+                            <dt>Local</dt>
+                            <dd>{{ $locationLabel }}</dd>
+                        </span>
+                    </div>
+                </dl>
+            </div>
+        </details>
+    </section>
+
+    @if($executionStatus !== 'in_progress')
+    <section class="svc-finance-strip">
+        <div class="svc-finance-item receivable">
+            <span>
+                <i class="ph-fill ph-bank"></i>
+                Organização recebe
+            </span>
+
+            <strong>
+                {{ $receivablePreview !== null
+                    ? $formatMoney($receivablePreview)
+                    : 'A calcular' }}
+            </strong>
+
+            <small>
+                {{ $formatMethod($customerPricingMethod) }}
+                @if($order->serviceVersion?->customer_rate)
+                    · {{ $formatMoney($order->serviceVersion->customer_rate) }}
+                @endif
+            </small>
+        </div>
+
+        <div class="svc-finance-divider" aria-hidden="true"></div>
+
+        <div class="svc-finance-item payable">
+            <span>
+                <i class="ph-fill ph-hand-coins"></i>
+                Prestador recebe
+            </span>
+
+            <strong>
+                {{ $payablePreview !== null
+                    ? $formatMoney($payablePreview)
+                    : 'A calcular' }}
+            </strong>
+
+            <small>
+                {{ $formatMethod($providerPricingMethod) }}
+                @if($providerConfiguredRate)
+                    · {{ $formatMoney($providerConfiguredRate) }}
+                @endif
+            </small>
+        </div>
+    </section>
+    @endif
+
+        </aside>
+    </div> {{-- /svc-workbench --}}
+
     <dialog
         class="svc-file-viewer"
         id="svc-file-viewer"
@@ -5198,6 +2515,56 @@
 
     const serviceExecutionStatus =
         serviceWorkspace?.dataset.executionStatus || '';
+
+    const previewForm = document.getElementById('execution-form');
+    const totals = previewForm?.querySelector('[data-service-totals]');
+
+    if (totals) {
+        const status = totals.querySelector('[data-total-status]');
+        const amounts = [...totals.querySelectorAll('[data-total]')];
+        const money = new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'});
+        let timer;
+        let pending;
+
+        const updatePreview = () => {
+            clearTimeout(timer);
+            pending?.abort();
+            const request = pending = new AbortController();
+            amounts.forEach(amount => amount.textContent = '—');
+            status.textContent = 'Calculando valores…';
+            timer = setTimeout(async () => {
+                const data = new URLSearchParams();
+                for (const [key, value] of new FormData(previewForm)) {
+                    if (key === '_token' || (key.startsWith('values[') && typeof value === 'string')) data.append(key, value);
+                }
+
+                try {
+                    const response = await fetch(previewForm.dataset.previewUrl, {
+                        method: 'POST', body: data, signal: request.signal, globalLoader: false,
+                        headers: {'Accept': 'application/json'},
+                    });
+                    if (request.signal.aborted) return;
+                    if (response.status === 422) {
+                        status.textContent = 'Confira os dados do serviço para calcular os valores.';
+                        return;
+                    }
+                    if (!response.ok) throw new Error('Preview unavailable');
+                    const result = await response.json();
+                    if (request.signal.aborted) return;
+                    amounts.forEach(amount => amount.textContent = money.format(result[amount.dataset.total]));
+                    status.textContent = 'Estimativa com os dados desta tela.';
+                } catch {
+                    if (!request.signal.aborted) status.textContent = 'Prévia indisponível. Altere um campo para tentar novamente.';
+                }
+            }, 450);
+        };
+
+        totals.hidden = false;
+        ['input', 'change'].forEach(event => previewForm.addEventListener(event, ({target}) => {
+            if (target.name?.startsWith('values[')) updatePreview();
+        }));
+        window.addEventListener('pageshow', updatePreview);
+    }
 
     const serviceReloadOverlay =
         document.getElementById('svc-reload-overlay');
@@ -6414,18 +3781,22 @@
         }
 
         let navigating = false;
-        const buttons = [...form.querySelectorAll('button')];
+        const buttons = [...form.querySelectorAll('button:enabled')];
+        const activeButton = draft ? form.querySelector('[data-save-draft]') : form.querySelector('[type="submit"]');
+        const originalLabel = activeButton?.innerHTML;
+        const loadingLabel = draft ? 'Salvando rascunho…' : 'Enviando dados…';
+        if (activeButton) activeButton.innerHTML = '<i class="ph ph-spinner-gap svc-save-spinner" aria-hidden="true"></i> ' + loadingLabel;
         const feedback = feedbackFor(form);
         buttons.forEach(button => button.disabled = true);
         feedback.className = 'svc-alert svc-async-feedback';
-        feedback.innerHTML = '<span class="svc-alert-icon"><i class="ph-fill ph-spinner-gap"></i></span><div>Salvando sem recarregar a página…</div>';
+        feedback.textContent = loadingLabel;
         feedback.hidden = false;
 
         try {
             const data = new FormData(form);
             if (draft) data.set('_method', 'PUT');
             const response = await fetch(draft ? serviceDraftUrl : form.action, {
-                method: 'POST', body: data, credentials: 'same-origin',
+                method: 'POST', body: data, credentials: 'same-origin', globalLoader: false,
                 headers: {'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest'}
             });
             const payload = await response.json().catch(() => ({message: 'O servidor retornou uma resposta inválida.'}));
@@ -6509,23 +3880,16 @@
                 showServiceReloadOverlay(
                     payload.message
                     || 'Atualizando ordem…',
-                    'Aplicando o novo estado e recarregando a tela.'
+                    'Abrindo a ordem atualizada…'
                 );
 
-                window.setTimeout(
-                    () => {
-                        window.location.assign(
-                            payload.url
-                            || window.location.href
-                        );
-                    },
-                    750
-                );
+                window.location.assign(payload.url || window.location.href);
             }
         } catch (error) {
             showAsyncErrors(form, feedback, ['Falha de conexão. Os dados continuam nesta tela; tente novamente.'], {});
         } finally {
             if (!navigating) {
+                if (activeButton) activeButton.innerHTML = originalLabel;
                 buttons.forEach(
                     button => {
                         button.disabled = false;
@@ -6539,7 +3903,8 @@
         let feedback = form.querySelector('.svc-async-feedback');
         if (!feedback) {
             feedback = document.createElement('div'); feedback.className = 'svc-alert svc-async-feedback'; feedback.hidden = true;
-            form.prepend(feedback);
+            feedback.setAttribute('role', 'status');
+            form.insertBefore(feedback, form.querySelector('.svc-form-actions'));
         }
         return feedback;
     }
