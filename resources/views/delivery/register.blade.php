@@ -3112,7 +3112,7 @@
 }
 
 .reg-history-view-switch {
-    display:none;
+    display:flex;
     align-items:center;
     gap:.18rem;
     padding:.16rem;
@@ -3823,20 +3823,6 @@ tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--r
     }
 }
 
-/* Em mobile/tablet os cards permanecem a visualização oficial. */
-@media(max-width:1099px) {
-    #session-list {
-        display:grid!important;
-    }
-
-    #session-table-wrap {
-        display:none!important;
-    }
-
-    .reg-history-view-switch {
-        display:none!important;
-    }
-}
 
 /* Foco do sheet não muda a densidade do layout. */
 .modal-overlay.open .modal-box,
@@ -4138,7 +4124,7 @@ tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--r
             <div class="session-empty" id="session-empty">Selecione um projeto para ver o histórico de entregas</div>
         </div>
 
-        <div class="reg-session-table-wrap" id="session-table-wrap" hidden>
+        <div class="reg-session-table-wrap" id="session-table-wrap" tabindex="0" role="region" aria-label="Tabela de entregas com rolagem horizontal" hidden>
             <table class="reg-session-table" aria-label="Histórico de entregas">
                 <thead>
                     <tr>
@@ -4146,7 +4132,8 @@ tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--r
                         <th>Produtor</th>
                         <th>Produto</th>
                         <th>Quantidade</th>
-                        <th>Distribuição</th>
+                        <th scope="col">Distribuição</th>
+                        <th scope="col">Ações</th>
                     </tr>
                 </thead>
                 <tbody id="session-table-body"></tbody>
@@ -6103,6 +6090,10 @@ body.register-sheet-open #delivery-notes-overlay.open {
 .reg-page .reg-session-table tr.status-distributed .reg-table-state {background:var(--cw-blue-soft)!important;color:var(--cw-blue)!important}
 .reg-page .reg-session-table tr.status-rejected .reg-table-state {background:var(--cw-red-soft)!important;color:var(--cw-red)!important}
 .reg-page .reg-session-table .reg-table-actions button {border-radius:8px!important}
+.reg-page .reg-session-table .reg-table-actions {display:flex;flex-wrap:nowrap;gap:.3rem}
+.reg-page .reg-session-table .reg-table-actions button {min-width:40px;min-height:40px}
+.reg-page .reg-session-table .reg-table-action-label {display:none!important}
+.reg-page .reg-session-table-wrap:focus-visible {outline:2px solid var(--cw-green);outline-offset:-2px}
 .reg-page .delivery-pagination {background:var(--cw-surface)!important;border-color:var(--cw-border)!important;
   padding:12px 13px!important;gap:10px!important;
 }
@@ -7451,17 +7442,17 @@ document.addEventListener('keydown', event => {
 
 /* ─── History view ───────────────────────────────── */
 function defaultHistoryView() {
-    if (window.matchMedia('(max-width: 1099px)').matches) return 'cards';
-
-    const saved = window.localStorage?.getItem('sgc.register.historyView');
-    return saved === 'cards' || saved === 'table' ? saved : 'table';
+    try {
+        const saved = localStorage.getItem('sgc.register.historyView');
+        if (saved === 'cards' || saved === 'table') return saved;
+    } catch {}
+    return 'table';
 }
 
 function applyHistoryView() {
     const cards = $('session-list');
     const table = $('session-table-wrap');
-    const compact = window.matchMedia('(max-width: 1099px)').matches;
-    const view = compact ? 'cards' : (S.historyView || defaultHistoryView());
+    const view = S.historyView || defaultHistoryView();
 
     if (cards) cards.style.display = view === 'cards' ? 'grid' : 'none';
 
@@ -7482,11 +7473,7 @@ function setHistoryView(view) {
 
     S.historyView = view;
 
-    if (!window.matchMedia('(max-width: 1099px)').matches) {
-        try {
-            window.localStorage?.setItem('sgc.register.historyView', view);
-        } catch (_) {}
-    }
+    try { localStorage.setItem('sgc.register.historyView', view); } catch {}
 
     applyHistoryView();
 }
@@ -9400,7 +9387,10 @@ function drawSessionItems() {
                             <span class="reg-session-dist-text">${overDist ? '!' : distPercent + '%'}</span>
                         </button>
 
-                        <div class="reg-table-actions">${actions}</div>
+                    </div>
+                </td>
+                <td class="reg-table-action-cell">
+                    <div class="reg-table-actions">${actions}</div>
                     </div>
                 </td>
             </tr>

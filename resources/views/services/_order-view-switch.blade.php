@@ -21,7 +21,7 @@
 
     function update() {
         const view = preference === 'table' || preference === 'cards'
-            ? preference : (breakpoint.matches ? 'cards' : 'table');
+            ? preference : (list.dataset.defaultView || (breakpoint.matches ? 'cards' : 'table'));
         list.dataset.orderView = view;
         buttons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.view === view)));
     }

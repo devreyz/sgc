@@ -2604,7 +2604,7 @@
     ])
 
     {{-- LISTA DE ENTREGAS --}}
-    <section class="pd-card pd-deliveries-card" id="pd-deliveries-surface" aria-busy="true">
+    <section class="pd-card pd-deliveries-card" id="pd-deliveries-surface" aria-busy="true" data-order-list="project-deliveries" data-compact-query="(max-width: 1099px)" data-default-view="table">
         <header class="pd-card-header">
             <div class="pd-card-title">
                 <i class="ph-duotone ph-list-checks"></i>
@@ -2622,6 +2622,7 @@
             </div>
 
             <div class="pd-card-head-actions">
+                @include('services._order-view-switch')
                 <div class="pd-status-shortcuts" role="group" aria-label="Filtrar entregas por situação">
                     <button type="button" class="pd-status-shortcut active" data-pd-status="" onclick="setQuickStatusFilter('')">
                         <span>Todos</span>
@@ -2834,7 +2835,7 @@
                 @for($i = 0; $i < 6; $i++)<span></span>@endfor
             </div>
             {{-- TABELA DESKTOP --}}
-            <div class="table-scroll desktop-only">
+            <div class="table-scroll desktop-only" tabindex="0" role="region" aria-label="Tabela de entregas com rolagem horizontal">
                 <table
                     class="data-table"
                     id="desktop-table"
@@ -2850,7 +2851,7 @@
                             <th class="pd-col-suppressed">Status</th>
                             <th>Limite</th>
                             <th>Distribuição</th>
-                            <th class="pd-col-suppressed">Ações</th>
+                            <th scope="col">Ações</th>
                         </tr>
                     </thead>
 
@@ -3478,12 +3479,16 @@ body.pd-sheet-open {
     letter-spacing: .01em;
 }
 
-/* Valor líquido continua disponível no card/mobile, mas sai da tabela
-   para reduzir ruído visual. */
-.data-table thead th.pd-col-net,
-#desktop-tbody tr > td:nth-child(6) {
-    display: none !important;
-}
+#pd-deliveries-surface[data-order-view="table"] .desktop-only { display: block !important; }
+#pd-deliveries-surface[data-order-view="table"] .mobile-cards,
+#pd-deliveries-surface[data-order-view="cards"] .desktop-only { display: none !important; }
+#pd-deliveries-surface[data-order-view="cards"] .mobile-cards { display: grid !important; }
+#pd-deliveries-surface .table-scroll { overflow-x: auto; }
+#pd-deliveries-surface .data-table { min-width: 64rem; table-layout: auto; }
+#pd-deliveries-surface .pd-action-cell { display: table-cell !important; }
+#pd-deliveries-surface .pdr-actions { display: flex; flex-wrap: nowrap; gap: .3rem; }
+#pd-deliveries-surface .pdr-actions button { min-width: 40px; min-height: 40px; }
+#pd-deliveries-surface .pdr-actions .pd-action-label { display: none; }
 
 /* Após ocultar valor/qualidade/status, redistribuir espaço. */
 .data-table th:nth-child(1) { width: 78px !important; }
@@ -4890,12 +4895,7 @@ function arrangeDeliveryControls(root = document) {
         }
 
         const indicator = distributionCell.querySelector('.dist-indicator, .pdr-dist');
-        const note = actionCell.querySelector('.delivery-note-trigger');
-        const actions = actionCell.querySelector('.action-btns');
-
         if (indicator && indicator.parentElement !== control) control.appendChild(indicator);
-        if (note && note.parentElement !== control) control.appendChild(note);
-        if (actions && actions.parentElement !== control) control.appendChild(actions);
 
         row.dataset.pdArranged = '1';
     });
