@@ -17,6 +17,7 @@
         /* Aplicar tema antes da renderização para impedir clarão entre páginas. */
         (function () {
             try {
+                document.documentElement.dataset.sidebarCompact = localStorage.getItem('sgc-sidebar-compact') === '1' ? 'true' : 'false';
                 var choice = localStorage.getItem('sgc-campo-theme') || localStorage.getItem('sgc-theme');
                 var dark = choice === 'dark';
                 document.documentElement.dataset.theme = dark ? 'dark' : 'light';
@@ -101,7 +102,7 @@
             --app-radius-md: 9px;
             --app-radius-lg: 13px;
             --app-radius-xl: 16px;
-            --app-content-max: 1680px;
+            --app-content-max: 100%;
             --app-header-height: 72px;
             --app-header-rendered-height: var(--app-header-height);
             --app-sticky-gap: .75rem;
@@ -1247,6 +1248,15 @@
             max-width: 100%;
         }
 
+        .bento-container > :is(main, article, section, .bento-grid, .service-grid,
+            .delivery-simulator, .delivery-dashboard, .svc-create, .svc-dashboard, .fc-show,
+            [class$="-page"], [class*="-page "], [class$="-shell"], [class*="-shell "],
+            [class$="-workspace"], [class*="-workspace "]) {
+            width: 100% !important;
+            max-width: none !important;
+            margin-inline: 0;
+        }
+
         .bento-grid {
             display: grid;
             width: 100%;
@@ -1384,10 +1394,7 @@
             }
 
             body:not(.has-app-nav) .bento-container {
-                width: min(
-                    calc(100% - 2rem),
-                    var(--app-content-max)
-                );
+                width: 100%;
                 max-width: var(--app-content-max);
                 margin-right: auto;
                 margin-left: auto;
@@ -3248,7 +3255,14 @@
         .global-request-loader-card { background: var(--app-surface); color: var(--app-text); border-color: var(--app-border); }
         .app-alert-success p, .app-alert-error p { color: inherit; }
 
+        .app-sidebar-toggle { display: none; }
         @media (min-width: 1200px) {
+            .app-sidebar-toggle { display: inline-grid; place-items: center; }
+            .app-sidebar-toggle[aria-pressed="true"] {
+                color: var(--sgc-on-accent);
+                background: var(--sgc-accent);
+            }
+            html[data-sidebar-compact="true"] { --app-sidebar-width: 76px; }
             .nav-tabs {
                 top: var(--app-header-rendered-height); bottom: 0; left: 0;
                 width: var(--app-sidebar-width); max-width: none;
@@ -3260,9 +3274,20 @@
             .nav-tabs .nav-tab { min-height: 45px; border-radius: 9px; padding: 8px 12px; gap: 10px; }
             .nav-tabs .app-nav-icon { width: 25px; height: 28px; }
             body.has-app-nav .bento-container {
-                margin-left: calc(var(--app-sidebar-width) + 1.1rem);
-                margin-right: 1.1rem;
+                margin-left: var(--app-sidebar-width);
+                margin-right: 0;
                 padding-bottom: 3rem;
+            }
+            html[data-sidebar-compact="true"] .nav-tabs { padding: 15px 9px; gap: 5px; overflow: auto; }
+            html[data-sidebar-compact="true"] .nav-tabs::before,
+            html[data-sidebar-compact="true"] .nav-tabs .nav-tab::after { display: none; }
+            html[data-sidebar-compact="true"] .nav-tabs .nav-tab {
+                display: flex; width: 100%; min-width: 0; min-height: 54px;
+                flex-direction: column; justify-content: center; align-items: center;
+                gap: 3px; padding: 7px 4px; text-align: center;
+            }
+            html[data-sidebar-compact="true"] .nav-tabs .app-nav-label {
+                font-size: 9px; line-height: 1.1; white-space: normal;
             }
         }
         @media (min-width: 768px) and (max-width: 1199px) {
@@ -3455,6 +3480,11 @@
     <header class="app-header">
         <div class="app-header__content">
             <div class="app-header__left">
+                @if($hasBentoNavigation)
+                    <button class="app-header-action app-sidebar-toggle" type="button" id="app-sidebar-toggle" aria-controls="app-portal-navigation" aria-pressed="false" aria-label="Navegação compacta" title="Navegação compacta">
+                        <i class="ph ph-sidebar-simple" aria-hidden="true"></i>
+                    </button>
+                @endif
                 <a href="{{ route('home') }}" class="app-home-button" aria-label="Ir para o início" title="Início">
                     @include('components.sgc-brand')
                     <span class="app-home-cue" aria-hidden="true"><i class="ph ph-arrow-left"></i></span>
@@ -3770,7 +3800,7 @@
     </aside>
 
     @if($hasBentoNavigation)
-        <div class="app-nav-layer {{ $hasActiveBentoNavigation ? 'has-active-item' : 'has-no-active-item' }}" aria-label="Navegação principal do portal">
+        <div id="app-portal-navigation" class="app-nav-layer {{ $hasActiveBentoNavigation ? 'has-active-item' : 'has-no-active-item' }}" aria-label="Navegação principal do portal">
             <x-portal.nav
                 :items="$bentoNavigation['items']"
                 :active="$bentoNavigation['active'] ?? null"
@@ -3803,6 +3833,22 @@
 
         @yield('content')
     </main>
+    @if($hasBentoNavigation)
+        <script>
+            (() => {
+                const button = document.getElementById('app-sidebar-toggle');
+                const root = document.documentElement;
+                const update = () => button.setAttribute('aria-pressed', String(root.dataset.sidebarCompact === 'true'));
+                button.addEventListener('click', () => {
+                    const compact = root.dataset.sidebarCompact !== 'true';
+                    root.dataset.sidebarCompact = String(compact);
+                    try { localStorage.setItem('sgc-sidebar-compact', compact ? '1' : '0'); } catch {}
+                    update();
+                });
+                update();
+            })();
+        </script>
+    @endif
 
     @stack('overlays')
 

@@ -366,15 +366,18 @@ html[data-theme='dark'] .svc-work-icon,
 .svc-agenda-orders { margin: 0; padding: 0; list-style: none; }
 .svc-agenda-orders li + li { border-top: 1px solid var(--svc-line); }
 .svc-agenda-order {
-    display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content auto;
-    align-items: center; gap: .5rem .8rem; min-height: 52px;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center; gap: .4rem .65rem; min-height: 52px;
     padding: .65rem 1rem; color: var(--svc-ink);
 }
 .svc-agenda-order:hover { background: var(--svc-paper-2); }
-.svc-agenda-order-copy { display: grid; min-width: 0; overflow-wrap: anywhere; }
-.svc-agenda-order small, .svc-agenda-order > time { color: var(--svc-secondary); font-variant-numeric: tabular-nums; }
-.svc-agenda-order > time { font-size: .8rem; }
-.svc-agenda-status { color: var(--svc-secondary); font-size: .75rem; text-align: right; }
+.svc-agenda-order:focus-visible { outline: 2px solid var(--svc-focus); outline-offset: -2px; }
+.svc-agenda-order-copy { display: grid; min-width: 0; gap: .15rem; overflow-wrap: anywhere; }
+.svc-agenda-order-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .55rem; min-width: 0; }
+.svc-agenda-order > i { grid-column: 2; grid-row: 1 / span 2; color: var(--svc-secondary); }
+.svc-agenda-order small, .svc-agenda-order time { color: var(--svc-secondary); font-variant-numeric: tabular-nums; }
+.svc-agenda-order small, .svc-agenda-order time { font-size: .8rem; }
+.svc-agenda-status { max-width: 100%; color: var(--svc-secondary); font-size: .75rem; overflow-wrap: anywhere; }
 .svc-agenda-empty { margin: 0; padding: 1rem; color: var(--svc-secondary); }
 .svc-agenda-link { color: var(--ui-color-primary); font-size: .82rem; font-weight: 700; }
 .svc-agenda [hidden] { display: none; }
@@ -442,7 +445,7 @@ html[data-theme='dark'] .svc-work-icon,
     .svc-month-grid { gap:3px; }
     .svc-calendar-cell { border-radius:6px; }
 }
-.svc-agenda-layout { display:grid; grid-template-columns:minmax(0, 520px) minmax(0,1fr); align-items:start; gap:1rem; }
+.svc-agenda-layout { display:grid; grid-template-columns:minmax(0, min(60%, 520px)) minmax(0,1fr); align-items:start; gap:1rem; }
 .svc-agenda-controls { display:flex; gap:4px; }
 .svc-agenda-controls button { min-width:44px; min-height:44px; border:1px solid var(--svc-line); border-radius:8px; }
 .svc-agenda-sidebar { display:grid; min-width:0; gap:.85rem; }

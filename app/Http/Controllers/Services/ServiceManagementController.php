@@ -7,6 +7,7 @@ use App\Enums\ServiceOrderStatus;
 use App\Models\Asset;
 use App\Models\Associate;
 use App\Models\BankAccount;
+use App\Models\Expense;
 use App\Models\GeneratedDocument;
 use App\Models\Service;
 use App\Models\ServiceExecutionEvidence;
@@ -203,14 +204,24 @@ class ServiceManagementController extends Controller
                     ->whereHas('request', fn ($query) => $query->whereIn('status', ['pending', 'approved']))->exists()) {
                 throw ValidationException::withMessages(['reason' => 'Antes de anular, resolva os pagamentos, acordos ou solicitações de repasse ativos no dossiê.']);
             }
-            if ($data['action'] === 'delete' && ($execution->status !== 'draft' || $execution->evidences()->exists()
-                || $execution->resources()->exists() || $lockedOrder->expenses()->exists()
-                || GeneratedDocument::query()->where('tenant_id', $lockedOrder->tenant_id)
+            if ($data['action'] === 'delete') {
+                if (! in_array($execution->status, ['draft', 'submitted'], true)) {
+                    throw ValidationException::withMessages(['reason' => 'Só é possível excluir rascunhos e ordens que aguardam conferência. Para os outros casos, use a anulação.']);
+                }
+                $hasExpense = $lockedOrder->expenses()->exists()
+                    || Expense::query()->where('tenant_id', $lockedOrder->tenant_id)
+                        ->where('expenseable_type', $execution->getMorphClass())->where('expenseable_id', $execution->id)->exists();
+                $hasDocument = GeneratedDocument::query()->where('tenant_id', $lockedOrder->tenant_id)
                     ->where(fn ($query) => $query
                         ->where(fn ($subject) => $subject->where('documentable_type', ServiceOrder::class)->where('documentable_id', $lockedOrder->id))
                         ->orWhere(fn ($subject) => $subject->where('documentable_type', $execution::class)->where('documentable_id', $execution->id)))
-                    ->exists())) {
-                throw ValidationException::withMessages(['reason' => 'Esta ordem tem histórico. Escolha Cancelar para manter os registros vinculados.']);
+                    ->exists();
+                if ($hasExpense || $hasDocument) {
+                    throw ValidationException::withMessages(['reason' => 'Esta ordem tem despesa ou documento vinculado. Use a anulação para manter os vínculos disponíveis no dossiê.']);
+                }
+                if ($execution->status === 'draft' && ($execution->evidences()->exists() || $execution->resources()->exists())) {
+                    throw ValidationException::withMessages(['reason' => 'Este rascunho tem anexos ou recursos vinculados. Use a anulação para manter os vínculos disponíveis no dossiê.']);
+                }
             }
             $execution->update(['status' => 'cancelled', 'lock_version' => $execution->lock_version + 1]);
             $lockedOrder->update(['status' => ServiceOrderStatus::CANCELLED, 'operational_status' => 'cancelled',
@@ -254,7 +265,7 @@ class ServiceManagementController extends Controller
             return redirect()->route('services.management.edit', [$tenant->slug, $replacement])
                 ->with('success', 'Ordem original anulada. Revise o rascunho antes de finalizar. Anexos e recursos permanecem na original.');
         }
-        return redirect()->route('services.management.index', $tenant->slug)->with('success', $data['action'] === 'delete' ? 'Rascunho removido da lista.' : 'Ordem anulada. O motivo está registrado no dossiê.');
+        return redirect()->route('services.management.index', $tenant->slug)->with('success', $data['action'] === 'delete' ? 'Ordem excluída da lista. O motivo está registrado na prestação de contas.' : 'Ordem anulada. O motivo está registrado no dossiê.');
     }
 
     private function entryRules(): array
@@ -436,7 +447,18 @@ class ServiceManagementController extends Controller
         $services = Service::query()->where('tenant_id', $tenant->id)->orderBy('name')->get(['id', 'name']);
         $assets = Asset::query()->where('tenant_id', $tenant->id)->orderBy('name')->get(['id', 'name']);
 
-        return view('services.reports', compact('summary', 'providers', 'services', 'assets'));
+        $deletedOrders = ServiceOrder::onlyTrashed()->where('tenant_id', $tenant->id)
+            ->whereNotNull('service_version_id')->whereNotNull('cancellation_reason')
+            ->where('deleted_at', '>=', Carbon::parse($summary['from'])->startOfDay())
+            ->where('deleted_at', '<', Carbon::parse($summary['to'])->addDay()->startOfDay())
+            ->when($data['provider_id'] ?? null, fn ($query, $id) => $query->where('service_provider_id', $id))
+            ->when($data['service_id'] ?? null, fn ($query, $id) => $query->where('service_id', $id))
+            ->when($data['asset_id'] ?? null, fn ($query, $id) => $query->where('asset_id', $id))
+            ->orderByDesc('deleted_at')->orderByDesc('id')
+            ->paginate(15, ['id', 'number', 'beneficiary_snapshot', 'deleted_at', 'cancellation_reason'], 'deleted_page')
+            ->withQueryString();
+
+        return view('services.reports', compact('summary', 'providers', 'services', 'assets', 'deletedOrders'));
     }
 
     public function generateReport(Request $request, Tenant $tenant, ServiceReportService $reports)

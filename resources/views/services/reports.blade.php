@@ -934,5 +934,38 @@
             @include('services._accountability')
         </div>
     </section>
+    <section class="rp-result" aria-labelledby="deleted-orders-title">
+        <div class="rp-result-body">
+            <h2 id="deleted-orders-title">Registro de exclusões</h2>
+            <p>Ordens excluídas no período selecionado. O registro fica disponível para conferência nesta tela. Os totais, notas e PDFs consideram as ordens válidas.</p>
+            @if($deletedOrders->isNotEmpty())
+                <div style="overflow-x: auto" role="region" tabindex="0" aria-labelledby="deleted-orders-title">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th scope="col">Ordem</th>
+                                <th scope="col">Beneficiário</th>
+                                <th scope="col">Excluída em</th>
+                                <th scope="col">Motivo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($deletedOrders as $order)
+                                <tr>
+                                    <th scope="row">{{ $order->number }}</th>
+                                    <td>{{ data_get($order->beneficiary_snapshot, 'name') ?: 'Não informado' }}</td>
+                                    <td><time datetime="{{ $order->deleted_at->toIso8601String() }}">{{ $order->deleted_at->format('d/m/Y H:i') }}</time></td>
+                                    <td style="overflow-wrap: anywhere">{{ $order->cancellation_reason }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                {{ $deletedOrders->fragment('deleted-orders-title')->links() }}
+            @else
+                <p>Nenhuma exclusão encontrada com os filtros selecionados.</p>
+            @endif
+        </div>
+    </section>
 </main>
 @endsection

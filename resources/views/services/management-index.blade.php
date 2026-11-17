@@ -15,7 +15,7 @@
     $canCreate = auth()->user()->checkPermissionTo('create_service_order');
     $canApprove = auth()->user()->checkPermissionTo('approve_service_execution');
     // As linhas de execução usam este mesmo número de colunas.
-    $columnCount = 7 + ($canViewFinancials ? 2 : 0);
+    $columnCount = 6 + ($canViewFinancials ? 2 : 0);
     $states = [
         'scheduled' => 'Agendado',
         'in_progress' => 'Em execução',
@@ -73,7 +73,7 @@
     --cm-neutral-line: #dce4dd;
     display: grid;
     grid-column: 1 / -1;
-    width: min(100%, 1480px);
+    width: 100%;
     min-width: 0;
     gap: 1rem;
     margin: 0 auto;
@@ -183,15 +183,12 @@
 .cm-page .sg-table.cm-table { width: 100%; min-width: 0; border-spacing: 0; border-collapse: separate; table-layout: auto; }
 .cm-page .cm-list[data-order-view="table"] .cm-table { min-width: 52rem; }
 .cm-scroll:focus-visible { outline: 2px solid var(--cm-brand); outline-offset: -2px; }
-.cm-list[data-order-view="table"] .cm-table tbody > tr.cm-order > :is(td,th) { padding-block: .55rem; white-space: nowrap; }
+.cm-list[data-order-view="table"] .cm-table tbody > tr.cm-order > :is(td,th) { padding-block: .55rem; }
 .cm-list[data-order-view="table"] .cm-order-actions { flex-wrap: nowrap; }
 .cm-list[data-order-view="table"] .cm-person { display: flex; min-width: 0; }
-.cm-list[data-order-view="table"] .cm-person > div { display: flex; align-items: baseline; gap: .45rem; }
-.cm-list[data-order-view="table"] .cm-person-name { overflow-wrap: normal; }
-.cm-list[data-order-view="table"] :is(.cm-date, .cm-date-caption) { display: inline; }
-.cm-list[data-order-view="table"] .cm-date-caption { margin-inline-start: .3rem; }
-.cm-list[data-order-view="table"] .cm-execution { display: flex; align-items: baseline; gap: .45rem; }
-.cm-list[data-order-view="table"] .cm-execution small { margin: 0; }
+.cm-list[data-order-view="table"] .cm-col-person { width: 24%; }
+.cm-list[data-order-view="table"] .cm-col-execution { width: 23%; }
+.cm-list[data-order-view="table"] .cm-col-actions { width: 1%; }
 @media(max-width: 900px) {
     .cm-list[data-order-view="table"] .cm-icon-action { block-size: 44px; inline-size: 44px; }
 }
@@ -210,12 +207,16 @@
 .cm-service { display: block; min-width: 160px; color: var(--cm-ink); font-size: .76rem; font-weight: 740; line-height: 1.4; overflow-wrap: anywhere; }
 .cm-provider { display: block; max-width: 185px; color: var(--cm-muted); font-size: .74rem; line-height: 1.42; overflow-wrap: anywhere; }
 .cm-date { display: block; white-space: nowrap; font-size: .76rem; font-weight: 740; color: var(--cm-ink); font-variant-numeric: tabular-nums; }
-.cm-date-caption { display: block; margin-top: .18rem; color: var(--cm-subtle); font-size: .66rem; }
+.cm-date-group { display: grid; justify-items: start; gap: .24rem; }
 .cm-execution { display: grid; align-content: center; gap: .18rem; min-width: 110px; color: var(--cm-muted); }
+.cm-execution-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: .15rem .65rem; }
+.cm-execution-detail { overflow-wrap: anywhere; }
+.cm-execution-detail b { color: var(--cm-ink); font-weight: 700; }
 .cm-execution strong { color: var(--cm-ink); font-size: .76rem; font-weight: 800; }
 .cm-execution small { color: var(--cm-muted); font-size: .67rem; line-height: 1.35; }
 .cm-state { --st-fg: var(--cm-neutral-fg); --st-bg: var(--cm-neutral-bg); --st-line: var(--cm-neutral-line); display: inline-flex; gap: .43rem; align-items: center; width: fit-content; max-width: 100%; min-height: 30px; padding: .3rem .56rem; border: 1px solid var(--st-line); border-radius: 8px; background: var(--st-bg); color: var(--st-fg); font-size: .69rem; font-weight: 800; line-height: 1.25; white-space: nowrap; }
 .cm-state::before { content: ""; width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--st-fg); }
+.cm-date-group .cm-state { min-height: 0; padding: .19rem .4rem; white-space: normal; }
 .cm-state[data-state="scheduled"], .cm-state[data-state="agendado"] { --st-fg: var(--cm-info-fg); --st-bg: var(--cm-info-bg); --st-line: var(--cm-info-line); }
 .cm-state[data-state="in_progress"], .cm-state[data-state="processing"] { --st-fg: var(--cm-progress-fg); --st-bg: var(--cm-progress-bg); --st-line: var(--cm-progress-line); }
 .cm-state[data-state="submitted"], .cm-state[data-state="awaiting_review"] { --st-fg: var(--cm-review-fg); --st-bg: var(--cm-review-bg); --st-line: var(--cm-review-line); }
@@ -280,20 +281,17 @@
 .cm-list[data-order-view="cards"] .cm-table tbody > tr.cm-order .cm-col-person { grid-column: 1 / -1; }
 .cm-list[data-order-view="cards"] .cm-person { min-width: 0; }
 .cm-list[data-order-view="cards"] .cm-person-name { font-size: .92rem; }
-.cm-list[data-order-view="cards"] .cm-table tbody > tr.cm-order .cm-col-state { grid-column: 1 / -1; grid-row: 2; }
-.cm-list[data-order-view="cards"] .cm-table tbody > tr.cm-order .cm-col-service { grid-area: 3 / 1; }
+.cm-list[data-order-view="cards"] .cm-table tbody > tr.cm-order .cm-col-service { grid-area: 2 / 1; }
 .cm-list[data-order-view="cards"] .cm-service { min-width: 0; }
-.cm-list[data-order-view="cards"] .cm-table tbody > tr.cm-order .cm-col-provider { grid-area: 4 / 1; }
-.cm-list[data-order-view="cards"] .cm-table tbody > tr.cm-order .cm-col-date { grid-area: 4 / 2; }
+.cm-list[data-order-view="cards"] .cm-table tbody > tr.cm-order .cm-col-provider { grid-area: 3 / 1; }
+.cm-list[data-order-view="cards"] .cm-table tbody > tr.cm-order .cm-col-date { grid-area: 2 / 2; }
 .cm-list[data-order-view="cards"] .cm-table tbody > tr.cm-order .cm-col-execution { grid-area: 3 / 2; }
 .cm-list[data-order-view="cards"] .cm-table tbody > tr.cm-order .cm-col-actions { grid-column: 1 / -1; padding-top: .6rem !important; border-top: 1px solid var(--cm-line-soft) !important; }
 .cm-list[data-order-view="cards"] .cm-order-actions { justify-content: flex-start; gap: .35rem; padding: .3rem; background: var(--cm-panel-alt); border-radius: 12px; }
 .cm-list[data-order-view="cards"] .cm-order .cm-icon-action { inline-size: 56px; block-size: 50px; padding-inline: .2rem; align-content: center; gap: .22rem; }
 .cm-list[data-order-view="cards"] .cm-icon-action > span { display: block; font-size: .625rem; line-height: 1; font-weight: 700; white-space: nowrap; }
 .cm-list[data-order-view="cards"] .cm-table tbody > tr.cm-order > .cm-col-actions { border-top: 1px solid var(--cm-line) !important; margin-top: .25rem; }
-.cm-list[data-order-view="cards"] .cm-table tbody > tr.cm-order > .cm-col-state { padding-bottom: .55rem !important; border-bottom: 1px solid var(--cm-line-soft) !important; }
 .cm-list[data-order-view="cards"] .cm-mobile-label { display: block; margin-bottom: .22rem; color: var(--cm-subtle); font-size: .65rem; font-weight: 730; }
-.cm-list[data-order-view="cards"] .cm-col-person .cm-mobile-label, .cm-list[data-order-view="cards"] .cm-col-state .cm-mobile-label { display: none; }
 .cm-list[data-order-view="cards"] .cm-number .cm-mobile-label { display: block; }
 .cm-list[data-order-view="cards"] .cm-provider { max-width: none; }
 .cm-list[data-order-view="cards"] .cm-table tbody > tr:not(.cm-order):not([hidden]) { display: block; width: 100%; max-width: 100%; margin: .35rem 0 .7rem; }
@@ -472,9 +470,8 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                         <th scope="col">Beneficiário / OS</th>
                         <th scope="col">Serviço</th>
                         <th scope="col">Prestador</th>
-                        <th scope="col">Data</th>
+                        <th scope="col">Data / situação</th>
                         <th scope="col">Execução</th>
-                        <th scope="col">Situação</th>
                         @if($canViewFinancials)
                             <th scope="col" class="cm-number">A receber</th>
                             <th scope="col" class="cm-number">A pagar</th>
@@ -510,29 +507,35 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                             <td class="cm-col-service"><span class="cm-mobile-label">Serviço</span><span class="cm-service">{{ $serviceName }}</span></td>
                             <td class="cm-col-provider"><span class="cm-mobile-label">Prestador</span><span class="cm-provider">{{ $providerName }}</span></td>
                             <td class="cm-col-date">
-                                <span class="cm-mobile-label">Data</span>
-                                <span class="cm-date">{{ $executionDate?->format('d/m/Y') ?? 'Sem data' }}</span>
-                                @if(!$order->execution_date && $executionDate)<span class="cm-date-caption">Agendada</span>@endif
+                                <span class="cm-mobile-label">Data / situação</span>
+                                <div class="cm-date-group">
+                                    @if($executionDate)
+                                        <time class="cm-date" datetime="{{ $executionDate->format('Y-m-d') }}" aria-label="{{ $order->execution_date ? 'Data de execução' : 'Data agendada' }}: {{ $executionDate->format('d/m/Y') }}">{{ $executionDate->format('d/m/Y') }}</time>
+                                    @else
+                                        <span class="cm-date">Sem data</span>
+                                    @endif
+                                    <span class="cm-state" data-state="{{ $order->operational_status }}">{{ $statuses->resolve($order) }}</span>
+                                </div>
                             </td>
                             <td class="cm-col-execution">
                                 <span class="cm-mobile-label">Execução</span>
                                 <div class="cm-execution">
-                                    @if($order->start_time || $order->end_time)
-                                        <small>{{ $order->start_time ? substr($order->start_time, 0, 5) : '—' }} a {{ $order->end_time ? substr($order->end_time, 0, 5) : '—' }}</small>
-                                    @endif
-                                    @if($order->execution?->quantity !== null)
-                                        <strong>{{ \App\Support\PdfQuantityFormatter::format($order->execution->quantity) }} {{ $order->execution->unit }}</strong>
-                                    @endif
-                                    @foreach(collect(data_get($order->execution?->catalog_snapshot, 'fields', []))->filter(fn ($field) => ($field['visible_to_management'] ?? true) && ($field['reportable'] ?? false) && in_array($field['phase'] ?? null, ['start', 'execution', 'finish'], true) && is_scalar(data_get($order->execution?->values, $field['key'])))->take(3) as $field)
-                                        <small>{{ $field['label'] }} · {{ data_get($order->execution->values, $field['key']) }} {{ $field['unit'] ?? '' }}</small>
-                                    @endforeach
-                                    @if(!$order->start_time && !$order->end_time && $order->execution?->quantity === null)
-                                        <small>—</small>
-                                    @endif
+                                    <div class="cm-execution-summary">
+                                        @if($order->execution?->quantity !== null)
+                                            <strong>{{ \App\Support\PdfQuantityFormatter::format($order->execution->quantity) }} {{ $order->execution->unit }}</strong>
+                                        @endif
+                                        @if($order->start_time || $order->end_time)
+                                            <small>{{ $order->start_time ? substr($order->start_time, 0, 5) : '-' }} a {{ $order->end_time ? substr($order->end_time, 0, 5) : '-' }}</small>
+                                        @endif
+                                    </div>
+                                    @forelse(collect(data_get($order->execution?->catalog_snapshot, 'fields', []))->filter(fn ($field) => ($field['visible_to_management'] ?? true) && ($field['reportable'] ?? false) && in_array($field['phase'] ?? null, ['start', 'execution', 'finish'], true) && is_scalar(data_get($order->execution?->values, $field['key'])))->take(3) as $field)
+                                        <small class="cm-execution-detail">{{ $field['label'] }} · <b>{{ data_get($order->execution->values, $field['key']) }} {{ $field['unit'] ?? '' }}</b></small>
+                                    @empty
+                                        @if(!$order->start_time && !$order->end_time && $order->execution?->quantity === null)
+                                            <small>—</small>
+                                        @endif
+                                    @endforelse
                                 </div>
-                            </td>
-                            <td class="sg-status cm-col-state">
-                                <span class="cm-state" data-state="{{ $order->operational_status }}">{{ $statuses->resolve($order) }}</span>
                             </td>
                             @if($canViewFinancials)
                                 <td class="cm-number"><span class="cm-mobile-label">Valor a receber</span>{{ $order->execution?->isFrozen() ? 'R$ '.number_format((float) $order->final_price, 2, ',', '.') : '—' }}</td>
@@ -569,7 +572,7 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                                         <a class="cm-icon-action" href="{{ route('services.management.expenses', ['tenant' => $tenant->slug, 'order' => $order->id]) }}" aria-label="Despesas da ordem" title="Despesas da ordem"><i class="ph ph-receipt" aria-hidden="true"></i><span aria-hidden="true">Despesas</span></a>
                                     @endif
                                     @if($canRemoveOrder)
-                                        <button class="cm-icon-action cm-icon-danger" type="button" data-remove-url="{{ route('services.management.remove', [$tenant->slug, $order]) }}" data-order="{{ $order->number }}" data-order-id="{{ $order->id }}" data-draft="{{ $order->execution->status === 'draft' ? '1' : '0' }}" aria-haspopup="dialog" aria-label="Anular ou remover ordem" title="Anular ou remover ordem"><i class="ph ph-prohibit" aria-hidden="true"></i><span aria-hidden="true">Anular</span></button>
+                                        <button class="cm-icon-action cm-icon-danger" type="button" data-remove-url="{{ route('services.management.remove', [$tenant->slug, $order]) }}" data-order="{{ $order->number }}" data-order-id="{{ $order->id }}" data-can-delete="{{ in_array($order->execution->status, ['draft', 'submitted'], true) ? '1' : '0' }}" aria-haspopup="dialog" aria-label="Anular ou excluir ordem" title="Anular ou excluir ordem"><i class="ph ph-prohibit" aria-hidden="true"></i><span aria-hidden="true">Anular</span></button>
                                     @endif
                                 </div>
                             </td>
@@ -617,7 +620,7 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                 @csrf
                 @method('DELETE')
                 <h3 id="sg-remove-title">Anular ou remover <span data-order-number></span></h3>
-                <p>Ao anular, a ordem sai dos totais e o motivo fica no histórico. Para refazer, abra um rascunho com os dados preenchidos. Anexos e recursos ficam na ordem original.</p>
+                <p>Ao anular, a ordem fica visível nas listas com a situação Anulada. Ao excluir, ela sai das listas e fica no registro de exclusões da prestação de contas.</p>
                 <input type="hidden" name="removal_order" value="{{ old('removal_order') }}">
                 @if(old('removal_order') && $errors->any())
                     <ul class="cm-dialog-errors" role="alert">
@@ -630,7 +633,7 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                         @if(auth()->user()->checkPermissionTo('create_service_order'))
                             <option value="cancel_replace" @selected(old('action') === 'cancel_replace')>Anular e abrir rascunho para corrigir</option>
                         @endif
-                        <option value="delete" @selected(old('action') === 'delete')>Excluir rascunho da lista</option>
+                        <option value="delete" @selected(old('action') === 'delete')>Excluir da lista e guardar registro</option>
                     </select>
                 </label>
                 <label>Motivo
@@ -737,7 +740,11 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                 orderInput.value = button.dataset.orderId;
                 form.setAttribute('action', button.dataset.removeUrl);
                 form.querySelector('[data-order-number]').textContent = button.dataset.order;
-                form.querySelector('select[name="action"] option[value="delete"]').disabled = button.dataset.draft !== '1';
+                const deleteOption = form.elements.action.querySelector('option[value="delete"]');
+                deleteOption.hidden = deleteOption.disabled = button.dataset.canDelete !== '1';
+                if (deleteOption.disabled && form.elements.action.value === 'delete') {
+                    form.elements.action.value = 'cancel';
+                }
                 openDialog(dialog, button);
             }
             button.addEventListener('click', () => showRemoval());
