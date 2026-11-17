@@ -800,11 +800,9 @@
     }
 
     .delivery-entry-title-line {
-        display: grid;
-        width: max-content;
-        max-width: 100%;
-        grid-auto-flow: column;
-        grid-auto-columns: max-content;
+        display: flex;
+        flex-wrap: wrap;
+        min-width: 0;
         gap: .36rem;
         align-items: center;
     }
@@ -1220,7 +1218,7 @@
     }
 
     .delivery-entry-value {
-        min-width: 126px;
+        min-width: 0;
     }
 
     .delivery-details {
@@ -1888,5 +1886,5 @@
     ];
 @endphp
 <script>window.AssociatePortalConfig = @json($associatePortalConfig);</script>
-<script src="{{ asset('js/associate-portal-ajax.js') }}?v={{ urlencode(config('app.version', 'dev')) }}"></script>
+<script src="{{ asset('js/associate-portal-ajax.js') }}?v={{ urlencode(config('app.version', 'dev')) }}-deliveries-layout"></script>
 @endsection

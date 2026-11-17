@@ -882,13 +882,13 @@
                 ? "billed"
                 : "unbilled";
 
-        return `<article class="delivery-entry"><span class="delivery-date" aria-label="${esc(
+        return `<article class="delivery-entry status-${statusClass(item.status)}"><div class="delivery-entry-head"><span class="delivery-date" aria-label="${esc(
             item.date
         )}"><strong>${esc(item.day || "--")}</strong><span>${esc(
             String(item.month || "---")
                 .slice(0, 3)
                 .toUpperCase()
-        )}</span></span><div class="delivery-entry-content"><div class="delivery-entry-head"><div class="delivery-entry-title"><div class="delivery-entry-title-line"><strong class="delivery-product">${esc(
+        )}</span></span><div class="delivery-entry-title"><div class="delivery-entry-title-line"><strong class="delivery-product">${esc(
             item.product || "Produto"
         )}</strong><span class="delivery-status ${statusClass(
             item.status
@@ -916,7 +916,7 @@
                       item.billing_label
                   )}</strong></div>`
                 : ""
-        }</div></div></article>`;
+        }</div></article>`;
     }
 
     function setupDeliveryFilters() {

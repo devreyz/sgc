@@ -224,7 +224,7 @@
 
 /* Lista: separação sem bordas espessas, beneficiário como título. */
 .ow-history { min-width: 0; border: 1px solid var(--ow-border); border-radius: 13px; overflow: hidden; background: var(--ow-surface); }
-.ow-history-head { display: flex; gap: .7rem; align-items: center; justify-content: space-between; padding: .85rem .96rem; border-bottom: 1px solid var(--ow-border); }
+.ow-history-head { display: flex; flex-wrap: wrap; gap: .7rem; align-items: center; justify-content: space-between; padding: .85rem .96rem; border-bottom: 1px solid var(--ow-border); }
 .ow-history-title { display: flex; gap: .62rem; align-items: center; min-width: 0; }
 .ow-history-mark { display: grid; place-items: center; flex: none; width: 37px; height: 37px; border-radius: 10px; background: var(--ow-primary-soft); color: var(--ow-primary); }
 .ow-history-title h2 { margin: 0; color: var(--ow-text); font-size: .99rem; font-weight: 800; line-height: 1.23; }
@@ -240,10 +240,10 @@
 .ow-table th:nth-child(4) { width: 13%; }
 .ow-table th:nth-child(5) { width: 16%; }
 .ow-table th:nth-child(6) { width: 6%; }
-.ow-table td { padding: .86rem .74rem; border-top: 1px solid var(--ow-border); border-bottom: 1px solid var(--ow-border); background: var(--ow-surface); color: var(--ow-secondary); font-size: .81rem; vertical-align: middle; transition: background .14s ease; }
-.ow-table td:first-child { border-left: 3px solid var(--row-color, var(--ow-border-strong)); border-radius: 10px 0 0 10px; padding-left: .85rem; }
+.ow-table tbody :is(td,th) { padding: .86rem .74rem; border-top: 1px solid var(--ow-border); border-bottom: 1px solid var(--ow-border); background: var(--ow-surface); color: var(--ow-secondary); font-size: .81rem; vertical-align: middle; transition: background .14s ease; }
+.ow-table tbody th[scope="row"] { border-left: 3px solid var(--row-color, var(--ow-border-strong)); border-radius: 10px 0 0 10px; padding-left: .85rem; text-align: left; }
 .ow-table td:last-child { border-right: 1px solid var(--ow-border); border-radius: 0 10px 10px 0; }
-.ow-table tbody tr:hover td { background: color-mix(in srgb, var(--ow-primary-soft) 55%, var(--ow-surface)); }
+.ow-table tbody tr:hover :is(td,th) { background: color-mix(in srgb, var(--ow-primary-soft) 55%, var(--ow-surface)); }
 .ow-row { --row-color: var(--ow-border-strong); }
 .ow-row.is-pending { --row-color: var(--ow-amber); }
 .ow-row.is-scheduled { --row-color: var(--ow-blue); }
@@ -313,6 +313,11 @@
     .orders-page .ow-table-scroll { display: none; }
     .orders-page .ow-cards { display: grid; gap: .65rem; padding: .7rem; background: var(--ow-bg); }
 }
+.orders-page .ow-history[data-order-view="table"] .ow-table-scroll:not([hidden]) { display: block; }
+.orders-page .ow-history[data-order-view="cards"] .ow-table-scroll,
+.orders-page .ow-history[data-order-view="table"] .ow-cards { display: none; }
+.orders-page .ow-history[data-order-view="cards"] .ow-cards:not([hidden]) { display: grid; gap: .65rem; padding: .7rem; }
+.orders-page .ow-table-scroll:focus-visible { outline: 2px solid var(--ow-primary); outline-offset: -2px; }
 @media (max-width: 710px) {
     .orders-page { gap: .72rem; }
     .orders-page .ow-header { align-items: center; }
@@ -406,7 +411,7 @@
         </p>
     @endif
 
-    <section class="ow-history" aria-labelledby="ow-history-title">
+    <section class="ow-history" aria-labelledby="ow-history-title" data-order-list="provider" data-compact-query="(max-width: 1140px)">
         <header class="ow-history-head">
             <div class="ow-history-title">
                 <span class="ow-history-mark" aria-hidden="true"><svg class="ow-icon ow-icon-lg"><use href="#ow-list"/></svg></span>
@@ -416,6 +421,7 @@
                 </div>
             </div>
             @if($ordersTotal > 0)
+                @if($orders->isNotEmpty()) @include('services._order-view-switch') @endif
                 <span class="ow-range"><strong>{{ $pageFrom }}–{{ $pageTo }}</strong> de {{ number_format($ordersTotal, 0, ',', '.') }}</span>
             @endif
         </header>
@@ -430,7 +436,7 @@
                 </div>
             </div>
         @else
-            <div class="ow-table-scroll" id="ow-table-wrap">
+            <div class="ow-table-scroll" id="ow-table-wrap" tabindex="0" role="region" aria-label="Tabela de ordens com rolagem horizontal">
                 <table class="ow-table" aria-label="Ordens de serviço por beneficiário">
                     <thead><tr>
                         <th scope="col">Beneficiário</th>
@@ -438,7 +444,7 @@
                         <th scope="col">Prestador</th>
                         <th scope="col">Agendamento</th>
                         <th scope="col">Situação</th>
-                        <th scope="col"><span class="ow-sr-only">Abrir ordem</span></th>
+                        <th scope="col">Ações</th>
                     </tr></thead>
                     <tbody>
                         @foreach($orders as $order)
@@ -451,7 +457,7 @@
                                 $searchText = implode(' ', [$beneficiaryName, $order->number, $serviceName, $providerName, $state['label'], $order->location ?? '']);
                             @endphp
                             <tr class="ow-row {{ $state['class'] }}" data-ow-item data-ow-status="{{ $state['class'] }}" data-ow-search="{{ $searchText }}">
-                                <td>
+                                <th scope="row">
                                     <div class="ow-person">
                                         <span class="ow-avatar" aria-hidden="true">{{ $initial ?: '?' }}</span>
                                         <span class="ow-person-text">
@@ -459,7 +465,7 @@
                                             <span class="ow-order-no">OS {{ $order->number }}</span>
                                         </span>
                                     </div>
-                                </td>
+                                </th>
                                 <td><span class="ow-service">{{ $serviceName }}</span></td>
                                 <td><span class="ow-provider">{{ $providerName }}</span></td>
                                 <td>
