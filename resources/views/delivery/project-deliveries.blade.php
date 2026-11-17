@@ -2287,16 +2287,17 @@
 #desktop-tbody tr[data-filter-status="rejected"] .pd-date-cell { box-shadow:inset 3px 0 0 rgba(207,63,63,.46); }
 #desktop-tbody td { overflow:hidden; }
 #desktop-tbody td:nth-child(3),#desktop-tbody td:nth-child(4) { text-overflow:ellipsis;white-space:nowrap; }
-.pd-limit-cell { min-width:0!important;overflow:visible!important; }
+.pd-limit-cell { min-width: 13rem; }
 .pd-limit-cell > div,.pd-limit-cell .pdr-limit { width:100%!important;min-width:0!important;max-width:none!important; }
 .pd-limit-cell .pdr-limit-head { gap:.2rem!important; }
 .pd-limit-cell .pdr-limit-used,.pd-limit-cell .pdr-limit-free { font-size:.61rem!important; }
 .pd-limit-cell .pdr-limit-track { width:100%!important;height:6px!important; }
-.pd-control-cell { overflow:visible!important; }
+.pd-control-cell { min-width: 7rem; }
 .pd-table-control-row {
     display:flex;min-width:0;align-items:center;justify-content:flex-start;gap:.3rem;flex-wrap:nowrap;
 }
-.pd-table-control-row .dist-indicator,.pd-table-control-row .pdr-dist { min-width:92px!important;max-width:122px!important;flex:1 1 100px; }
+.pd-table-control-row .pdr-dist { display:grid; width:100%; min-width:0; gap:.28rem; padding:.35rem .55rem; }
+.pd-table-control-row .pdr-dist-head { display:block; text-align:center; font-variant-numeric:tabular-nums; }
 .pd-table-control-row .action-btns { display:flex;gap:.18rem;align-items:center;flex:0 0 auto;flex-wrap:nowrap; }
 .pd-table-control-row .action-btns button,
 .pd-table-control-row > .delivery-note-trigger {
@@ -3490,15 +3491,16 @@ body.pd-sheet-open {
 #pd-deliveries-surface .pdr-actions button { min-width: 40px; min-height: 40px; }
 #pd-deliveries-surface .pdr-actions .pd-action-label { display: none; }
 
-/* Após ocultar valor/qualidade/status, redistribuir espaço. */
+/* Larguras preferenciais. Cada célula pode crescer sem invadir a próxima. */
 .data-table th:nth-child(1) { width: 78px !important; }
 .data-table th:nth-child(2) { width: 23% !important; }
 .data-table th:nth-child(3) { width: 21% !important; }
 .data-table th:nth-child(4) { width: 100px !important; }
-.data-table th:nth-child(8) { width: 150px !important; }
-.data-table th:nth-child(9) { width: 225px !important; }
 
 .pd-limit-cell .pdr-limit-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
     line-height: 1.15;
 }
 
@@ -4430,7 +4432,7 @@ function renderProjectRow(item) {
     return `<tr id="desktop-row-${item.id}" class="pdr-row status-${item.status_value} ${item.status_value === 'approved' ? 'approved-row' : ''}" data-delivery-id="${item.id}" data-total-qty="${m.total}" data-unit="${esc(item.unit)}" data-product="${esc(item.product_name)}" data-distributed="${m.distributed}" data-distributions="${distributions}" data-filter-date="${item.delivery_date_raw}" data-filter-associate="${esc(item.associate_name)}" data-filter-product="${esc(item.product_name)}" data-filter-status="${item.status_value}">
         <td><span class="pdr-date">${esc(item.delivery_date)}</span></td><td><strong class="pdr-primary-text">${esc(item.associate_name)}</strong></td><td><strong class="pdr-primary-text pdr-product">${esc(item.product_name)}</strong></td><td><span class="pdr-qty">${pdQty(m.total,item.unit)}</span></td><td class="pd-col-net"><strong class="pdr-money">${item.dist_net_value > 0 ? pdMoney(item.dist_net_value) : '—'}</strong></td><td class="pd-col-suppressed"><span class="pdr-quality">${esc(item.quality_grade || '—')}</span></td><td class="pd-col-suppressed"><span class="badge-status ${item.status_value}">${pdStatusLabel(item.status_value)}</span></td>
         <td class="pd-limit-cell">${limitPct == null ? '<span class="pdr-no-limit">Sem cota</span>' : `<div class="pdr-limit ${limitPct >= 100 ? 'red' : limitPct >= 80 ? 'amber' : 'green'}"><div class="pdr-limit-head"><span class="pdr-limit-used">${pdQty(limit.associate_delivered,item.unit)}</span><strong class="pdr-limit-free">${pdQty(limit.associate_remaining,item.unit)} livres</strong></div><div class="pdr-limit-track"><span style="width:${limitPct}%"></span></div></div>`}</td>
-        <td class="pd-control-cell"><button type="button" class="pdr-dist ${m.over ? 'over' : m.percent >= 100 ? 'full' : 'partial'}" data-summary="1"><div class="pdr-dist-head"><span>Distribuição</span><strong>${m.over ? '!' : m.percent + '%'}</strong></div><div class="dist-bar-bg"><span class="dist-bar-fill ${m.over ? 'over' : m.percent >= 100 ? 'full' : 'partial'}" style="display:block;width:${m.display}%"></span></div></button></td><td class="pd-action-cell"><div class="action-btns pdr-actions">${pdActions(item)}</div></td></tr>`;
+        <td class="pd-control-cell"><button type="button" class="pdr-dist ${m.over ? 'over' : m.percent >= 100 ? 'full' : 'partial'}" data-summary="1" aria-label="Ver distribuição de ${esc(item.product_name)}"><div class="pdr-dist-head"><strong>${m.over ? '!' : m.percent + '%'}</strong></div><div class="dist-bar-bg"><span class="dist-bar-fill ${m.over ? 'over' : m.percent >= 100 ? 'full' : 'partial'}" style="display:block;width:${m.display}%"></span></div></button></td><td class="pd-action-cell"><div class="action-btns pdr-actions">${pdActions(item)}</div></td></tr>`;
 }
 
 function renderProjectCard(item) {

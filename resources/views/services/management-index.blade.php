@@ -183,7 +183,15 @@
 .cm-page .sg-table.cm-table { width: 100%; min-width: 0; border-spacing: 0; border-collapse: separate; table-layout: auto; }
 .cm-page .cm-list[data-order-view="table"] .cm-table { min-width: 52rem; }
 .cm-scroll:focus-visible { outline: 2px solid var(--cm-brand); outline-offset: -2px; }
+.cm-list[data-order-view="table"] .cm-table tbody > tr.cm-order > :is(td,th) { padding-block: .55rem; white-space: nowrap; }
 .cm-list[data-order-view="table"] .cm-order-actions { flex-wrap: nowrap; }
+.cm-list[data-order-view="table"] .cm-person { display: flex; min-width: 0; }
+.cm-list[data-order-view="table"] .cm-person > div { display: flex; align-items: baseline; gap: .45rem; }
+.cm-list[data-order-view="table"] .cm-person-name { overflow-wrap: normal; }
+.cm-list[data-order-view="table"] :is(.cm-date, .cm-date-caption) { display: inline; }
+.cm-list[data-order-view="table"] .cm-date-caption { margin-inline-start: .3rem; }
+.cm-list[data-order-view="table"] .cm-execution { display: flex; align-items: baseline; gap: .45rem; }
+.cm-list[data-order-view="table"] .cm-execution small { margin: 0; }
 @media(max-width: 900px) {
     .cm-list[data-order-view="table"] .cm-icon-action { block-size: 44px; inline-size: 44px; }
 }
@@ -495,7 +503,7 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                                     <span class="cm-avatar" aria-hidden="true">{{ $initial ?: '?' }}</span>
                                     <div>
                                         <a class="cm-person-name" href="{{ $orderUrl }}">{{ $beneficiaryName }}</a>
-                                        <span class="cm-person-ref">OS {{ $order->number }}</span>
+                                        <span class="cm-person-ref">{{ $order->number }}</span>
                                     </div>
                                 </div>
                             </th>
@@ -529,8 +537,6 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                             @if($canViewFinancials)
                                 <td class="cm-number"><span class="cm-mobile-label">Valor a receber</span>{{ $order->execution?->isFrozen() ? 'R$ '.number_format((float) $order->final_price, 2, ',', '.') : '—' }}</td>
                                 <td class="cm-number"><span class="cm-mobile-label">Valor a pagar</span>{{ $order->execution?->isFrozen() ? 'R$ '.number_format((float) $order->provider_payment, 2, ',', '.') : '—' }}</td>
-                            @endif
-                            @if($canExpense)
                             @endif
                             <td class="cm-col-actions">
                                 <div class="cm-order-actions" role="group" aria-label="Ações da ordem {{ $order->number }}">

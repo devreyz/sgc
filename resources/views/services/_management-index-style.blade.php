@@ -112,23 +112,9 @@
         .sg-orders .sg-filters { grid-template-columns: repeat(4, minmax(0, 1fr)); }
         .sg-orders .sg-search { grid-column: span 2; }
         .sg-orders .sg-filter-actions { grid-column: span 2; }
-        .sg-orders .sg-table { display: block; min-width: 0; }
-        .sg-orders .sg-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-        .sg-orders .sg-table tbody { display: grid; }
-        .sg-orders .sg-table tr.sg-order { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; padding: 1rem; border-top: 1px solid var(--ui-color-border); }
-        .sg-orders .sg-table tr.sg-order:first-child { border-top: 0; }
-        .sg-orders .sg-table tr.sg-order > * { min-width: 0; padding: 0; border: 0; overflow-wrap: anywhere; }
-        .sg-orders .sg-order th { grid-column: span 2; }
-        .sg-orders .sg-table .sg-status { grid-column: 3; grid-row: 1; text-align: right; }
-        .sg-orders .sg-order-actions { grid-column: 1 / -1; }
-        .sg-orders .sg-mobile-label { display: block; margin-bottom: .2rem; color: var(--ui-color-text-secondary); font-size: .75rem; font-weight: 600; }
-        .sg-orders .sg-table tr:not(.sg-order) { display: grid; }
-        .sg-orders .sg-table tr[hidden] { display: none; }
     }
 
     @container service-orders (max-width: 36rem) {
-        .sg-orders .sg-filters, .sg-orders .sg-table tr.sg-order { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .sg-orders .sg-order th { grid-column: 1; }
-        .sg-orders .sg-table .sg-status { grid-column: 2; }
+        .sg-orders .sg-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
 </style>
