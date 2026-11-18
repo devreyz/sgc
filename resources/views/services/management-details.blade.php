@@ -3,6 +3,8 @@
 @section('page-title', 'Editar ordem de serviço')
 @php($bentoNavigation = \App\Support\PortalNavigation::make('services', 'queue', $tenant->slug))
 @section('content')
+@include('services._campo-style')
+<div class="services-campo">
     @include('services._workspace-style')
     <div class="service-grid">
         @include('services._workspace-messages')
@@ -16,4 +18,5 @@
         const button=form.querySelector('button[type="submit"]');button.disabled=true;button.textContent='Salvando…';
     });
     </script>
+</div>
 @endsection

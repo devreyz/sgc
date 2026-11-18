@@ -6,7 +6,7 @@
     .order-view-switch[hidden] { display: none; }
     .order-view-switch { display: inline-flex; gap: .2rem; padding: .2rem; border: 1px solid var(--ui-color-border); border-radius: 10px; background: var(--ui-color-surface-soft); }
     .order-view-switch button { display: inline-flex; align-items: center; gap: .35rem; padding: .45rem .65rem; min-height: 40px; border-radius: 7px; color: var(--ui-color-text-secondary); font-weight: 700; font-size: .76rem; }
-    .order-view-switch button[aria-pressed="true"] { background: var(--sgc-rail, #173c2e); color: var(--sgc-rail-text, #fff); }
+    .order-view-switch button[aria-pressed="true"] { background: var(--sgc-rail, #173c2e); color: var(--sgc-rail-text, var(--ui-color-surface)); }
     .order-view-switch button:focus-visible { outline: 2px solid var(--ui-color-primary); outline-offset: 2px; }
 </style>
 <script>

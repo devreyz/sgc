@@ -8,7 +8,7 @@
 @endphp
 @if($obligation->direction === 'payable' && $obligation->status !== 'cancelled' && in_array($rateMethod, ['fixed', 'quantity_x_rate'], true))
     <section class="ds-fin-box" style="min-width:0">
-        <div class="ds-fin-box-head"><i class="ph-fill ph-currency-circle-dollar" aria-hidden="true"></i> Alterar valor por {{ $rateMethod === 'fixed' ? 'serviço' : ($rateBase['unit'] ?? $execution->unit) }}</div>
+        <div class="ds-fin-box-head"><i class="ph-duotone ph-currency-circle-dollar" aria-hidden="true"></i> Alterar valor por {{ $rateMethod === 'fixed' ? 'serviço' : ($rateBase['unit'] ?? $execution->unit) }}</div>
         <p>Tarifa atual: <strong>R$ {{ number_format((float) $currentProviderRate, 2, ',', '.') }}</strong>. Quantidade: {{ \App\Support\PdfQuantityFormatter::format($rateQuantity) }}. Adicionais e pagamentos serão preservados.</p>
         <form class="ds-form-grid" method="post" action="{{ route('services.management.provider-rate.update', [$tenantSlug, $obligation]) }}" data-provider-rate-form data-quantity="{{ $rateQuantity }}" data-base="{{ $oldProviderBase }}" data-total="{{ $obligation->total_amount }}">
             @csrf

@@ -16,7 +16,7 @@
     }
 
     .sg-orders .sg-toolbar { padding: clamp(1rem, 2vw, 1.5rem); }
-    .sg-orders .sg-toolbar h2 { margin: 0; font-size: var(--ui-font-size-2xl); font-weight: 800; line-height: 1.15; }
+    .sg-orders .sg-toolbar h2 { margin: 0; font-size: var(--ui-font-size-2xl); font-weight: 700; line-height: 1.15; }
     .sg-orders .sg-toolbar p { margin: .35rem 0 0; }
     .sg-orders :is(.sg-toolbar p, small, .sg-hint) { color: var(--ui-color-text-secondary); font-size: .8125rem; }
 
@@ -77,7 +77,7 @@
     .sg-orders .sg-table tbody > tr > * { border-top: 1px solid var(--ui-color-border); }
     .sg-orders .sg-order:hover { background: var(--ui-color-surface-soft); }
     .sg-orders .sg-table small { display: block; margin-top: .2rem; font-weight: 400; }
-    .sg-orders .sg-number { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .sg-orders .sg-number { font-variant-numeric: tabular-nums; var(--ui-color-surface)-space: nowrap; }
     .sg-orders .sg-row-actions .sg-button { min-height: 2.125rem; padding: .25rem .5rem; }
     .sg-orders .sg-empty { padding: 2rem 1rem; text-align: center; }
     .sg-orders .sg-empty i { display: block; margin-bottom: .5rem; color: var(--ui-color-primary); font-size: 1.5rem; }
@@ -105,7 +105,7 @@
 
     .sg-orders .sg-dialog { width: min(calc(100% - 2rem), 28rem); max-height: 88dvh; margin: auto; padding: 1.25rem; color: inherit; }
     .sg-orders .sg-dialog::backdrop { background: var(--ui-color-overlay); }
-    .sg-orders .sg-dialog h3 { margin: 0; font-size: 1.125rem; font-weight: 800; }
+    .sg-orders .sg-dialog h3 { margin: 0; font-size: 1.125rem; font-weight: 700; }
     .sg-orders .sg-dialog .sg-actions { justify-content: flex-end; }
 
     @container service-orders (max-width: 63rem) {

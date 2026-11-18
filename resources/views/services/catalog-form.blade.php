@@ -19,49 +19,46 @@
 @endphp
 
 @section('content')
+@include('services._campo-style')
+<div class="services-campo">
 
-@once
-    <link
-        rel="stylesheet"
-        href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css"
-    >
-@endonce
+
 
 <style>
     .service-builder {
-        --sb-green: var(--ws-green, #219653);
-        --sb-green-soft: #edf8f2;
-        --sb-green-border: #cce8d7;
+        --sb-green: var(--ui-color-primary);
+        --sb-green-soft: var(--ui-color-primary-soft);
+        --sb-green-border: var(--ui-color-primary-border);
 
-        --sb-blue: var(--ws-blue, #3478d4);
-        --sb-blue-soft: #edf4ff;
-        --sb-blue-border: #cfe0f7;
+        --sb-blue: var(--ui-color-primary);
+        --sb-blue-soft: var(--ui-color-primary-soft);
+        --sb-blue-border: var(--ui-color-primary-border);
 
-        --sb-violet: var(--ws-purple, #8a4bd2);
-        --sb-violet-soft: #f5efff;
-        --sb-violet-border: #e1d2f4;
+        --sb-violet: var(--ui-color-primary);
+        --sb-violet-soft: var(--ui-color-primary-soft);
+        --sb-violet-border: var(--ui-color-primary-border);
 
-        --sb-amber: var(--ws-amber, #c38418);
-        --sb-amber-soft: #fff7e8;
-        --sb-amber-border: #f0dcae;
+        --sb-amber: var(--ui-color-warning);
+        --sb-amber-soft: var(--ui-color-warning-soft);
+        --sb-amber-border: var(--ui-color-warning-border);
 
-        --sb-red: var(--ws-red, #cf5050);
-        --sb-red-soft: #fff0f0;
-        --sb-red-border: #efcaca;
+        --sb-red: var(--ui-color-danger);
+        --sb-red-soft: var(--ui-color-danger-soft);
+        --sb-red-border: var(--ui-color-danger-border);
 
-        --sb-cyan: #168eae;
-        --sb-cyan-soft: #ecf8fb;
-        --sb-cyan-border: #cae8ef;
+        --sb-cyan: var(--ui-color-primary);
+        --sb-cyan-soft: var(--ui-color-primary-soft);
+        --sb-cyan-border: var(--ui-color-primary-border);
 
-        --sb-text: #17211d;
-        --sb-text-2: #59655f;
-        --sb-muted: #89938e;
-        --sb-border: #dde5e0;
-        --sb-soft: #f7faf8;
+        --sb-text: var(--ui-color-text);
+        --sb-text-2: var(--ui-color-text-secondary);
+        --sb-muted: var(--ui-color-text-muted);
+        --sb-border: var(--ui-color-border);
+        --sb-soft: var(--ui-color-surface-soft);
 
         display: grid;
         grid-column: 1 / -1;
-        width: min(100%, 980px);
+        width: 100%;
         min-width: 0;
         gap: .72rem;
         margin-inline: auto;
@@ -94,7 +91,7 @@
         padding: .76rem .84rem;
         border: 1px solid var(--sb-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .sb-head-main {
@@ -123,8 +120,8 @@
     .sb-head-copy small {
         display: block;
         color: var(--sb-muted);
-        font-size: .61rem;
-        font-weight: 750;
+        font-size: .75rem;
+        font-weight: 700;
         letter-spacing: .025em;
         text-transform: uppercase;
     }
@@ -133,14 +130,14 @@
         margin: .06rem 0 0;
         color: var(--sb-text);
         font-size: clamp(1.02rem, 2vw, 1.22rem);
-        font-weight: 860;
+        font-weight: 700;
         line-height: 1.15;
     }
 
     .sb-head-copy p {
         margin: .12rem 0 0;
         color: var(--sb-muted);
-        font-size: .66rem;
+        font-size: .75rem;
         line-height: 1.35;
     }
 
@@ -153,14 +150,14 @@
         border-radius: 7px;
         background: var(--sb-soft);
         color: var(--sb-text-2);
-        font-size: .59rem;
-        font-weight: 760;
-        white-space: nowrap;
+        font-size: .75rem;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .sb-head-step i {
         color: var(--sb-violet);
-        font-size: .68rem;
+        font-size: .75rem;
     }
 
     /* =========================================================
@@ -173,12 +170,12 @@
         overflow: hidden;
         border: 1px solid var(--sb-border);
         border-radius: 11px;
-        background: #fff;
+        background: var(--ui-color-surface);
         scroll-behavior: smooth;
         overscroll-behavior-inline: contain;
         scrollbar-width: thin;
         scrollbar-color:
-            #cfd8d2
+            var(--ui-color-border)
             transparent;
     }
 
@@ -192,7 +189,7 @@
 
     .sb-stepper::-webkit-scrollbar-thumb {
         border-radius: 999px;
-        background: #cfd8d2;
+        background: var(--ui-color-border);
     }
 
     .sb-step {
@@ -203,7 +200,7 @@
         padding: .58rem .56rem;
         border: 0;
         border-right: 1px solid var(--sb-border);
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--sb-muted);
         cursor: pointer;
         text-align: left;
@@ -239,26 +236,26 @@
         border-radius: 7px;
         background: var(--sb-soft);
         color: var(--sb-muted);
-        font-size: .56rem;
-        font-weight: 820;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .sb-step strong {
         overflow: hidden;
         color: inherit;
-        font-size: .6rem;
-        font-weight: 780;
+        font-size: .75rem;
+        font-weight: 700;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .sb-step small {
         overflow: hidden;
         padding-left: 1.88rem;
         color: var(--sb-muted);
-        font-size: .48rem;
+        font-size: .75rem;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .sb-step.active {
@@ -272,7 +269,7 @@
 
     .sb-step.active .sb-step-number {
         background: var(--sb-violet);
-        color: #fff;
+        color: var(--sgc-on-primary);
     }
 
     .sb-step.done {
@@ -299,7 +296,7 @@
         overflow: hidden;
         border: 1px solid var(--sb-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .sb-panel[hidden] {
@@ -368,13 +365,13 @@
     .sb-panel-title h2 {
         color: var(--sb-text);
         font-size: .77rem;
-        font-weight: 830;
+        font-weight: 700;
     }
 
     .sb-panel-title p {
         margin-top: .05rem;
         color: var(--sb-muted);
-        font-size: .58rem;
+        font-size: .75rem;
         line-height: 1.4;
     }
 
@@ -405,19 +402,19 @@
         gap: .28rem;
         align-items: center;
         color: var(--sb-text-2);
-        font-size: .62rem;
-        font-weight: 750;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .sb-label i {
         color: var(--sb-muted);
-        font-size: .68rem;
+        font-size: .75rem;
     }
 
     .sb-note {
         margin-left: auto;
         color: var(--sb-muted);
-        font-size: .51rem;
+        font-size: .75rem;
         font-weight: 680;
     }
 
@@ -429,9 +426,9 @@
         border: 1px solid var(--sb-border);
         border-radius: 8px;
         outline: 0;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--sb-text);
-        font-size: .7rem;
+        font-size: .75rem;
     }
 
     textarea.sb-control {
@@ -454,7 +451,7 @@
     .sb-help {
         margin: -.04rem 0 0;
         color: var(--sb-muted);
-        font-size: .54rem;
+        font-size: .75rem;
         line-height: 1.45;
     }
 
@@ -485,14 +482,14 @@
 
     .sb-toggle-copy strong {
         color: var(--sb-text);
-        font-size: .65rem;
-        font-weight: 790;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .sb-toggle-copy small {
         margin-top: .03rem;
         color: var(--sb-muted);
-        font-size: .53rem;
+        font-size: .75rem;
         line-height: 1.4;
     }
 
@@ -517,7 +514,7 @@
         position: absolute;
         inset: 0;
         border-radius: 999px;
-        background: #cfd8d2;
+        background: var(--ui-color-border);
         transition:
             background .15s ease,
             box-shadow .15s ease;
@@ -530,7 +527,7 @@
         width: 18px;
         height: 18px;
         border-radius: 50%;
-        background: #fff;
+        background: var(--ui-color-surface);
         box-shadow: 0 1px 3px rgba(0, 0, 0, .16);
         content: "";
         transition: transform .15s ease;
@@ -563,14 +560,14 @@
 
     .sb-preset-box strong {
         color: var(--sb-violet);
-        font-size: .63rem;
-        font-weight: 790;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .sb-preset-box p {
         margin: 0;
         color: var(--sb-text-2);
-        font-size: .58rem;
+        font-size: .75rem;
         line-height: 1.45;
     }
 
@@ -587,7 +584,7 @@
         border: 1px dashed var(--sb-border);
         border-radius: 9px;
         color: var(--sb-muted);
-        font-size: .61rem;
+        font-size: .75rem;
         text-align: center;
     }
 
@@ -600,7 +597,7 @@
         padding: .48rem .52rem;
         border: 1px solid var(--sb-border);
         border-radius: 8px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .sb-preview-icon {
@@ -611,7 +608,7 @@
         border-radius: 7px;
         background: var(--sb-blue-soft);
         color: var(--sb-blue);
-        font-size: .7rem;
+        font-size: .75rem;
     }
 
     .sb-preview-copy {
@@ -624,19 +621,19 @@
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .sb-preview-copy strong {
         color: var(--sb-text);
-        font-size: .63rem;
-        font-weight: 770;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .sb-preview-copy small {
         margin-top: .02rem;
         color: var(--sb-muted);
-        font-size: .5rem;
+        font-size: .75rem;
     }
 
     .sb-preview-phase {
@@ -647,9 +644,9 @@
         border-radius: 7px;
         background: var(--sb-soft);
         color: var(--sb-text-2);
-        font-size: .52rem;
+        font-size: .75rem;
         font-weight: 720;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     /* =========================================================
@@ -673,14 +670,14 @@
         border-radius: 8px;
         background: var(--sb-soft);
         color: var(--sb-text-2);
-        font-size: .56rem;
+        font-size: .75rem;
         line-height: 1.45;
     }
 
     .sb-finance-hint i {
         margin-top: .06rem;
         color: var(--sb-muted);
-        font-size: .65rem;
+        font-size: .75rem;
     }
 
     /* =========================================================
@@ -718,16 +715,16 @@
 
     .sb-review-item small {
         color: var(--sb-muted);
-        font-size: .51rem;
+        font-size: .75rem;
     }
 
     .sb-review-item strong {
         overflow: hidden;
         color: var(--sb-text);
-        font-size: .64rem;
-        font-weight: 790;
+        font-size: .75rem;
+        font-weight: 700;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     /* =========================================================
@@ -741,7 +738,7 @@
         padding: .65rem;
         border: 1px solid var(--sb-blue-border);
         border-radius: 10px;
-        background: #fbfdff;
+        background: var(--ui-color-surface);
     }
 
     .sb-simulation-head {
@@ -768,7 +765,7 @@
         border-radius: 8px;
         background: var(--sb-blue-soft);
         color: var(--sb-blue);
-        font-size: .74rem;
+        font-size: .75rem;
     }
 
     .sb-simulation-title-copy {
@@ -782,14 +779,14 @@
 
     .sb-simulation-title-copy strong {
         color: var(--sb-text);
-        font-size: .66rem;
-        font-weight: 810;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .sb-simulation-title-copy small {
         margin-top: .02rem;
         color: var(--sb-muted);
-        font-size: .52rem;
+        font-size: .75rem;
         line-height: 1.35;
     }
 
@@ -802,7 +799,7 @@
 
     .sb-simulation-quantity label {
         color: var(--sb-muted);
-        font-size: .52rem;
+        font-size: .75rem;
         font-weight: 700;
     }
 
@@ -813,10 +810,10 @@
         border: 1px solid var(--sb-border);
         border-radius: 7px;
         outline: 0;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--sb-text);
-        font-size: .64rem;
-        font-weight: 760;
+        font-size: .75rem;
+        font-weight: 700;
         text-align: right;
         font-variant-numeric: tabular-nums;
     }
@@ -830,10 +827,10 @@
         max-width: 76px;
         overflow: hidden;
         color: var(--sb-muted);
-        font-size: .52rem;
+        font-size: .75rem;
         font-weight: 680;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .sb-simulation-flow {
@@ -878,33 +875,33 @@
 
     .sb-simulation-node small {
         color: var(--tone);
-        font-size: .49rem;
-        font-weight: 760;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .sb-simulation-node strong {
         overflow: hidden;
         color: var(--sb-text);
-        font-size: .72rem;
-        font-weight: 850;
+        font-size: .75rem;
+        font-weight: 700;
         font-variant-numeric: tabular-nums;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .sb-simulation-node span {
         overflow: hidden;
         color: var(--sb-muted);
-        font-size: .48rem;
+        font-size: .75rem;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .sb-simulation-arrow {
         display: grid;
         place-items: center;
         color: #b6c2bb;
-        font-size: .7rem;
+        font-size: .75rem;
     }
 
     .sb-simulation-result {
@@ -928,24 +925,24 @@
 
     .sb-simulation-result-copy strong {
         color: var(--sb-text);
-        font-size: .6rem;
-        font-weight: 780;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .sb-simulation-result-copy small {
         margin-top: .02rem;
         color: var(--sb-muted);
-        font-size: .5rem;
+        font-size: .75rem;
         line-height: 1.4;
     }
 
     .sb-simulation-net {
         flex: 0 0 auto;
         color: var(--sb-blue);
-        font-size: .72rem;
-        font-weight: 850;
+        font-size: .75rem;
+        font-weight: 700;
         font-variant-numeric: tabular-nums;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .sb-simulation-net.negative {
@@ -961,7 +958,7 @@
         border-radius: 8px;
         background: var(--sb-amber-soft);
         color: #805b1a;
-        font-size: .52rem;
+        font-size: .75rem;
         line-height: 1.45;
     }
 
@@ -997,14 +994,14 @@
 
     .sb-publish-copy strong {
         color: #825c16;
-        font-size: .65rem;
-        font-weight: 800;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .sb-publish-copy small {
         margin-top: .03rem;
         color: #8a6a31;
-        font-size: .53rem;
+        font-size: .75rem;
         line-height: 1.4;
     }
 
@@ -1020,7 +1017,7 @@
         justify-content: space-between;
         padding: .62rem .68rem;
         border-top: 1px solid var(--sb-border);
-        background: #fbfdfc;
+        background: var(--ui-color-surface);
     }
 
     .sb-actions-right {
@@ -1039,20 +1036,20 @@
         border-radius: 8px;
         cursor: pointer;
         font: inherit;
-        font-size: .68rem;
-        font-weight: 790;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .sb-action.secondary {
         border: 1px solid var(--sb-border);
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--sb-text-2);
     }
 
     .sb-action.primary {
         border: 1px solid var(--sb-green);
         background: var(--sb-green);
-        color: #fff;
+        color: var(--sgc-on-primary);
     }
 
     .sb-action.final {
@@ -1146,7 +1143,7 @@
         }
 
         .sb-head-step {
-            font-size: .54rem;
+            font-size: .75rem;
         }
 
         .sb-panel-title p {
@@ -1209,7 +1206,7 @@
                 class="sb-head-icon"
                 aria-hidden="true"
             >
-                <i class="ph-fill ph-wrench"></i>
+                <i class="ph-duotone ph-wrench"></i>
             </span>
 
             <div class="sb-head-copy">
@@ -1224,7 +1221,7 @@
         </div>
 
         <span class="sb-head-step">
-            <i class="ph-fill ph-list-numbers"></i>
+            <i class="ph-duotone ph-list-numbers"></i>
             Etapa
             <strong id="current-step-number">1</strong>
             de 5
@@ -1297,7 +1294,7 @@
                 class="sb-panel-icon"
                 aria-hidden="true"
             >
-                <i class="ph-fill ph-wrench"></i>
+                <i class="ph-duotone ph-wrench"></i>
             </span>
 
             <div class="sb-panel-title">
@@ -1312,7 +1309,7 @@
             <div class="sb-fields">
                 <label class="sb-field">
                     <span class="sb-label">
-                        <i class="ph-fill ph-text-t"></i>
+                        <i class="ph-duotone ph-text-t"></i>
                         Nome do serviço
                     </span>
 
@@ -1328,7 +1325,7 @@
 
                 <label class="sb-field">
                     <span class="sb-label">
-                        <i class="ph-fill ph-hash"></i>
+                        <i class="ph-duotone ph-hash"></i>
                         Código interno
                         <span class="sb-note">opcional</span>
                     </span>
@@ -1344,7 +1341,7 @@
 
                 <label class="sb-field">
                     <span class="sb-label">
-                        <i class="ph-fill ph-layout"></i>
+                        <i class="ph-duotone ph-layout"></i>
                         Modelo inicial
                     </span>
 
@@ -1368,7 +1365,7 @@
 
                 <label class="sb-field">
                     <span class="sb-label">
-                        <i class="ph-fill ph-ruler"></i>
+                        <i class="ph-duotone ph-ruler"></i>
                         Unidade principal
                     </span>
 
@@ -1385,7 +1382,7 @@
 
                 <label class="sb-field full">
                     <span class="sb-label">
-                        <i class="ph-fill ph-note"></i>
+                        <i class="ph-duotone ph-note"></i>
                         Descrição
                         <span class="sb-note">opcional</span>
                     </span>
@@ -1417,7 +1414,7 @@
                     data-next
                 >
                     Continuar
-                    <i class="ph-fill ph-arrow-right"></i>
+                    <i class="ph-duotone ph-arrow-right"></i>
                 </button>
             </div>
         </footer>
@@ -1437,7 +1434,7 @@
                 class="sb-panel-icon"
                 aria-hidden="true"
             >
-                <i class="ph-fill ph-list-checks"></i>
+                <i class="ph-duotone ph-list-checks"></i>
             </span>
 
             <div class="sb-panel-title">
@@ -1457,7 +1454,7 @@
             <div class="sb-fields">
                 <label class="sb-field">
                     <span class="sb-label">
-                        <i class="ph-fill ph-check-square"></i>
+                        <i class="ph-duotone ph-check-square"></i>
                         Conferência
                     </span>
 
@@ -1519,7 +1516,7 @@
             </div>
 
             <div class="sb-finance-hint">
-                <i class="ph-fill ph-info"></i>
+                <i class="ph-duotone ph-info"></i>
 
                 <span>
                     Os campos documentam a execução. O vínculo detalhado
@@ -1534,7 +1531,7 @@
                 type="button"
                 data-previous
             >
-                <i class="ph-fill ph-arrow-left"></i>
+                <i class="ph-duotone ph-arrow-left"></i>
                 <span>Voltar</span>
             </button>
 
@@ -1545,7 +1542,7 @@
                     data-next
                 >
                     Continuar
-                    <i class="ph-fill ph-arrow-right"></i>
+                    <i class="ph-duotone ph-arrow-right"></i>
                 </button>
             </div>
         </footer>
@@ -1565,7 +1562,7 @@
                 class="sb-panel-icon"
                 aria-hidden="true"
             >
-                <i class="ph-fill ph-arrow-circle-down-left"></i>
+                <i class="ph-duotone ph-arrow-circle-down-left"></i>
             </span>
 
             <div class="sb-panel-title">
@@ -1612,7 +1609,7 @@
                 <div class="sb-fields">
                     <label class="sb-field">
                         <span class="sb-label">
-                            <i class="ph-fill ph-function"></i>
+                            <i class="ph-duotone ph-function"></i>
                             Como calcular
                         </span>
 
@@ -1634,7 +1631,7 @@
 
                     <label class="sb-field">
                         <span class="sb-label">
-                            <i class="ph-fill ph-currency-circle-dollar"></i>
+                            <i class="ph-duotone ph-currency-circle-dollar"></i>
                             Valor fixo, tarifa ou base
                         </span>
 
@@ -1652,7 +1649,7 @@
 
                     <label class="sb-field">
                         <span class="sb-label">
-                            <i class="ph-fill ph-percent"></i>
+                            <i class="ph-duotone ph-percent"></i>
                             Percentual
                         </span>
 
@@ -1676,7 +1673,7 @@
             </div>
 
             <div class="sb-finance-hint">
-                <i class="ph-fill ph-info"></i>
+                <i class="ph-duotone ph-info"></i>
 
                 <span>
                     A cobrança do cliente é independente da remuneração do prestador.
@@ -1690,7 +1687,7 @@
                 type="button"
                 data-previous
             >
-                <i class="ph-fill ph-arrow-left"></i>
+                <i class="ph-duotone ph-arrow-left"></i>
                 <span>Voltar</span>
             </button>
 
@@ -1701,7 +1698,7 @@
                     data-next
                 >
                     Continuar
-                    <i class="ph-fill ph-arrow-right"></i>
+                    <i class="ph-duotone ph-arrow-right"></i>
                 </button>
             </div>
         </footer>
@@ -1721,7 +1718,7 @@
                 class="sb-panel-icon"
                 aria-hidden="true"
             >
-                <i class="ph-fill ph-arrow-circle-up-right"></i>
+                <i class="ph-duotone ph-arrow-circle-up-right"></i>
             </span>
 
             <div class="sb-panel-title">
@@ -1767,7 +1764,7 @@
                 <div class="sb-fields">
                     <label class="sb-field">
                         <span class="sb-label">
-                            <i class="ph-fill ph-function"></i>
+                            <i class="ph-duotone ph-function"></i>
                             Como calcular
                         </span>
 
@@ -1793,7 +1790,7 @@
 
                     <label class="sb-field">
                         <span class="sb-label">
-                            <i class="ph-fill ph-currency-circle-dollar"></i>
+                            <i class="ph-duotone ph-currency-circle-dollar"></i>
                             Valor fixo ou tarifa
                         </span>
 
@@ -1811,7 +1808,7 @@
 
                     <label class="sb-field">
                         <span class="sb-label">
-                            <i class="ph-fill ph-percent"></i>
+                            <i class="ph-duotone ph-percent"></i>
                             Percentual da cobrança
                         </span>
 
@@ -1831,7 +1828,7 @@
             </div>
 
             <div class="sb-finance-hint">
-                <i class="ph-fill ph-info"></i>
+                <i class="ph-duotone ph-info"></i>
 
                 <span>
                     A fórmula e a fonte de quantidade podem ser refinadas
@@ -1846,7 +1843,7 @@
                 type="button"
                 data-previous
             >
-                <i class="ph-fill ph-arrow-left"></i>
+                <i class="ph-duotone ph-arrow-left"></i>
                 <span>Voltar</span>
             </button>
 
@@ -1857,7 +1854,7 @@
                     data-next
                 >
                     Continuar
-                    <i class="ph-fill ph-arrow-right"></i>
+                    <i class="ph-duotone ph-arrow-right"></i>
                 </button>
             </div>
         </footer>
@@ -1877,7 +1874,7 @@
                 class="sb-panel-icon"
                 aria-hidden="true"
             >
-                <i class="ph-fill ph-check-circle"></i>
+                <i class="ph-duotone ph-check-circle"></i>
             </span>
 
             <div class="sb-panel-title">
@@ -1932,7 +1929,7 @@
                                 class="sb-simulation-icon"
                                 aria-hidden="true"
                             >
-                                <i class="ph-fill ph-calculator"></i>
+                                <i class="ph-duotone ph-calculator"></i>
                             </span>
 
                             <span class="sb-simulation-title-copy">
@@ -1987,7 +1984,7 @@
                             class="sb-simulation-arrow"
                             aria-hidden="true"
                         >
-                            <i class="ph-fill ph-arrow-right"></i>
+                            <i class="ph-duotone ph-arrow-right"></i>
                         </span>
 
                         <div class="sb-simulation-node organization">
@@ -2006,7 +2003,7 @@
                             class="sb-simulation-arrow"
                             aria-hidden="true"
                         >
-                            <i class="ph-fill ph-arrow-right"></i>
+                            <i class="ph-duotone ph-arrow-right"></i>
                         </span>
 
                         <div class="sb-simulation-node provider">
@@ -2045,7 +2042,7 @@
                         class="sb-simulation-warning"
                         id="simulation-warning"
                     >
-                        <i class="ph-fill ph-info"></i>
+                        <i class="ph-duotone ph-info"></i>
 
                         <span id="simulation-warning-text">
                             Esta fórmula depende de configuração detalhada
@@ -2078,7 +2075,7 @@
                 </div>
 
                 <div class="sb-finance-hint">
-                    <i class="ph-fill ph-lightbulb"></i>
+                    <i class="ph-duotone ph-lightbulb"></i>
 
                     <span>
                         Para serviços novos, salvar como rascunho facilita
@@ -2094,7 +2091,7 @@
                 type="button"
                 data-previous
             >
-                <i class="ph-fill ph-arrow-left"></i>
+                <i class="ph-duotone ph-arrow-left"></i>
                 <span>Voltar</span>
             </button>
 
@@ -2104,7 +2101,7 @@
                     type="submit"
                     id="submit-wizard"
                 >
-                    <i class="ph-fill ph-check-circle"></i>
+                    <i class="ph-duotone ph-check-circle"></i>
                     Salvar serviço
                 </button>
             </div>
@@ -2733,7 +2730,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             class="sb-preview-icon"
                             aria-hidden="true"
                         >
-                            <i class="ph-fill ph-textbox"></i>
+                            <i class="ph-duotone ph-textbox"></i>
                         </span>
 
                         <span class="sb-preview-copy">
@@ -3208,4 +3205,5 @@ document.addEventListener('DOMContentLoaded', () => {
     showStep(0);
 });
 </script>
+</div>
 @endsection

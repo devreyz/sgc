@@ -32,45 +32,42 @@
 @endphp
 
 @section('content')
+@include('services._campo-style')
+<div class="services-campo">
 
-@once
-    <link
-        rel="stylesheet"
-        href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css"
-    >
-@endonce
+
 
 <style>
     .reports-workspace {
-        --rp-green: var(--ws-green, #219653);
-        --rp-green-soft: #edf8f2;
-        --rp-green-border: #cce8d7;
+        --rp-green: var(--ui-color-primary);
+        --rp-green-soft: var(--ui-color-primary-soft);
+        --rp-green-border: var(--ui-color-primary-border);
 
-        --rp-blue: var(--ws-blue, #3478d4);
-        --rp-blue-soft: #edf4ff;
-        --rp-blue-border: #cfe0f7;
+        --rp-blue: var(--ui-color-primary);
+        --rp-blue-soft: var(--ui-color-primary-soft);
+        --rp-blue-border: var(--ui-color-primary-border);
 
-        --rp-violet: var(--ws-purple, #8a4bd2);
-        --rp-violet-soft: #f5efff;
-        --rp-violet-border: #e1d2f4;
+        --rp-violet: var(--ui-color-primary);
+        --rp-violet-soft: var(--ui-color-primary-soft);
+        --rp-violet-border: var(--ui-color-primary-border);
 
-        --rp-amber: var(--ws-amber, #c38418);
-        --rp-amber-soft: #fff7e8;
-        --rp-amber-border: #f0dcae;
+        --rp-amber: var(--ui-color-warning);
+        --rp-amber-soft: var(--ui-color-warning-soft);
+        --rp-amber-border: var(--ui-color-warning-border);
 
-        --rp-red: var(--ws-red, #cf5050);
-        --rp-red-soft: #fff0f0;
-        --rp-red-border: #efcaca;
+        --rp-red: var(--ui-color-danger);
+        --rp-red-soft: var(--ui-color-danger-soft);
+        --rp-red-border: var(--ui-color-danger-border);
 
-        --rp-text: #17211d;
-        --rp-text-2: #59655f;
-        --rp-muted: #89938e;
-        --rp-border: #dde5e0;
-        --rp-soft: #f7faf8;
+        --rp-text: var(--ui-color-text);
+        --rp-text-2: var(--ui-color-text-secondary);
+        --rp-muted: var(--ui-color-text-muted);
+        --rp-border: var(--ui-color-border);
+        --rp-soft: var(--ui-color-surface-soft);
 
         display: grid;
         grid-column: 1 / -1;
-        width: min(100%, 1280px);
+        width: 100%;
         min-width: 0;
         gap: .75rem;
         margin-inline: auto;
@@ -106,7 +103,7 @@
         padding: .9rem 1rem;
         border: 1px solid var(--rp-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .rp-header-main {
@@ -145,7 +142,7 @@
         margin: .08rem 0 0;
         color: var(--rp-text);
         font-size: clamp(1.15rem, 2vw, 1.35rem);
-        font-weight: 850;
+        font-weight: 700;
         line-height: 1.2;
     }
 
@@ -174,7 +171,7 @@
         height: 32px;
         place-items: center;
         border-radius: 7px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--rp-blue);
         font-size: .85rem;
     }
@@ -193,8 +190,8 @@
         margin-top: .05rem;
         color: var(--rp-text);
         font-size: .9rem;
-        font-weight: 780;
-        white-space: nowrap;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     /* =========================================================
@@ -206,7 +203,7 @@
         overflow: hidden;
         border: 1px solid var(--rp-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .rp-filter-head {
@@ -246,7 +243,7 @@
     .rp-filter-title-copy strong {
         color: var(--rp-text);
         font-size: .95rem;
-        font-weight: 810;
+        font-weight: 700;
     }
 
     .rp-filter-title-copy span {
@@ -265,11 +262,11 @@
         padding: .4rem .55rem;
         border: 1px solid var(--rp-border);
         border-radius: 8px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--rp-text-2);
         font-size: .82rem;
         font-weight: 730;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .rp-filter-form {
@@ -304,7 +301,7 @@
         border: 1px solid var(--rp-border);
         border-radius: 8px;
         outline: 0;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--rp-text);
         font-size: .9rem;
     }
@@ -329,18 +326,18 @@
         padding: .5rem .75rem;
         border: 1px solid var(--rp-border);
         border-radius: 8px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--rp-text-2);
         cursor: pointer;
         font-size: .88rem;
-        font-weight: 780;
-        white-space: nowrap;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .rp-button.primary {
         border-color: var(--rp-green);
         background: var(--rp-green);
-        color: #fff;
+        color: var(--sgc-on-primary);
     }
 
     .rp-button.pdf {
@@ -364,7 +361,7 @@
         overflow: hidden;
         border: 1px solid var(--rp-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .rp-result-head {
@@ -404,7 +401,7 @@
     .rp-result-title-copy strong {
         color: var(--rp-text);
         font-size: 1rem;
-        font-weight: 820;
+        font-weight: 700;
     }
 
     .rp-result-title-copy span {
@@ -440,9 +437,9 @@
         background: var(--rp-soft);
         color: var(--rp-text-2);
         font-size: .78rem;
-        font-weight: 780;
+        font-weight: 700;
         text-align: left;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .rp-result-body td {
@@ -566,7 +563,7 @@
         }
 
         .rp-header-copy small {
-            font-size: .72rem;
+            font-size: .75rem;
         }
 
         .rp-header-copy h1 {
@@ -663,7 +660,7 @@
                 class="rp-header-icon"
                 aria-hidden="true"
             >
-                <i class="ph-fill ph-file-text"></i>
+                <i class="ph-duotone ph-file-text"></i>
             </span>
 
             <div class="rp-header-copy">
@@ -682,7 +679,7 @@
                 class="rp-period-icon"
                 aria-hidden="true"
             >
-                <i class="ph-fill ph-calendar-dots"></i>
+                <i class="ph-duotone ph-calendar-dots"></i>
             </span>
 
             <span class="rp-period-copy">
@@ -702,7 +699,7 @@
                     class="rp-filter-title-icon"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-funnel"></i>
+                    <i class="ph-duotone ph-funnel"></i>
                 </span>
 
                 <span class="rp-filter-title-copy">
@@ -720,7 +717,7 @@
                     href="{{ request()->url() }}"
                     title="Limpar filtros"
                 >
-                    <i class="ph-fill ph-x-circle"></i>
+                    <i class="ph-duotone ph-x-circle"></i>
                     <span>Limpar</span>
                 </a>
             @endif
@@ -847,7 +844,7 @@
                     class="rp-button primary"
                     type="submit"
                 >
-                    <i class="ph-fill ph-magnifying-glass"></i>
+                    <i class="ph-duotone ph-magnifying-glass"></i>
                     Gerar prestação
                 </button>
             </div>
@@ -866,7 +863,7 @@
                     class="rp-result-title-icon"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-clipboard-text"></i>
+                    <i class="ph-duotone ph-clipboard-text"></i>
                 </span>
 
                 <span class="rp-result-title-copy">
@@ -923,10 +920,10 @@
                         type="submit"
                         title="Baixar PDF detalhado"
                     >
-                        <i class="ph-fill ph-file-pdf"></i>
+                        <i class="ph-duotone ph-file-pdf"></i>
                         <span>Prestação de contas em PDF</span>
                     </button>
-                    <button class="rp-button pdf" type="submit" name="report_type" value="conference"><i class="ph-fill ph-table" aria-hidden="true"></i><span>Conferência · A4 paisagem</span></button>
+                    <button class="rp-button pdf" type="submit" name="report_type" value="conference"><i class="ph-duotone ph-table" aria-hidden="true"></i><span>Conferência · A4 paisagem</span></button>
                 </form>
             </div>
         </header>
@@ -969,4 +966,5 @@
         </div>
     </section>
 </main>
+</div>
 @endsection

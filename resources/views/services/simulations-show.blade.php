@@ -64,45 +64,42 @@
 @endphp
 
 @section('content')
+@include('services._campo-style')
+<div class="services-campo">
 
-@once
-    <link
-        rel="stylesheet"
-        href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css"
-    >
-@endonce
+
 
 <style>
     .simulation-result {
-        --sr-green: var(--ws-green, #219653);
-        --sr-green-soft: #edf8f2;
-        --sr-green-border: #cce8d7;
+        --sr-green: var(--ui-color-primary);
+        --sr-green-soft: var(--ui-color-primary-soft);
+        --sr-green-border: var(--ui-color-primary-border);
 
-        --sr-blue: var(--ws-blue, #3478d4);
-        --sr-blue-soft: #edf4ff;
-        --sr-blue-border: #cfe0f7;
+        --sr-blue: var(--ui-color-primary);
+        --sr-blue-soft: var(--ui-color-primary-soft);
+        --sr-blue-border: var(--ui-color-primary-border);
 
-        --sr-violet: var(--ws-purple, #8a4bd2);
-        --sr-violet-soft: #f5efff;
-        --sr-violet-border: #e1d2f4;
+        --sr-violet: var(--ui-color-primary);
+        --sr-violet-soft: var(--ui-color-primary-soft);
+        --sr-violet-border: var(--ui-color-primary-border);
 
-        --sr-amber: var(--ws-amber, #c38418);
-        --sr-amber-soft: #fff7e8;
-        --sr-amber-border: #f0dcae;
+        --sr-amber: var(--ui-color-warning);
+        --sr-amber-soft: var(--ui-color-warning-soft);
+        --sr-amber-border: var(--ui-color-warning-border);
 
-        --sr-red: var(--ws-red, #cf5050);
-        --sr-red-soft: #fff0f0;
-        --sr-red-border: #efcaca;
+        --sr-red: var(--ui-color-danger);
+        --sr-red-soft: var(--ui-color-danger-soft);
+        --sr-red-border: var(--ui-color-danger-border);
 
-        --sr-text: #17211d;
-        --sr-text-2: #59655f;
-        --sr-muted: #89938e;
-        --sr-border: #dde5e0;
-        --sr-soft: #f7faf8;
+        --sr-text: var(--ui-color-text);
+        --sr-text-2: var(--ui-color-text-secondary);
+        --sr-muted: var(--ui-color-text-muted);
+        --sr-border: var(--ui-color-border);
+        --sr-soft: var(--ui-color-surface-soft);
 
         display: grid;
         grid-column: 1 / -1;
-        width: min(100%, 1320px);
+        width: 100%;
         min-width: 0;
         gap: .72rem;
         margin-inline: auto;
@@ -139,7 +136,7 @@
         padding: .76rem .84rem;
         border: 1px solid var(--sr-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .sr-head-main {
@@ -168,8 +165,8 @@
     .sr-head-copy small {
         display: block;
         color: var(--sr-muted);
-        font-size: .72rem;
-        font-weight: 750;
+        font-size: .75rem;
+        font-weight: 700;
         letter-spacing: .025em;
         text-transform: uppercase;
     }
@@ -179,10 +176,10 @@
         overflow: hidden;
         color: var(--sr-text);
         font-size: clamp(1.04rem, 2vw, 1.22rem);
-        font-weight: 860;
+        font-weight: 700;
         line-height: 1.15;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .sr-head-meta {
@@ -210,7 +207,7 @@
 
     .sr-head-meta strong {
         color: var(--sr-text-2);
-        font-weight: 760;
+        font-weight: 700;
     }
 
     .sr-dot {
@@ -218,7 +215,7 @@
         height: 3px;
         flex: 0 0 auto;
         border-radius: 50%;
-        background: #b6c0ba;
+        background: var(--ui-color-border-strong);
     }
 
     .sr-head-actions {
@@ -242,18 +239,18 @@
         padding: .42rem .62rem;
         border: 1px solid var(--sr-border);
         border-radius: 8px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--sr-text-2);
         cursor: pointer;
         font-size: .82rem;
-        font-weight: 780;
-        white-space: nowrap;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .sr-action.primary {
         border-color: var(--sr-green);
         background: var(--sr-green);
-        color: #fff;
+        color: var(--sgc-on-primary);
     }
 
     .sr-action.blue {
@@ -291,7 +288,7 @@
         padding: .62rem .7rem;
         border: 1px solid var(--sr-border);
         border-radius: 10px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .sr-state.success {
@@ -310,7 +307,7 @@
         height: 36px;
         place-items: center;
         border-radius: 8px;
-        background: #fff;
+        background: var(--ui-color-surface);
         font-size: .88rem;
     }
 
@@ -334,7 +331,7 @@
     .sr-state-copy strong {
         color: var(--sr-text);
         font-size: .85rem;
-        font-weight: 820;
+        font-weight: 700;
     }
 
     .sr-state-copy span {
@@ -352,9 +349,9 @@
         padding: .24rem .4rem;
         border-radius: 7px;
         background: rgba(255,255,255,.75);
-        font-size: .72rem;
-        font-weight: 780;
-        white-space: nowrap;
+        font-size: .75rem;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .sr-state.success .sr-state-badge {
@@ -374,7 +371,7 @@
         overflow: hidden;
         border: 1px solid var(--sr-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .sr-panel-head {
@@ -434,7 +431,7 @@
     .sr-panel-title-copy strong {
         color: var(--sr-text);
         font-size: .9rem;
-        font-weight: 820;
+        font-weight: 700;
     }
 
     .sr-panel-title-copy span {
@@ -484,7 +481,7 @@
         align-items: flex-start;
         margin-top: .55rem;
         color: var(--sr-muted);
-        font-size: .74rem;
+        font-size: .75rem;
         line-height: 1.45;
     }
 
@@ -525,7 +522,7 @@
         height: 32px;
         place-items: center;
         border-radius: 8px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--sr-text-2);
         font-size: .76rem;
     }
@@ -549,14 +546,14 @@
 
     .sr-summary-copy small {
         color: var(--sr-muted);
-        font-size: .69rem;
+        font-size: .75rem;
     }
 
     .sr-summary-copy strong {
         margin-top: .03rem;
         color: var(--sr-text);
         font-size: .92rem;
-        font-weight: 830;
+        font-weight: 700;
         font-variant-numeric: tabular-nums;
     }
 
@@ -595,11 +592,11 @@
         border-bottom: 1px solid var(--sr-border);
         background: var(--sr-soft);
         color: var(--sr-muted);
-        font-size: .74rem;
-        font-weight: 790;
+        font-size: .75rem;
+        font-weight: 700;
         letter-spacing: .015em;
         text-align: left;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .sr-table td {
@@ -623,20 +620,20 @@
     .sr-main strong {
         color: var(--sr-text);
         font-size: .82rem;
-        font-weight: 790;
+        font-weight: 700;
     }
 
     .sr-main small {
         margin-top: .03rem;
         color: var(--sr-muted);
-        font-size: .7rem;
+        font-size: .75rem;
     }
 
     .sr-money {
         color: var(--sr-text);
-        font-weight: 800;
+        font-weight: 700;
         font-variant-numeric: tabular-nums;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .sr-effect {
@@ -648,9 +645,9 @@
         border-radius: 7px;
         background: var(--sr-green-soft);
         color: var(--sr-green);
-        font-size: .7rem;
-        font-weight: 760;
-        white-space: nowrap;
+        font-size: .75rem;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .sr-effect.subtract {
@@ -663,9 +660,9 @@
         overflow: hidden;
         color: var(--sr-muted);
         font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        font-size: .7rem;
+        font-size: .75rem;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     /* =========================================================
@@ -717,16 +714,16 @@
 
     .sr-mobile-line-fact small {
         color: var(--sr-muted);
-        font-size: .66rem;
+        font-size: .75rem;
     }
 
     .sr-mobile-line-fact strong {
         overflow: hidden;
         color: var(--sr-text);
         font-size: .76rem;
-        font-weight: 760;
+        font-weight: 700;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .sr-mobile-formula {
@@ -735,7 +732,7 @@
         background: var(--sr-soft);
         color: var(--sr-muted);
         font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        font-size: .68rem;
+        font-size: .75rem;
         line-height: 1.4;
         overflow-wrap: anywhere;
     }
@@ -770,7 +767,7 @@
         border-radius: 8px;
         background: var(--sr-green-soft);
         color: var(--sr-green);
-        font-size: .72rem;
+        font-size: .75rem;
     }
 
     .sr-obligation-copy {
@@ -785,13 +782,13 @@
     .sr-obligation-copy strong {
         color: var(--sr-text);
         font-size: .8rem;
-        font-weight: 780;
+        font-weight: 700;
     }
 
     .sr-obligation-copy small {
         margin-top: .03rem;
         color: var(--sr-muted);
-        font-size: .7rem;
+        font-size: .75rem;
     }
 
     .sr-empty {
@@ -843,7 +840,7 @@
         border-radius: 8px;
         background: var(--sr-violet-soft);
         color: var(--sr-violet);
-        font-size: .72rem;
+        font-size: .75rem;
     }
 
     .sr-evidence-copy strong,
@@ -854,13 +851,13 @@
     .sr-evidence-copy strong {
         color: var(--sr-text);
         font-size: .8rem;
-        font-weight: 780;
+        font-weight: 700;
     }
 
     .sr-evidence-copy small {
         margin-top: .03rem;
         color: var(--sr-muted);
-        font-size: .7rem;
+        font-size: .75rem;
         line-height: 1.4;
     }
 
@@ -873,7 +870,7 @@
         border-radius: 8px;
         background: var(--sr-soft);
         color: var(--sr-muted);
-        font-size: .72rem;
+        font-size: .75rem;
         line-height: 1.45;
     }
 
@@ -894,7 +891,7 @@
         overflow: hidden;
         border: 0;
         border-radius: 13px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--sr-text);
         box-shadow: 0 24px 80px rgba(21, 49, 31, .22);
     }
@@ -931,13 +928,13 @@
     .sr-dialog-head strong {
         color: var(--sr-text);
         font-size: .88rem;
-        font-weight: 820;
+        font-weight: 700;
     }
 
     .sr-dialog-head small {
         margin-top: .03rem;
         color: var(--sr-muted);
-        font-size: .72rem;
+        font-size: .75rem;
     }
 
     .sr-dialog-body {
@@ -1015,7 +1012,7 @@
         }
 
         .sr-head-copy small {
-            font-size: .68rem;
+            font-size: .75rem;
         }
 
         .sr-head-copy h1 {
@@ -1023,7 +1020,7 @@
         }
 
         .sr-head-meta {
-            font-size: .74rem;
+            font-size: .75rem;
         }
 
         .sr-head-actions {
@@ -1085,7 +1082,7 @@
                 class="sr-head-icon"
                 aria-hidden="true"
             >
-                <i class="ph-fill ph-flask"></i>
+                <i class="ph-duotone ph-flask"></i>
             </span>
 
             <div class="sr-head-copy">
@@ -1095,7 +1092,7 @@
 
                 <div class="sr-head-meta">
                     <span>
-                        <i class="ph-fill ph-wrench"></i>
+                        <i class="ph-duotone ph-wrench"></i>
 
                         <strong>
                             {{ $simulation->version->service->name }}
@@ -1112,7 +1109,7 @@
                     <span class="sr-dot"></span>
 
                     <span>
-                        <i class="ph-fill ph-user-gear"></i>
+                        <i class="ph-duotone ph-user-gear"></i>
 
                         {{
                             $simulation->provider?->name
@@ -1134,7 +1131,7 @@
                     ]
                 ) }}"
             >
-                <i class="ph-fill ph-plus-circle"></i>
+                <i class="ph-duotone ph-plus-circle"></i>
                 <span>Nova simulação</span>
             </a>
 
@@ -1145,7 +1142,7 @@
                 title="Excluir simulação"
                 aria-label="Excluir simulação"
             >
-                <i class="ph-fill ph-trash"></i>
+                <i class="ph-duotone ph-trash"></i>
             </button>
         </div>
     </header>
@@ -1155,7 +1152,7 @@
             class="sr-state-icon"
             aria-hidden="true"
         >
-            <i class="ph-fill {{ $statusMeta['icon'] }}"></i>
+            <i class="ph-duotone {{ $statusMeta['icon'] }}"></i>
         </span>
 
         <div class="sr-state-copy">
@@ -1167,7 +1164,7 @@
         </div>
 
         <span class="sr-state-badge">
-            <i class="ph-fill ph-shield-check"></i>
+            <i class="ph-duotone ph-shield-check"></i>
             Ambiente descartável
         </span>
     </section>
@@ -1180,7 +1177,7 @@
                         class="sr-panel-title-icon red"
                         aria-hidden="true"
                     >
-                        <i class="ph-fill ph-warning-circle"></i>
+                        <i class="ph-duotone ph-warning-circle"></i>
                     </span>
 
                     <span class="sr-panel-title-copy">
@@ -1198,7 +1195,7 @@
                     <div class="sr-error-list">
                         @foreach($errors as $error)
                             <div class="sr-error-item">
-                                <i class="ph-fill ph-x-circle"></i>
+                                <i class="ph-duotone ph-x-circle"></i>
                                 <span>{{ $error }}</span>
                             </div>
                         @endforeach
@@ -1210,7 +1207,7 @@
                 @endif
 
                 <div class="sr-error-note">
-                    <i class="ph-fill ph-arrow-counter-clockwise"></i>
+                    <i class="ph-duotone ph-arrow-counter-clockwise"></i>
 
                     <span>
                         A tentativa temporária foi revertida integralmente.
@@ -1227,7 +1224,7 @@
                         class="sr-panel-title-icon green"
                         aria-hidden="true"
                     >
-                        <i class="ph-fill ph-chart-line-up"></i>
+                        <i class="ph-duotone ph-chart-line-up"></i>
                     </span>
 
                     <span class="sr-panel-title-copy">
@@ -1244,7 +1241,7 @@
                 <div class="sr-summary">
                     <div class="sr-summary-item">
                         <span class="sr-summary-icon">
-                            <i class="ph-fill ph-ruler"></i>
+                            <i class="ph-duotone ph-ruler"></i>
                         </span>
 
                         <span class="sr-summary-copy">
@@ -1266,7 +1263,7 @@
 
                     <div class="sr-summary-item receivable">
                         <span class="sr-summary-icon">
-                            <i class="ph-fill ph-arrow-circle-down"></i>
+                            <i class="ph-duotone ph-arrow-circle-down"></i>
                         </span>
 
                         <span class="sr-summary-copy">
@@ -1287,7 +1284,7 @@
 
                     <div class="sr-summary-item payable">
                         <span class="sr-summary-icon">
-                            <i class="ph-fill ph-arrow-circle-up"></i>
+                            <i class="ph-duotone ph-arrow-circle-up"></i>
                         </span>
 
                         <span class="sr-summary-copy">
@@ -1340,7 +1337,7 @@
                             "
                             aria-hidden="true"
                         >
-                            <i class="ph-fill {{ $meta['icon'] }}"></i>
+                            <i class="ph-duotone {{ $meta['icon'] }}"></i>
                         </span>
 
                         <span class="sr-panel-title-copy">
@@ -1435,7 +1432,7 @@
                                                 >
                                                     <i
                                                         class="
-                                                            ph-fill
+                                                            ph-duotone
                                                             {{
                                                                 $effect === 'subtract'
                                                                     ? 'ph-minus-circle'
@@ -1530,7 +1527,7 @@
                                 >
                                     <i
                                         class="
-                                            ph-fill
+                                            ph-duotone
                                             {{
                                                 $effect === 'subtract'
                                                     ? 'ph-minus-circle'
@@ -1629,7 +1626,7 @@
                         class="sr-panel-title-icon green"
                         aria-hidden="true"
                     >
-                        <i class="ph-fill ph-wallet"></i>
+                        <i class="ph-duotone ph-wallet"></i>
                     </span>
 
                     <span class="sr-panel-title-copy">
@@ -1652,7 +1649,7 @@
                         @foreach($expectedObligations as $obligation)
                             <div class="sr-obligation">
                                 <span class="sr-obligation-icon">
-                                    <i class="ph-fill ph-receipt"></i>
+                                    <i class="ph-duotone ph-receipt"></i>
                                 </span>
 
                                 <span class="sr-obligation-copy">
@@ -1690,7 +1687,7 @@
                     class="sr-panel-title-icon violet"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-code"></i>
+                    <i class="ph-duotone ph-code"></i>
                 </span>
 
                 <span class="sr-panel-title-copy">
@@ -1776,7 +1773,7 @@
                         class="sr-panel-title-icon violet"
                         aria-hidden="true"
                     >
-                        <i class="ph-fill ph-camera"></i>
+                        <i class="ph-duotone ph-camera"></i>
                     </span>
 
                     <span class="sr-panel-title-copy">
@@ -1794,7 +1791,7 @@
                     @foreach($requiredEvidence as $evidence)
                         <div class="sr-evidence">
                             <span class="sr-evidence-icon">
-                                <i class="ph-fill ph-paperclip"></i>
+                                <i class="ph-duotone ph-paperclip"></i>
                             </span>
 
                             <span class="sr-evidence-copy">
@@ -1821,7 +1818,7 @@
                 </div>
 
                 <div class="sr-evidence-note">
-                    <i class="ph-fill ph-info"></i>
+                    <i class="ph-duotone ph-info"></i>
 
                     <span>
                         O simulador valida a configuração da exigência,
@@ -1859,7 +1856,7 @@
             class="sr-dialog-icon"
             aria-hidden="true"
         >
-            <i class="ph-fill ph-trash"></i>
+            <i class="ph-duotone ph-trash"></i>
         </span>
 
         <div>
@@ -1888,7 +1885,7 @@
             type="button"
             id="confirm-delete-simulation"
         >
-            <i class="ph-fill ph-trash"></i>
+            <i class="ph-duotone ph-trash"></i>
             <span>Excluir</span>
         </button>
     </footer>
@@ -2021,4 +2018,5 @@ document.addEventListener(
     }
 );
 </script>
+</div>
 @endsection

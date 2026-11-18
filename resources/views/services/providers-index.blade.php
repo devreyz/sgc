@@ -35,45 +35,42 @@
 @endphp
 
 @section('content')
+@include('services._campo-style')
+<div class="services-campo">
 
-@once
-    <link
-        rel="stylesheet"
-        href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css"
-    >
-@endonce
+
 
 <style>
     .providers-workspace {
-        --pv-green: var(--ws-green, #219653);
-        --pv-green-soft: #edf8f2;
-        --pv-green-border: #cce8d7;
+        --pv-green: var(--ui-color-primary);
+        --pv-green-soft: var(--ui-color-primary-soft);
+        --pv-green-border: var(--ui-color-primary-border);
 
-        --pv-blue: var(--ws-blue, #3478d4);
-        --pv-blue-soft: #edf4ff;
-        --pv-blue-border: #cfe0f7;
+        --pv-blue: var(--ui-color-primary);
+        --pv-blue-soft: var(--ui-color-primary-soft);
+        --pv-blue-border: var(--ui-color-primary-border);
 
-        --pv-violet: var(--ws-purple, #8a4bd2);
-        --pv-violet-soft: #f5efff;
-        --pv-violet-border: #e1d2f4;
+        --pv-violet: var(--ui-color-primary);
+        --pv-violet-soft: var(--ui-color-primary-soft);
+        --pv-violet-border: var(--ui-color-primary-border);
 
-        --pv-amber: var(--ws-amber, #c38418);
-        --pv-amber-soft: #fff7e8;
-        --pv-amber-border: #f0dcae;
+        --pv-amber: var(--ui-color-warning);
+        --pv-amber-soft: var(--ui-color-warning-soft);
+        --pv-amber-border: var(--ui-color-warning-border);
 
-        --pv-red: var(--ws-red, #cf5050);
-        --pv-red-soft: #fff0f0;
-        --pv-red-border: #efcaca;
+        --pv-red: var(--ui-color-danger);
+        --pv-red-soft: var(--ui-color-danger-soft);
+        --pv-red-border: var(--ui-color-danger-border);
 
-        --pv-text: #17211d;
-        --pv-text-2: #59655f;
-        --pv-muted: #89938e;
-        --pv-border: #dde5e0;
-        --pv-soft: #f7faf8;
+        --pv-text: var(--ui-color-text);
+        --pv-text-2: var(--ui-color-text-secondary);
+        --pv-muted: var(--ui-color-text-muted);
+        --pv-border: var(--ui-color-border);
+        --pv-soft: var(--ui-color-surface-soft);
 
         display: grid;
         grid-column: 1 / -1;
-        width: min(100%, 1320px);
+        width: 100%;
         min-width: 0;
         gap: .72rem;
         margin-inline: auto;
@@ -109,7 +106,7 @@
         padding: .76rem .84rem;
         border: 1px solid var(--pv-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .pv-head-main {
@@ -138,8 +135,8 @@
     .pv-head-copy small {
         display: block;
         color: var(--pv-muted);
-        font-size: .72rem;
-        font-weight: 750;
+        font-size: .75rem;
+        font-weight: 700;
         letter-spacing: .025em;
         text-transform: uppercase;
     }
@@ -148,7 +145,7 @@
         margin: .06rem 0 0;
         color: var(--pv-text);
         font-size: clamp(1.04rem, 2vw, 1.22rem);
-        font-weight: 860;
+        font-weight: 700;
         line-height: 1.15;
     }
 
@@ -177,7 +174,7 @@
 
     .pv-head-meta strong {
         color: var(--pv-text-2);
-        font-weight: 760;
+        font-weight: 700;
     }
 
     .pv-dot {
@@ -185,7 +182,7 @@
         height: 3px;
         flex: 0 0 auto;
         border-radius: 50%;
-        background: #b6c0ba;
+        background: var(--ui-color-border-strong);
     }
 
     /* =========================================================
@@ -201,18 +198,18 @@
         padding: .42rem .62rem;
         border: 1px solid var(--pv-border);
         border-radius: 8px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pv-text-2);
         cursor: pointer;
         font-size: .82rem;
-        font-weight: 780;
-        white-space: nowrap;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .pv-action.primary {
         border-color: var(--pv-green);
         background: var(--pv-green);
-        color: #fff;
+        color: var(--sgc-on-primary);
     }
 
     .pv-action.blue {
@@ -269,7 +266,7 @@
         overflow: hidden;
         border: 1px solid var(--pv-border);
         border-radius: 11px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .pv-summary-item {
@@ -317,14 +314,14 @@
 
     .pv-summary-copy small {
         color: var(--pv-muted);
-        font-size: .7rem;
+        font-size: .75rem;
     }
 
     .pv-summary-copy strong {
         margin-top: .02rem;
         color: var(--pv-text);
         font-size: .94rem;
-        font-weight: 830;
+        font-weight: 700;
         font-variant-numeric: tabular-nums;
     }
 
@@ -337,7 +334,7 @@
         overflow: hidden;
         border: 1px solid var(--pv-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .pv-list-head {
@@ -383,7 +380,7 @@
     .pv-list-title-copy strong {
         color: var(--pv-text);
         font-size: .9rem;
-        font-weight: 820;
+        font-weight: 700;
     }
 
     .pv-list-title-copy span {
@@ -396,7 +393,7 @@
     .pv-page-count {
         color: var(--pv-muted);
         font-size: .75rem;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     /* =========================================================
@@ -438,7 +435,7 @@
         border: 1px solid var(--pv-border);
         border-radius: 8px;
         outline: 0;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pv-text);
         font-size: .84rem;
     }
@@ -469,13 +466,13 @@
     .pv-table th {
         padding: .58rem .62rem;
         border-bottom: 1px solid var(--pv-border);
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pv-muted);
-        font-size: .74rem;
-        font-weight: 790;
+        font-size: .75rem;
+        font-weight: 700;
         letter-spacing: .015em;
         text-align: left;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .pv-table td {
@@ -508,7 +505,7 @@
         background: var(--pv-violet-soft);
         color: var(--pv-violet);
         font-size: .8rem;
-        font-weight: 820;
+        font-weight: 700;
     }
 
     .pv-provider-copy {
@@ -525,18 +522,18 @@
         overflow: hidden;
         color: var(--pv-text);
         font-size: .85rem;
-        font-weight: 800;
+        font-weight: 700;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .pv-provider-copy small {
         margin-top: .03rem;
         overflow: hidden;
         color: var(--pv-muted);
-        font-size: .72rem;
+        font-size: .75rem;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .pv-status {
@@ -553,9 +550,9 @@
         border-radius: 7px;
         background: var(--soft);
         color: var(--tone);
-        font-size: .72rem;
-        font-weight: 780;
-        white-space: nowrap;
+        font-size: .75rem;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .pv-status.on {
@@ -580,7 +577,7 @@
         border-radius: 6px;
         background: var(--pv-blue-soft);
         color: var(--pv-blue);
-        font-size: .7rem;
+        font-size: .75rem;
         font-weight: 730;
     }
 
@@ -652,16 +649,16 @@
 
     .pv-mobile-fact small {
         color: var(--pv-muted);
-        font-size: .68rem;
+        font-size: .75rem;
     }
 
     .pv-mobile-fact strong {
         overflow: hidden;
         color: var(--pv-text);
         font-size: .78rem;
-        font-weight: 760;
+        font-weight: 700;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .pv-mobile-actions {
@@ -703,7 +700,7 @@
         margin: .15rem 0 0;
         color: var(--pv-text);
         font-size: .95rem;
-        font-weight: 820;
+        font-weight: 700;
     }
 
     .pv-empty p {
@@ -721,7 +718,7 @@
         min-width: 0;
         padding: .5rem .62rem;
         border-top: 1px solid var(--pv-border);
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .pv-pagination nav {
@@ -806,7 +803,7 @@
         }
 
         .pv-head-copy small {
-            font-size: .68rem;
+            font-size: .75rem;
         }
 
         .pv-head-copy h1 {
@@ -814,7 +811,7 @@
         }
 
         .pv-head-meta {
-            font-size: .74rem;
+            font-size: .75rem;
         }
 
         .pv-list-head {
@@ -830,7 +827,7 @@
         }
 
         .pv-page-count {
-            font-size: .7rem;
+            font-size: .75rem;
         }
 
         .pv-filters {
@@ -866,7 +863,7 @@
 <main class="providers-workspace">
     @if(session('success'))
         <div class="pv-alert">
-            <i class="ph-fill ph-check-circle"></i>
+            <i class="ph-duotone ph-check-circle"></i>
             <span>{{ session('success') }}</span>
         </div>
     @endif
@@ -877,7 +874,7 @@
                 class="pv-head-icon"
                 aria-hidden="true"
             >
-                <i class="ph-fill ph-users-three"></i>
+                <i class="ph-duotone ph-users-three"></i>
             </span>
 
             <div class="pv-head-copy">
@@ -887,7 +884,7 @@
 
                 <div class="pv-head-meta">
                     <span>
-                        <i class="ph-fill ph-user-list"></i>
+                        <i class="ph-duotone ph-user-list"></i>
 
                         <strong>
                             {{ $summary['total'] }}
@@ -899,7 +896,7 @@
                     <span class="pv-dot"></span>
 
                     <span>
-                        <i class="ph-fill ph-check-circle"></i>
+                        <i class="ph-duotone ph-check-circle"></i>
 
                         <strong>
                             {{ $summary['active'] }}
@@ -912,7 +909,7 @@
                         <span class="pv-dot"></span>
 
                         <span>
-                            <i class="ph-fill ph-warning-circle"></i>
+                            <i class="ph-duotone ph-warning-circle"></i>
 
                             <strong>
                                 {{ $summary['without_services'] }}
@@ -932,7 +929,7 @@
                 $tenantSlug
             ) }}"
         >
-            <i class="ph-fill ph-user-plus"></i>
+            <i class="ph-duotone ph-user-plus"></i>
             <span>Novo prestador</span>
         </a>
     </header>
@@ -946,7 +943,7 @@
                 class="pv-summary-icon"
                 aria-hidden="true"
             >
-                <i class="ph-fill ph-users"></i>
+                <i class="ph-duotone ph-users"></i>
             </span>
 
             <span class="pv-summary-copy">
@@ -960,7 +957,7 @@
                 class="pv-summary-icon"
                 aria-hidden="true"
             >
-                <i class="ph-fill ph-check-circle"></i>
+                <i class="ph-duotone ph-check-circle"></i>
             </span>
 
             <span class="pv-summary-copy">
@@ -974,7 +971,7 @@
                 class="pv-summary-icon"
                 aria-hidden="true"
             >
-                <i class="ph-fill ph-warning-circle"></i>
+                <i class="ph-duotone ph-warning-circle"></i>
             </span>
 
             <span class="pv-summary-copy">
@@ -991,7 +988,7 @@
                     class="pv-list-title-icon"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-user-list"></i>
+                    <i class="ph-duotone ph-user-list"></i>
                 </span>
 
                 <span class="pv-list-title-copy">
@@ -1020,7 +1017,7 @@
         >
             <div class="pv-control-wrap pv-search-slot">
                 <i
-                    class="ph-fill ph-magnifying-glass pv-control-icon"
+                    class="ph-duotone ph-magnifying-glass pv-control-icon"
                     aria-hidden="true"
                 ></i>
 
@@ -1036,7 +1033,7 @@
 
             <div class="pv-control-wrap">
                 <i
-                    class="ph-fill ph-funnel pv-control-icon"
+                    class="ph-duotone ph-funnel pv-control-icon"
                     aria-hidden="true"
                 ></i>
 
@@ -1069,7 +1066,7 @@
                 class="pv-action blue"
                 type="submit"
             >
-                <i class="ph-fill ph-magnifying-glass"></i>
+                <i class="ph-duotone ph-magnifying-glass"></i>
                 <span>Filtrar</span>
             </button>
 
@@ -1079,7 +1076,7 @@
                         class="pv-action clear"
                         href="{{ request()->url() }}"
                     >
-                        <i class="ph-fill ph-x-circle"></i>
+                        <i class="ph-duotone ph-x-circle"></i>
                         <span>Limpar</span>
                     </a>
                 </div>
@@ -1091,7 +1088,7 @@
                 <div class="pv-empty">
                     <div class="pv-empty-content">
                         <span class="pv-empty-icon">
-                            <i class="ph-fill ph-users-three"></i>
+                            <i class="ph-duotone ph-users-three"></i>
                         </span>
 
                         <h2>Nenhum prestador encontrado</h2>
@@ -1199,7 +1196,7 @@
                                         >
                                             <i
                                                 class="
-                                                    ph-fill
+                                                    ph-duotone
                                                     {{
                                                         $provider->status
                                                             ? 'ph-check-circle'
@@ -1252,7 +1249,7 @@
                                             title="Cadastro e serviços"
                                             aria-label="Configurar {{ $provider->name }}"
                                         >
-                                            <i class="ph-fill ph-sliders-horizontal"></i>
+                                            <i class="ph-duotone ph-sliders-horizontal"></i>
                                         </a>
                                     </td>
                                 </tr>
@@ -1330,7 +1327,7 @@
                         >
                             <i
                                 class="
-                                    ph-fill
+                                    ph-duotone
                                     {{
                                         $provider->status
                                             ? 'ph-check-circle'
@@ -1398,7 +1395,7 @@
                                 ]
                             ) }}"
                         >
-                            <i class="ph-fill ph-sliders-horizontal"></i>
+                            <i class="ph-duotone ph-sliders-horizontal"></i>
                             <span>Cadastro e serviços</span>
                         </a>
                     </div>
@@ -1407,7 +1404,7 @@
                 <div class="pv-empty">
                     <div class="pv-empty-content">
                         <span class="pv-empty-icon">
-                            <i class="ph-fill ph-users-three"></i>
+                            <i class="ph-duotone ph-users-three"></i>
                         </span>
 
                         <h2>Nenhum prestador encontrado</h2>
@@ -1431,4 +1428,5 @@
         @endif
     </section>
 </main>
+</div>
 @endsection

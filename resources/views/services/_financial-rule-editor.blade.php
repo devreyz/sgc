@@ -4,9 +4,9 @@
     $effect = $rule['effect'] ?? (str_contains($method, 'deduction') ? 'subtract' : 'add');
 @endphp
 
-<fieldset class="financial-rule" data-rule style="border:1px solid var(--cc-border);border-radius:12px;padding:.8rem;margin-bottom:.7rem;background:#fff">
+<fieldset class="financial-rule" data-rule style="border:1px solid var(--cc-border);border-radius:12px;padding:.8rem;margin-bottom:.7rem;background:var(--ui-color-surface)">
     <legend style="padding:0 .35rem"><strong data-rule-title>{{ $rule['description'] ?? 'Novo termo financeiro' }}</strong></legend>
-    <div class="cc-inline-note" style="margin-bottom:.65rem"><i class="ph-fill ph-calculator"></i><span>Este termo altera somente o lado selecionado. O campo criado aqui aparecerá na execução e nos documentos.</span></div>
+    <div class="cc-inline-note" style="margin-bottom:.65rem"><i class="ph-duotone ph-calculator"></i><span>Este termo altera somente o lado selecionado. O campo criado aqui aparecerá na execução e nos documentos.</span></div>
     <div class="cc-grid">
         <label class="cc-field full"><span class="cc-label">Nome do termo</span><input class="cc-control" data-rule-description name="{{ $prefix }}[description]" value="{{ $rule['description'] ?? '' }}" required placeholder="Ex.: Desconto do óleo fornecido"></label>
         <label class="cc-field"><span class="cc-label">Quem este termo altera</span><select class="cc-control" data-rule-direction name="{{ $prefix }}[direction]" required><option value="receivable" @selected(($rule['direction'] ?? '') === 'receivable')>Cobrança da organização</option><option value="payable" @selected(($rule['direction'] ?? '') === 'payable')>Remuneração do prestador</option></select></label>
@@ -36,5 +36,5 @@
             </div>
         </div>
     </div>
-    <button type="button" class="cc-action danger" data-remove-rule><i class="ph-fill ph-trash"></i><span>Remover termo</span></button>
+    <button type="button" class="cc-action danger" data-remove-rule><i class="ph-duotone ph-trash"></i><span>Remover termo</span></button>
 </fieldset>

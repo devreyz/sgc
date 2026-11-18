@@ -33,13 +33,15 @@
 @endphp
 
 @section('content')
+@include('services._campo-style')
+<div class="services-campo">
 @include('services._workspace-style')
 <style>
     .sg-entry [hidden] { display: none !important; }
-    .sg-entry .entry-head { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem; padding:clamp(1rem,3vw,1.6rem); border-radius:16px; background:#173c2e; color:#f6faf4; }
+    .sg-entry .entry-head { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem; padding:clamp(1rem,3vw,1.6rem); border-radius:16px; background:#173c2e; color:var(--ui-color-surface-soft); }
     .sg-entry .entry-head h1 { margin:0; color:inherit; font-size:clamp(1.35rem,3vw,1.9rem); }
     .sg-entry .entry-head p { margin:.3rem 0 0; color:#c7dacf; }
-    .sg-entry .entry-head .sg-button { background:#ffffff12; color:#f6faf4; border-color:#ffffff55; }
+    .sg-entry .entry-head .sg-button { background:#ffffff12; color:var(--ui-color-surface-soft); border-color:#ffffff55; }
     .sg-entry [data-entry], .sg-entry .entry-orders { display:grid; gap:1rem; min-width:0; }
     .sg-entry .entry-order { display:grid; gap:1rem; min-width:0; border:1px solid var(--ui-color-border); border-radius:14px; background:var(--ui-color-surface); padding:clamp(.8rem,2vw,1.2rem); }
     .sg-entry .entry-order-head, .sg-entry .entry-footer { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.6rem; }
@@ -352,5 +354,6 @@
     })();
     </script>
     @endif
+</div>
 </div>
 @endsection

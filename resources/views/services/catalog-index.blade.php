@@ -101,45 +101,42 @@
 @endphp
 
 @section('content')
+@include('services._campo-style')
+<div class="services-campo">
 
-@once
-    <link
-        rel="stylesheet"
-        href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css"
-    >
-@endonce
+
 
 <style>
     .catalog-workspace {
-        --ct-green: var(--ws-green, #219653);
-        --ct-green-soft: #edf8f2;
-        --ct-green-border: #cce8d7;
+        --ct-green: var(--ui-color-primary);
+        --ct-green-soft: var(--ui-color-primary-soft);
+        --ct-green-border: var(--ui-color-primary-border);
 
-        --ct-blue: var(--ws-blue, #3478d4);
-        --ct-blue-soft: #edf4ff;
-        --ct-blue-border: #cfe0f7;
+        --ct-blue: var(--ui-color-primary);
+        --ct-blue-soft: var(--ui-color-primary-soft);
+        --ct-blue-border: var(--ui-color-primary-border);
 
-        --ct-violet: var(--ws-purple, #8a4bd2);
-        --ct-violet-soft: #f5efff;
-        --ct-violet-border: #e1d2f4;
+        --ct-violet: var(--ui-color-primary);
+        --ct-violet-soft: var(--ui-color-primary-soft);
+        --ct-violet-border: var(--ui-color-primary-border);
 
-        --ct-amber: var(--ws-amber, #c38418);
-        --ct-amber-soft: #fff7e8;
-        --ct-amber-border: #f0dcae;
+        --ct-amber: var(--ui-color-warning);
+        --ct-amber-soft: var(--ui-color-warning-soft);
+        --ct-amber-border: var(--ui-color-warning-border);
 
-        --ct-red: var(--ws-red, #cf5050);
-        --ct-red-soft: #fff0f0;
-        --ct-red-border: #efcaca;
+        --ct-red: var(--ui-color-danger);
+        --ct-red-soft: var(--ui-color-danger-soft);
+        --ct-red-border: var(--ui-color-danger-border);
 
-        --ct-text: #17211d;
-        --ct-text-2: #59655f;
-        --ct-muted: #89938e;
-        --ct-border: #dde5e0;
-        --ct-soft: #f7faf8;
+        --ct-text: var(--ui-color-text);
+        --ct-text-2: var(--ui-color-text-secondary);
+        --ct-muted: var(--ui-color-text-muted);
+        --ct-border: var(--ui-color-border);
+        --ct-soft: var(--ui-color-surface-soft);
 
         display: grid;
         grid-column: 1 / -1;
-        width: min(100%, 1260px);
+        width: 100%;
         min-width: 0;
         gap: .72rem;
         margin-inline: auto;
@@ -169,7 +166,7 @@
         padding: .76rem .84rem;
         border: 1px solid var(--ct-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .ct-head-main {
@@ -198,8 +195,8 @@
     .ct-head-copy small {
         display: block;
         color: var(--ct-muted);
-        font-size: .61rem;
-        font-weight: 750;
+        font-size: .75rem;
+        font-weight: 700;
         letter-spacing: .025em;
         text-transform: uppercase;
     }
@@ -208,7 +205,7 @@
         margin: .06rem 0 0;
         color: var(--ct-text);
         font-size: clamp(1.02rem, 2vw, 1.22rem);
-        font-weight: 860;
+        font-weight: 700;
         line-height: 1.15;
     }
 
@@ -219,13 +216,13 @@
         align-items: center;
         margin-top: .14rem;
         color: var(--ct-muted);
-        font-size: .65rem;
+        font-size: .75rem;
         line-height: 1.35;
     }
 
     .ct-head-meta strong {
         color: var(--ct-text-2);
-        font-weight: 760;
+        font-weight: 700;
     }
 
     .ct-dot {
@@ -233,7 +230,7 @@
         height: 3px;
         flex: 0 0 auto;
         border-radius: 50%;
-        background: #b6c0ba;
+        background: var(--ui-color-border-strong);
     }
 
     .ct-actions {
@@ -253,11 +250,11 @@
         padding: .4rem .58rem;
         border: 1px solid var(--ct-border);
         border-radius: 8px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--ct-text-2);
-        font-size: .69rem;
-        font-weight: 780;
-        white-space: nowrap;
+        font-size: .75rem;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .ct-action.simulation {
@@ -269,7 +266,7 @@
     .ct-action.create {
         border-color: var(--ct-green);
         background: var(--ct-green);
-        color: #fff;
+        color: var(--sgc-on-primary);
     }
 
     .ct-action:focus-visible {
@@ -286,7 +283,7 @@
         overflow: hidden;
         border: 1px solid var(--ct-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .ct-list-head {
@@ -331,14 +328,14 @@
 
     .ct-list-title-copy strong {
         color: var(--ct-text);
-        font-size: .74rem;
-        font-weight: 820;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .ct-list-title-copy span {
         margin-top: .03rem;
         color: var(--ct-muted);
-        font-size: .56rem;
+        font-size: .75rem;
         line-height: 1.35;
     }
 
@@ -350,9 +347,9 @@
         border-radius: 7px;
         background: var(--ct-soft);
         color: var(--ct-muted);
-        font-size: .57rem;
+        font-size: .75rem;
         font-weight: 740;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     /* =========================================================
@@ -376,12 +373,12 @@
         border-bottom: 1px solid var(--ct-border);
         background: var(--ct-soft);
         color: var(--ct-muted);
-        font-size: .52rem;
-        font-weight: 790;
+        font-size: .75rem;
+        font-weight: 700;
         letter-spacing: .03em;
         text-align: left;
         text-transform: uppercase;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .ct-table th:nth-child(1) {
@@ -410,7 +407,7 @@
         padding: .58rem;
         border-bottom: 1px solid var(--ct-border);
         color: var(--ct-text-2);
-        font-size: .65rem;
+        font-size: .75rem;
         vertical-align: middle;
     }
 
@@ -420,7 +417,7 @@
 
     @media (hover: hover) and (pointer: fine) {
         .ct-table tbody tr:hover td {
-            background: #fbfdfc;
+            background: var(--ui-color-surface);
         }
     }
 
@@ -454,19 +451,19 @@
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .ct-service-copy strong {
         color: var(--ct-text);
-        font-size: .7rem;
-        font-weight: 800;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .ct-service-copy small {
         margin-top: .03rem;
         color: var(--ct-muted);
-        font-size: .54rem;
+        font-size: .75rem;
     }
 
     /* Código */
@@ -485,9 +482,9 @@
             Monaco,
             Consolas,
             monospace;
-        font-size: .59rem;
+        font-size: .75rem;
         font-weight: 740;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     /* Versão */
@@ -501,9 +498,9 @@
         border-radius: 7px;
         background: var(--ct-violet-soft);
         color: var(--ct-violet);
-        font-size: .58rem;
-        font-weight: 790;
-        white-space: nowrap;
+        font-size: .75rem;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .ct-version.empty {
@@ -514,9 +511,9 @@
 
     /* Status */
     .ct-status {
-        --tone: #64748b;
-        --soft: #f2f5f7;
-        --border: #dfe5e9;
+        --tone: var(--ui-color-text-secondary);
+        --soft: var(--ui-color-surface-soft);
+        --border: var(--ui-color-border);
 
         display: inline-flex;
         width: max-content;
@@ -528,9 +525,9 @@
         border-radius: 7px;
         background: var(--soft);
         color: var(--tone);
-        font-size: .57rem;
-        font-weight: 800;
-        white-space: nowrap;
+        font-size: .75rem;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .ct-status.is-active {
@@ -573,9 +570,9 @@
         border-radius: 8px;
         background: var(--ct-blue-soft);
         color: var(--ct-blue);
-        font-size: .59rem;
-        font-weight: 790;
-        white-space: nowrap;
+        font-size: .75rem;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .ct-open.draft {
@@ -622,13 +619,13 @@
     .ct-empty strong {
         color: var(--ct-text);
         font-size: .78rem;
-        font-weight: 830;
+        font-weight: 700;
     }
 
     .ct-empty p {
         margin: 0;
         color: var(--ct-muted);
-        font-size: .66rem;
+        font-size: .75rem;
         line-height: 1.45;
     }
 
@@ -643,9 +640,9 @@
         border: 1px solid var(--ct-green);
         border-radius: 8px;
         background: var(--ct-green);
-        color: #fff;
-        font-size: .64rem;
-        font-weight: 780;
+        color: var(--sgc-on-primary);
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     /* =========================================================
@@ -685,7 +682,7 @@
             gap: .48rem;
             padding: .62rem .66rem;
             border-bottom: 1px solid var(--ct-border);
-            background: #fff;
+            background: var(--ui-color-surface);
         }
 
         .ct-mobile-item:last-child {
@@ -710,19 +707,19 @@
             min-width: 0;
             overflow: hidden;
             text-overflow: ellipsis;
-            white-space: nowrap;
+            var(--ui-color-surface)-space: nowrap;
         }
 
         .ct-mobile-main strong {
             color: var(--ct-text);
-            font-size: .71rem;
-            font-weight: 800;
+            font-size: .75rem;
+            font-weight: 700;
         }
 
         .ct-mobile-main small {
             margin-top: .03rem;
             color: var(--ct-muted);
-            font-size: .54rem;
+            font-size: .75rem;
         }
 
         .ct-mobile-meta {
@@ -747,16 +744,16 @@
 
         .ct-mobile-fact small {
             color: var(--ct-muted);
-            font-size: .47rem;
+            font-size: .75rem;
         }
 
         .ct-mobile-fact strong {
             overflow: hidden;
             color: var(--ct-text);
-            font-size: .59rem;
-            font-weight: 760;
+            font-size: .75rem;
+            font-weight: 700;
             text-overflow: ellipsis;
-            white-space: nowrap;
+            var(--ui-color-surface)-space: nowrap;
         }
 
         .ct-mobile-bottom {
@@ -827,7 +824,7 @@
                 class="ct-head-icon"
                 aria-hidden="true"
             >
-                <i class="ph-fill ph-books"></i>
+                <i class="ph-duotone ph-books"></i>
             </span>
 
             <div class="ct-head-copy">
@@ -858,7 +855,7 @@
         <div class="ct-actions">
             @if(auth()->user()->checkPermissionTo('manage_service_providers'))
                 <a class="ct-action" href="{{ route('services.providers.index', $tenantSlug) }}" title="Prestadores e habilitações" aria-label="Prestadores e habilitações">
-                    <i class="ph-fill ph-users-three"></i>
+                    <i class="ph-duotone ph-users-three"></i>
                     <span>Prestadores</span>
                 </a>
             @endif
@@ -872,7 +869,7 @@
                     title="Simular serviços"
                     aria-label="Simular serviços"
                 >
-                    <i class="ph-fill ph-flask"></i>
+                    <i class="ph-duotone ph-flask"></i>
                     <span>Simular</span>
                 </a>
             @endif
@@ -886,7 +883,7 @@
                 title="Novo serviço"
                 aria-label="Novo serviço"
             >
-                <i class="ph-fill ph-plus-circle"></i>
+                <i class="ph-duotone ph-plus-circle"></i>
                 <span>Novo serviço</span>
             </a>
         </div>
@@ -899,7 +896,7 @@
                     class="ct-list-title-icon"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-list-dashes"></i>
+                    <i class="ph-duotone ph-list-dashes"></i>
                 </span>
 
                 <span class="ct-list-title-copy">
@@ -926,7 +923,7 @@
                         class="ct-empty-icon"
                         aria-hidden="true"
                     >
-                        <i class="ph-fill ph-books"></i>
+                        <i class="ph-duotone ph-books"></i>
                     </span>
 
                     <strong>Nenhum serviço cadastrado</strong>
@@ -943,7 +940,7 @@
                             $tenantSlug
                         ) }}"
                     >
-                        <i class="ph-fill ph-plus-circle"></i>
+                        <i class="ph-duotone ph-plus-circle"></i>
                         Novo serviço
                     </a>
                 </div>
@@ -996,7 +993,7 @@
                                             class="ct-service-icon"
                                             aria-hidden="true"
                                         >
-                                            <i class="ph-fill ph-wrench"></i>
+                                            <i class="ph-duotone ph-wrench"></i>
                                         </span>
 
                                         <span class="ct-service-copy">
@@ -1024,12 +1021,12 @@
                                 <td>
                                     @if($versionLabel !== null)
                                         <span class="ct-version">
-                                            <i class="ph-fill ph-git-branch"></i>
+                                            <i class="ph-duotone ph-git-branch"></i>
                                             {{ $service->versions->contains('status', 'draft') ? 'Edição pendente' : 'Atual' }}
                                         </span>
                                     @else
                                         <span class="ct-version empty">
-                                            <i class="ph-fill ph-minus"></i>
+                                            <i class="ph-duotone ph-minus"></i>
                                             Pendente
                                         </span>
                                     @endif
@@ -1044,7 +1041,7 @@
                                     >
                                         <i
                                             class="
-                                                ph-fill
+                                                ph-duotone
                                                 {{ $status['icon'] }}
                                             "
                                             aria-hidden="true"
@@ -1081,7 +1078,7 @@
                                                     : ($targetVersion->status === 'draft' ? 'Ver configuração' : 'Ver histórico')
                                             }}
 
-                                            <i class="ph-fill ph-arrow-right"></i>
+                                            <i class="ph-duotone ph-arrow-right"></i>
                                         </a>
                                     @endif
                                 </td>
@@ -1122,7 +1119,7 @@
                                 class="ct-service-icon"
                                 aria-hidden="true"
                             >
-                                <i class="ph-fill ph-wrench"></i>
+                                <i class="ph-duotone ph-wrench"></i>
                             </span>
 
                             <span class="ct-mobile-main">
@@ -1143,7 +1140,7 @@
                             >
                                 <i
                                     class="
-                                        ph-fill
+                                        ph-duotone
                                         {{ $status['icon'] }}
                                     "
                                 ></i>
@@ -1209,7 +1206,7 @@
                                             : ($targetVersion->status === 'draft' ? 'Ver configuração' : 'Ver histórico')
                                     }}
 
-                                    <i class="ph-fill ph-arrow-right"></i>
+                                    <i class="ph-duotone ph-arrow-right"></i>
                                 </a>
                             </div>
                         @endif
@@ -1228,4 +1225,5 @@
         @endif
     </section>
 </main>
+</div>
 @endsection

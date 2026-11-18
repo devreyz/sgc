@@ -45,45 +45,42 @@
 @endphp
 
 @section('content')
+@include('services._campo-style')
+<div class="services-campo">
 
-@once
-    <link
-        rel="stylesheet"
-        href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css"
-    >
-@endonce
+
 
 <style>
     .provider-form-page {
-        --pf-green: var(--ws-green, #219653);
-        --pf-green-soft: #edf8f2;
-        --pf-green-border: #cce8d7;
+        --pf-green: var(--ui-color-primary);
+        --pf-green-soft: var(--ui-color-primary-soft);
+        --pf-green-border: var(--ui-color-primary-border);
 
-        --pf-blue: var(--ws-blue, #3478d4);
-        --pf-blue-soft: #edf4ff;
-        --pf-blue-border: #cfe0f7;
+        --pf-blue: var(--ui-color-primary);
+        --pf-blue-soft: var(--ui-color-primary-soft);
+        --pf-blue-border: var(--ui-color-primary-border);
 
-        --pf-violet: var(--ws-purple, #8a4bd2);
-        --pf-violet-soft: #f5efff;
-        --pf-violet-border: #e1d2f4;
+        --pf-violet: var(--ui-color-primary);
+        --pf-violet-soft: var(--ui-color-primary-soft);
+        --pf-violet-border: var(--ui-color-primary-border);
 
-        --pf-amber: var(--ws-amber, #c38418);
-        --pf-amber-soft: #fff7e8;
-        --pf-amber-border: #f0dcae;
+        --pf-amber: var(--ui-color-warning);
+        --pf-amber-soft: var(--ui-color-warning-soft);
+        --pf-amber-border: var(--ui-color-warning-border);
 
-        --pf-red: var(--ws-red, #cf5050);
-        --pf-red-soft: #fff0f0;
-        --pf-red-border: #efcaca;
+        --pf-red: var(--ui-color-danger);
+        --pf-red-soft: var(--ui-color-danger-soft);
+        --pf-red-border: var(--ui-color-danger-border);
 
-        --pf-text: #17211d;
-        --pf-text-2: #59655f;
-        --pf-muted: #89938e;
-        --pf-border: #dde5e0;
-        --pf-soft: #f7faf8;
+        --pf-text: var(--ui-color-text);
+        --pf-text-2: var(--ui-color-text-secondary);
+        --pf-muted: var(--ui-color-text-muted);
+        --pf-border: var(--ui-color-border);
+        --pf-soft: var(--ui-color-surface-soft);
 
         display: grid;
         grid-column: 1 / -1;
-        width: min(100%, 1180px);
+        width: 100%;
         min-width: 0;
         gap: .72rem;
         margin-inline: auto;
@@ -120,7 +117,7 @@
         padding: .76rem .84rem;
         border: 1px solid var(--pf-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .pf-head-main {
@@ -149,8 +146,8 @@
     .pf-head-copy small {
         display: block;
         color: var(--pf-muted);
-        font-size: .72rem;
-        font-weight: 750;
+        font-size: .75rem;
+        font-weight: 700;
         letter-spacing: .025em;
         text-transform: uppercase;
     }
@@ -160,10 +157,10 @@
         overflow: hidden;
         color: var(--pf-text);
         font-size: clamp(1.04rem, 2vw, 1.22rem);
-        font-weight: 860;
+        font-weight: 700;
         line-height: 1.15;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .pf-head-meta {
@@ -191,7 +188,7 @@
 
     .pf-head-meta strong {
         color: var(--pf-text-2);
-        font-weight: 760;
+        font-weight: 700;
     }
 
     .pf-action {
@@ -203,18 +200,18 @@
         padding: .42rem .62rem;
         border: 1px solid var(--pf-border);
         border-radius: 8px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pf-text-2);
         cursor: pointer;
         font-size: .82rem;
-        font-weight: 780;
-        white-space: nowrap;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .pf-action.primary {
         border-color: var(--pf-green);
         background: var(--pf-green);
-        color: #fff;
+        color: var(--sgc-on-primary);
     }
 
     .pf-action.blue {
@@ -284,7 +281,7 @@
         overflow: hidden;
         border: 1px solid var(--pf-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     /* =========================================================
@@ -296,9 +293,9 @@
         min-width: 0;
         overflow-x: auto;
         border-bottom: 1px solid var(--pf-border);
-        background: #fff;
+        background: var(--ui-color-surface);
         scrollbar-width: thin;
-        scrollbar-color: #cfd8d2 transparent;
+        scrollbar-color: var(--ui-color-border) transparent;
     }
 
     .pf-tabs::-webkit-scrollbar {
@@ -307,7 +304,7 @@
 
     .pf-tabs::-webkit-scrollbar-thumb {
         border-radius: 999px;
-        background: #cfd8d2;
+        background: var(--ui-color-border);
     }
 
     .pf-tab {
@@ -322,7 +319,7 @@
         padding: .46rem .62rem;
         border: 0;
         border-right: 1px solid var(--pf-border);
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pf-muted);
         cursor: pointer;
     }
@@ -354,12 +351,12 @@
     .pf-tab-copy strong {
         color: inherit;
         font-size: .8rem;
-        font-weight: 790;
+        font-weight: 700;
     }
 
     .pf-tab-copy small {
         color: var(--pf-muted);
-        font-size: .68rem;
+        font-size: .75rem;
     }
 
     .pf-tab-count {
@@ -371,8 +368,8 @@
         border-radius: 6px;
         background: var(--pf-soft);
         color: var(--pf-muted);
-        font-size: .68rem;
-        font-weight: 800;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .pf-tab.active {
@@ -385,7 +382,7 @@
     }
 
     .pf-tab.active .pf-tab-count {
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pf-blue);
     }
 
@@ -465,7 +462,7 @@
     .pf-panel-title-copy strong {
         color: var(--pf-text);
         font-size: .9rem;
-        font-weight: 820;
+        font-weight: 700;
     }
 
     .pf-panel-title-copy span {
@@ -505,13 +502,13 @@
     .pf-section-title strong {
         color: var(--pf-text);
         font-size: .84rem;
-        font-weight: 810;
+        font-weight: 700;
     }
 
     .pf-section-title span {
         margin-top: .03rem;
         color: var(--pf-muted);
-        font-size: .74rem;
+        font-size: .75rem;
         line-height: 1.45;
     }
 
@@ -556,7 +553,7 @@
     .pf-label-note {
         margin-left: auto;
         color: var(--pf-muted);
-        font-size: .7rem;
+        font-size: .75rem;
         font-weight: 650;
     }
 
@@ -569,7 +566,7 @@
         border: 1px solid var(--pf-border);
         border-radius: 8px;
         outline: 0;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pf-text);
         font-size: .86rem;
     }
@@ -592,7 +589,7 @@
 
     .pf-help {
         color: var(--pf-muted);
-        font-size: .72rem;
+        font-size: .75rem;
         line-height: 1.45;
     }
 
@@ -624,13 +621,13 @@
     .pf-status-copy strong {
         color: var(--pf-text);
         font-size: .8rem;
-        font-weight: 790;
+        font-weight: 700;
     }
 
     .pf-status-copy small {
         margin-top: .03rem;
         color: var(--pf-muted);
-        font-size: .7rem;
+        font-size: .75rem;
         line-height: 1.4;
     }
 
@@ -655,7 +652,7 @@
         position: absolute;
         inset: 0;
         border-radius: 999px;
-        background: #cfd8d2;
+        background: var(--ui-color-border);
         transition:
             background .15s ease,
             box-shadow .15s ease;
@@ -668,7 +665,7 @@
         width: 18px;
         height: 18px;
         border-radius: 50%;
-        background: #fff;
+        background: var(--ui-color-surface);
         box-shadow: 0 1px 3px rgba(0, 0, 0, .16);
         content: "";
         transition: transform .15s ease;
@@ -704,13 +701,13 @@
         padding: .55rem .58rem;
         border: 1px solid var(--pf-border);
         border-radius: 8px;
-        background: #fff;
+        background: var(--ui-color-surface);
         cursor: pointer;
     }
 
     .pf-option:hover {
         border-color: var(--pf-blue-border);
-        background: #fbfdff;
+        background: var(--ui-color-surface);
     }
 
     .pf-option input {
@@ -734,13 +731,13 @@
     .pf-option-copy strong {
         color: var(--pf-text);
         font-size: .8rem;
-        font-weight: 770;
+        font-weight: 700;
     }
 
     .pf-option-copy small {
         margin-top: .03rem;
         color: var(--pf-muted);
-        font-size: .7rem;
+        font-size: .75rem;
         line-height: 1.4;
     }
 
@@ -786,8 +783,8 @@
         background: var(--pf-blue-soft);
         color: var(--pf-blue);
         font-size: .76rem;
-        font-weight: 760;
-        white-space: nowrap;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .pf-services-empty-filter {
@@ -877,7 +874,7 @@
         }
 
         .pf-head-copy small {
-            font-size: .68rem;
+            font-size: .75rem;
         }
 
         .pf-head-copy h1 {
@@ -885,7 +882,7 @@
         }
 
         .pf-head-meta {
-            font-size: .74rem;
+            font-size: .75rem;
         }
 
         .pf-tab-copy small {
@@ -957,7 +954,7 @@
                 class="pf-head-icon"
                 aria-hidden="true"
             >
-                <i class="ph-fill ph-user-gear"></i>
+                <i class="ph-duotone ph-user-gear"></i>
             </span>
 
             <div class="pf-head-copy">
@@ -973,7 +970,7 @@
 
                 <div class="pf-head-meta">
                     <span>
-                        <i class="ph-fill ph-briefcase"></i>
+                        <i class="ph-duotone ph-briefcase"></i>
 
                         Gestão de serviços
                     </span>
@@ -984,7 +981,7 @@
                         <span>
                             <i
                                 class="
-                                    ph-fill
+                                    ph-duotone
                                     {{
                                         $provider->status
                                             ? 'ph-check-circle'
@@ -1013,7 +1010,7 @@
                 $tenantSlug
             ) }}"
         >
-            <i class="ph-fill ph-arrow-left"></i>
+            <i class="ph-duotone ph-arrow-left"></i>
             <span>Voltar</span>
         </a>
     </header>
@@ -1058,7 +1055,7 @@
                     type="button"
                     data-tab="profile"
                 >
-                    <i class="ph-fill ph-identification-card"></i>
+                    <i class="ph-duotone ph-identification-card"></i>
 
                     <span class="pf-tab-copy">
                         <strong>Cadastro</strong>
@@ -1071,7 +1068,7 @@
                     type="button"
                     data-tab="access"
                 >
-                    <i class="ph-fill ph-shield-check"></i>
+                    <i class="ph-duotone ph-shield-check"></i>
 
                     <span class="pf-tab-copy">
                         <strong>Acesso</strong>
@@ -1084,7 +1081,7 @@
                     type="button"
                     data-tab="services"
                 >
-                    <i class="ph-fill ph-wrench"></i>
+                    <i class="ph-duotone ph-wrench"></i>
 
                     <span class="pf-tab-copy">
                         <strong>Serviços</strong>
@@ -1104,7 +1101,7 @@
                     type="button"
                     data-tab="payment"
                 >
-                    <i class="ph-fill ph-bank"></i>
+                    <i class="ph-duotone ph-bank"></i>
 
                     <span class="pf-tab-copy">
                         <strong>Pagamento</strong>
@@ -1127,7 +1124,7 @@
                             class="pf-panel-title-icon"
                             aria-hidden="true"
                         >
-                            <i class="ph-fill ph-identification-card"></i>
+                            <i class="ph-duotone ph-identification-card"></i>
                         </span>
 
                         <span class="pf-panel-title-copy">
@@ -1153,7 +1150,7 @@
                         <div class="pf-grid">
                             <label class="pf-field span-2">
                                 <span class="pf-label">
-                                    <i class="ph-fill ph-user"></i>
+                                    <i class="ph-duotone ph-user"></i>
                                     Nome completo
                                 </span>
 
@@ -1171,7 +1168,7 @@
 
                             <label class="pf-field">
                                 <span class="pf-label">
-                                    <i class="ph-fill ph-briefcase"></i>
+                                    <i class="ph-duotone ph-briefcase"></i>
                                     Tipo de atuação
                                 </span>
 
@@ -1205,7 +1202,7 @@
 
                             <label class="pf-field">
                                 <span class="pf-label">
-                                    <i class="ph-fill ph-identification-card"></i>
+                                    <i class="ph-duotone ph-identification-card"></i>
                                     CPF
                                 </span>
 
@@ -1223,7 +1220,7 @@
 
                             <label class="pf-field">
                                 <span class="pf-label">
-                                    <i class="ph-fill ph-cardholder"></i>
+                                    <i class="ph-duotone ph-cardholder"></i>
                                     RG
                                 </span>
 
@@ -1240,7 +1237,7 @@
 
                             <label class="pf-field">
                                 <span class="pf-label">
-                                    <i class="ph-fill ph-phone"></i>
+                                    <i class="ph-duotone ph-phone"></i>
                                     Telefone
                                 </span>
 
@@ -1258,7 +1255,7 @@
 
                             <label class="pf-field span-2">
                                 <span class="pf-label">
-                                    <i class="ph-fill ph-envelope-simple"></i>
+                                    <i class="ph-duotone ph-envelope-simple"></i>
                                     E-mail
                                 </span>
 
@@ -1276,7 +1273,7 @@
 
                             <div class="pf-field">
                                 <span class="pf-label">
-                                    <i class="ph-fill ph-toggle-right"></i>
+                                    <i class="ph-duotone ph-toggle-right"></i>
                                     Situação
                                 </span>
 
@@ -1330,7 +1327,7 @@
                         <div class="pf-grid">
                             <label class="pf-field span-2">
                                 <span class="pf-label">
-                                    <i class="ph-fill ph-map-pin"></i>
+                                    <i class="ph-duotone ph-map-pin"></i>
                                     Endereço
                                 </span>
 
@@ -1347,7 +1344,7 @@
 
                             <label class="pf-field">
                                 <span class="pf-label">
-                                    <i class="ph-fill ph-buildings"></i>
+                                    <i class="ph-duotone ph-buildings"></i>
                                     Cidade
                                 </span>
 
@@ -1364,7 +1361,7 @@
 
                             <label class="pf-field">
                                 <span class="pf-label">
-                                    <i class="ph-fill ph-map-trifold"></i>
+                                    <i class="ph-duotone ph-map-trifold"></i>
                                     UF
                                 </span>
 
@@ -1382,7 +1379,7 @@
 
                             <label class="pf-field">
                                 <span class="pf-label">
-                                    <i class="ph-fill ph-mailbox"></i>
+                                    <i class="ph-duotone ph-mailbox"></i>
                                     CEP
                                 </span>
 
@@ -1417,7 +1414,7 @@
                             class="pf-panel-title-icon"
                             aria-hidden="true"
                         >
-                            <i class="ph-fill ph-shield-check"></i>
+                            <i class="ph-duotone ph-shield-check"></i>
                         </span>
 
                         <span class="pf-panel-title-copy">
@@ -1443,7 +1440,7 @@
                         <div class="pf-grid">
                             <label class="pf-field span-2">
                                 <span class="pf-label">
-                                    <i class="ph-fill ph-user-circle"></i>
+                                    <i class="ph-duotone ph-user-circle"></i>
                                     Usuário vinculado
 
                                     <span class="pf-label-note">
@@ -1549,7 +1546,7 @@
                             class="pf-panel-title-icon"
                             aria-hidden="true"
                         >
-                            <i class="ph-fill ph-wrench"></i>
+                            <i class="ph-duotone ph-wrench"></i>
                         </span>
 
                         <span class="pf-panel-title-copy">
@@ -1575,7 +1572,7 @@
                         @if($services->isNotEmpty())
                             <div class="pf-services-tools">
                                 <div class="pf-search-wrap">
-                                    <i class="ph-fill ph-magnifying-glass"></i>
+                                    <i class="ph-duotone ph-magnifying-glass"></i>
 
                                     <input
                                         class="pf-control"
@@ -1590,7 +1587,7 @@
                                     class="pf-selected-count"
                                     id="selected-services-count"
                                 >
-                                    <i class="ph-fill ph-check-circle"></i>
+                                    <i class="ph-duotone ph-check-circle"></i>
 
                                     <span>
                                         {{ $selectedServicesCount }}
@@ -1675,7 +1672,7 @@
                             class="pf-panel-title-icon"
                             aria-hidden="true"
                         >
-                            <i class="ph-fill ph-bank"></i>
+                            <i class="ph-duotone ph-bank"></i>
                         </span>
 
                         <span class="pf-panel-title-copy">
@@ -1701,7 +1698,7 @@
                         <div class="pf-grid">
                             <label class="pf-field">
                                 <span class="pf-label">
-                                    <i class="ph-fill ph-bank"></i>
+                                    <i class="ph-duotone ph-bank"></i>
                                     Banco
                                 </span>
 
@@ -1717,7 +1714,7 @@
 
                             <label class="pf-field">
                                 <span class="pf-label">
-                                    <i class="ph-fill ph-hash"></i>
+                                    <i class="ph-duotone ph-hash"></i>
                                     Agência
                                 </span>
 
@@ -1733,7 +1730,7 @@
 
                             <label class="pf-field">
                                 <span class="pf-label">
-                                    <i class="ph-fill ph-credit-card"></i>
+                                    <i class="ph-duotone ph-credit-card"></i>
                                     Conta
                                 </span>
 
@@ -1749,7 +1746,7 @@
 
                             <label class="pf-field span-2">
                                 <span class="pf-label">
-                                    <i class="ph-fill ph-pix-logo"></i>
+                                    <i class="ph-duotone ph-pix-logo"></i>
                                     Chave PIX
                                 </span>
 
@@ -1776,7 +1773,7 @@
 
                         <label class="pf-field full">
                             <span class="pf-label">
-                                <i class="ph-fill ph-note"></i>
+                                <i class="ph-duotone ph-note"></i>
                                 Observações
                             </span>
 
@@ -1802,7 +1799,7 @@
                     $tenantSlug
                 ) }}"
             >
-                <i class="ph-fill ph-x"></i>
+                <i class="ph-duotone ph-x"></i>
                 <span>Cancelar</span>
             </a>
 
@@ -1811,7 +1808,7 @@
                 type="submit"
                 id="provider-submit"
             >
-                <i class="ph-fill ph-floppy-disk"></i>
+                <i class="ph-duotone ph-floppy-disk"></i>
 
                 <span>
                     {{
@@ -2252,7 +2249,7 @@ document.addEventListener(
                             );
 
                         icon.className =
-                            'ph-fill ph-check-circle';
+                            'ph-duotone ph-check-circle';
 
                         const text =
                             document.createElement(
@@ -2321,7 +2318,7 @@ document.addEventListener(
                             );
 
                         icon.className =
-                            'ph-fill ph-warning-circle';
+                            'ph-duotone ph-warning-circle';
 
                         const content =
                             document.createElement(
@@ -2394,4 +2391,5 @@ document.addEventListener(
     }
 );
 </script>
+</div>
 @endsection

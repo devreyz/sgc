@@ -62,45 +62,42 @@
 @endphp
 
 @section('content')
+@include('services._campo-style')
+<div class="services-campo">
 
-@once
-    <link
-        rel="stylesheet"
-        href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css"
-    >
-@endonce
+
 
 <style>
     .agreements-workspace {
-        --ag-green: var(--ws-green, #219653);
-        --ag-green-soft: #edf8f2;
-        --ag-green-border: #cce8d7;
+        --ag-green: var(--ui-color-primary);
+        --ag-green-soft: var(--ui-color-primary-soft);
+        --ag-green-border: var(--ui-color-primary-border);
 
-        --ag-blue: var(--ws-blue, #3478d4);
-        --ag-blue-soft: #edf4ff;
-        --ag-blue-border: #cfe0f7;
+        --ag-blue: var(--ui-color-primary);
+        --ag-blue-soft: var(--ui-color-primary-soft);
+        --ag-blue-border: var(--ui-color-primary-border);
 
-        --ag-violet: var(--ws-purple, #8a4bd2);
-        --ag-violet-soft: #f5efff;
-        --ag-violet-border: #e1d2f4;
+        --ag-violet: var(--ui-color-primary);
+        --ag-violet-soft: var(--ui-color-primary-soft);
+        --ag-violet-border: var(--ui-color-primary-border);
 
-        --ag-amber: var(--ws-amber, #c38418);
-        --ag-amber-soft: #fff7e8;
-        --ag-amber-border: #f0dcae;
+        --ag-amber: var(--ui-color-warning);
+        --ag-amber-soft: var(--ui-color-warning-soft);
+        --ag-amber-border: var(--ui-color-warning-border);
 
-        --ag-red: var(--ws-red, #cf5050);
-        --ag-red-soft: #fff0f0;
-        --ag-red-border: #efcaca;
+        --ag-red: var(--ui-color-danger);
+        --ag-red-soft: var(--ui-color-danger-soft);
+        --ag-red-border: var(--ui-color-danger-border);
 
-        --ag-text: #17211d;
-        --ag-text-2: #59655f;
-        --ag-muted: #89938e;
-        --ag-border: #dde5e0;
-        --ag-soft: #f7faf8;
+        --ag-text: var(--ui-color-text);
+        --ag-text-2: var(--ui-color-text-secondary);
+        --ag-muted: var(--ui-color-text-muted);
+        --ag-border: var(--ui-color-border);
+        --ag-soft: var(--ui-color-surface-soft);
 
         display: grid;
         grid-column: 1 / -1;
-        width: min(100%, 1320px);
+        width: 100%;
         min-width: 0;
         gap: .72rem;
         margin-inline: auto;
@@ -137,7 +134,7 @@
         padding: .76rem .84rem;
         border: 1px solid var(--ag-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .ag-head-main {
@@ -166,8 +163,8 @@
     .ag-head-copy small {
         display: block;
         color: var(--ag-muted);
-        font-size: .72rem;
-        font-weight: 750;
+        font-size: .75rem;
+        font-weight: 700;
         letter-spacing: .025em;
         text-transform: uppercase;
     }
@@ -176,7 +173,7 @@
         margin: .06rem 0 0;
         color: var(--ag-text);
         font-size: clamp(1.04rem, 2vw, 1.22rem);
-        font-weight: 860;
+        font-weight: 700;
         line-height: 1.15;
     }
 
@@ -205,7 +202,7 @@
 
     .ag-head-meta strong {
         color: var(--ag-text-2);
-        font-weight: 760;
+        font-weight: 700;
     }
 
     .ag-dot {
@@ -213,7 +210,7 @@
         height: 3px;
         flex: 0 0 auto;
         border-radius: 50%;
-        background: #b6c0ba;
+        background: var(--ui-color-border-strong);
     }
 
     .ag-head-summary {
@@ -238,13 +235,13 @@
 
     .ag-head-stat small {
         color: var(--ag-muted);
-        font-size: .68rem;
+        font-size: .75rem;
     }
 
     .ag-head-stat strong {
         color: var(--ag-text);
         font-size: .9rem;
-        font-weight: 820;
+        font-weight: 700;
         font-variant-numeric: tabular-nums;
     }
 
@@ -257,7 +254,7 @@
         overflow: hidden;
         border: 1px solid var(--ag-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .ag-panel-head {
@@ -308,7 +305,7 @@
     .ag-panel-title-copy strong {
         color: var(--ag-text);
         font-size: .9rem;
-        font-weight: 820;
+        font-weight: 700;
     }
 
     .ag-panel-title-copy span {
@@ -331,7 +328,7 @@
         padding: .52rem .58rem;
         border-radius: 8px;
         background: var(--ag-blue-soft);
-        color: #35577d;
+        color: var(--ui-color-primary);
         font-size: .8rem;
         line-height: 1.5;
     }
@@ -356,18 +353,18 @@
         padding: .42rem .62rem;
         border: 1px solid var(--ag-border);
         border-radius: 8px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--ag-text-2);
         cursor: pointer;
         font-size: .82rem;
-        font-weight: 780;
-        white-space: nowrap;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .ag-action.primary {
         border-color: var(--ag-green);
         background: var(--ag-green);
-        color: #fff;
+        color: var(--sgc-on-primary);
     }
 
     .ag-action.blue {
@@ -420,11 +417,11 @@
         border-bottom: 1px solid var(--ag-border);
         background: var(--ag-soft);
         color: var(--ag-muted);
-        font-size: .74rem;
-        font-weight: 790;
+        font-size: .75rem;
+        font-weight: 700;
         letter-spacing: .015em;
         text-align: left;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .ag-table td {
@@ -463,20 +460,20 @@
     .ag-main strong {
         color: var(--ag-text);
         font-size: .84rem;
-        font-weight: 790;
+        font-weight: 700;
     }
 
     .ag-main small {
         margin-top: .03rem;
         color: var(--ag-muted);
-        font-size: .72rem;
+        font-size: .75rem;
     }
 
     .ag-money {
         color: var(--ag-text);
-        font-weight: 800;
+        font-weight: 700;
         font-variant-numeric: tabular-nums;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .ag-obligation-mobile {
@@ -514,7 +511,7 @@
     .ag-schedule-title strong {
         color: var(--ag-text);
         font-size: .88rem;
-        font-weight: 810;
+        font-weight: 700;
     }
 
     .ag-schedule-title span {
@@ -571,7 +568,7 @@
         border: 1px solid var(--ag-border);
         border-radius: 8px;
         outline: 0;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--ag-text);
         font-size: .86rem;
     }
@@ -610,13 +607,13 @@
 
     .ag-total-item small {
         color: var(--ag-muted);
-        font-size: .72rem;
+        font-size: .75rem;
     }
 
     .ag-total-item strong {
         color: var(--ag-text);
         font-size: .9rem;
-        font-weight: 820;
+        font-weight: 700;
         font-variant-numeric: tabular-nums;
     }
 
@@ -654,9 +651,9 @@
         border-radius: 7px;
         background: var(--soft);
         color: var(--tone);
-        font-size: .72rem;
-        font-weight: 790;
-        white-space: nowrap;
+        font-size: .75rem;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .ag-status.is-active {
@@ -686,7 +683,7 @@
 
     .ag-details-row td {
         padding: 0;
-        background: #fbfdfc;
+        background: var(--ui-color-surface);
     }
 
     .agreement-details {
@@ -700,7 +697,7 @@
         color: var(--ag-blue);
         cursor: pointer;
         font-size: .8rem;
-        font-weight: 760;
+        font-weight: 700;
         list-style: none;
     }
 
@@ -734,7 +731,7 @@
         margin: 0 0 .42rem;
         color: var(--ag-text);
         font-size: .84rem;
-        font-weight: 810;
+        font-weight: 700;
     }
 
     .ag-detail-section h4 i {
@@ -757,7 +754,7 @@
         padding: .55rem;
         border: 1px solid var(--ag-border);
         border-radius: 8px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     /* =========================================================
@@ -799,13 +796,13 @@
     .ag-mobile-term-main strong {
         color: var(--ag-text);
         font-size: .88rem;
-        font-weight: 810;
+        font-weight: 700;
     }
 
     .ag-mobile-term-main small {
         margin-top: .04rem;
         color: var(--ag-muted);
-        font-size: .74rem;
+        font-size: .75rem;
     }
 
     .ag-mobile-facts {
@@ -830,16 +827,16 @@
 
     .ag-mobile-fact small {
         color: var(--ag-muted);
-        font-size: .68rem;
+        font-size: .75rem;
     }
 
     .ag-mobile-fact strong {
         overflow: hidden;
         color: var(--ag-text);
         font-size: .8rem;
-        font-weight: 780;
+        font-weight: 700;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .ag-empty {
@@ -920,7 +917,7 @@
             align-items: center;
             flex-wrap: wrap;
             color: var(--ag-muted);
-            font-size: .74rem;
+            font-size: .75rem;
         }
     }
 
@@ -943,7 +940,7 @@
         }
 
         .ag-head-copy small {
-            font-size: .68rem;
+            font-size: .75rem;
         }
 
         .ag-head-copy h1 {
@@ -951,7 +948,7 @@
         }
 
         .ag-head-meta {
-            font-size: .74rem;
+            font-size: .75rem;
         }
 
         .ag-panel-head,
@@ -1037,9 +1034,9 @@
 <main class="agreements-workspace">
     @if(session('agreement_document_id'))
         <div class="ag-note" style="margin-bottom:.75rem">
-            <i class="ph-fill ph-check-circle"></i>
+            <i class="ph-duotone ph-check-circle"></i>
             <span>O termo foi salvo com sucesso.</span>
-            <a class="ag-action primary" href="{{ route('services.management.documents.download', [$tenantSlug, session('agreement_document_id'), 'inline' => 1]) }}" target="_blank" rel="noopener"><i class="ph-fill ph-printer"></i><span>Abrir e imprimir termo</span></a>
+            <a class="ag-action primary" href="{{ route('services.management.documents.download', [$tenantSlug, session('agreement_document_id'), 'inline' => 1]) }}" target="_blank" rel="noopener"><i class="ph-duotone ph-printer"></i><span>Abrir e imprimir termo</span></a>
         </div>
     @endif
     <header class="ag-head">
@@ -1048,7 +1045,7 @@
                 class="ag-head-icon"
                 aria-hidden="true"
             >
-                <i class="ph-fill ph-handshake"></i>
+                <i class="ph-duotone ph-handshake"></i>
             </span>
 
             <div class="ag-head-copy">
@@ -1058,7 +1055,7 @@
 
                 <div class="ag-head-meta">
                     <span>
-                        <i class="ph-fill ph-receipt"></i>
+                        <i class="ph-duotone ph-receipt"></i>
 
                         <strong>
                             {{ $openObligationsCount }}
@@ -1074,7 +1071,7 @@
                     <span class="ag-dot"></span>
 
                     <span>
-                        <i class="ph-fill ph-files"></i>
+                        <i class="ph-duotone ph-files"></i>
 
                         <strong>
                             {{ $agreementsCount }}
@@ -1122,7 +1119,7 @@
                     class="ag-panel-title-icon"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-pencil-simple-line"></i>
+                    <i class="ph-duotone ph-pencil-simple-line"></i>
                 </span>
 
                 <span class="ag-panel-title-copy">
@@ -1137,7 +1134,7 @@
 
         <div class="ag-panel-body">
             <div class="ag-note">
-                <i class="ph-fill ph-info"></i>
+                <i class="ph-duotone ph-info"></i>
 
                 <span>
                     A soma da entrada e das parcelas deve ser igual ao saldo
@@ -1343,7 +1340,7 @@
 
                             <div class="ag-obligation-card-meta">
                                 <span>
-                                    <i class="ph-fill ph-hash"></i>
+                                    <i class="ph-duotone ph-hash"></i>
                                     OS {{
                                         $obligation
                                             ->execution
@@ -1356,7 +1353,7 @@
                                 <span>·</span>
 
                                 <span>
-                                    <i class="ph-fill ph-user"></i>
+                                    <i class="ph-duotone ph-user"></i>
                                     {{
                                         data_get(
                                             $obligation->party_snapshot,
@@ -1407,7 +1404,7 @@
                                 class="ag-action violet"
                                 id="add-entry"
                             >
-                                <i class="ph-fill ph-wallet"></i>
+                                <i class="ph-duotone ph-wallet"></i>
                                 <span>Adicionar entrada</span>
                             </button>
 
@@ -1416,7 +1413,7 @@
                                 class="ag-action blue"
                                 id="add-installment"
                             >
-                                <i class="ph-fill ph-plus-circle"></i>
+                                <i class="ph-duotone ph-plus-circle"></i>
                                 <span>Adicionar parcela</span>
                             </button>
                         </div>
@@ -1432,11 +1429,11 @@
                     </div>
 
                     <div class="ag-note" style="margin:.65rem 0">
-                        <i class="ph-fill ph-calendar-plus"></i>
+                        <i class="ph-duotone ph-calendar-plus"></i>
                         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:.55rem;align-items:end;width:100%">
                             <label class="ag-field"><span>Quantidade de parcelas</span><input class="ag-control" id="bulk-installment-count" type="number" min="1" max="120" value="3" inputmode="numeric"></label>
                             <label class="ag-field"><span>Primeiro vencimento</span><input class="ag-control" id="bulk-first-date" type="date" value="{{ now()->addMonthNoOverflow()->toDateString() }}"></label>
-                            <button class="ag-action blue" id="generate-installments" type="button"><i class="ph-fill ph-magic-wand"></i><span>Gerar parcelas restantes</span></button>
+                            <button class="ag-action blue" id="generate-installments" type="button"><i class="ph-duotone ph-magic-wand"></i><span>Gerar parcelas restantes</span></button>
                         </div>
                     </div>
 
@@ -1522,7 +1519,7 @@
                                     data-remove-row
                                     title="Remover"
                                 >
-                                    <i class="ph-fill ph-trash"></i>
+                                    <i class="ph-duotone ph-trash"></i>
                                     <span>Remover</span>
                                 </button>
                             </div>
@@ -1587,7 +1584,7 @@
                             type="submit"
                             @disabled($obligations->isEmpty())
                         >
-                            <i class="ph-fill ph-file-pdf"></i>
+                            <i class="ph-duotone ph-file-pdf"></i>
                             <span>Criar termo</span>
                         </button>
                     </div>
@@ -1608,7 +1605,7 @@
                     class="ag-panel-title-icon finance"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-files"></i>
+                    <i class="ph-duotone ph-files"></i>
                 </span>
 
                 <span class="ag-panel-title-copy">
@@ -1701,7 +1698,7 @@
                                     >
                                         <i
                                             class="
-                                                ph-fill
+                                                ph-duotone
                                                 {{ $status['icon'] }}
                                             "
                                         ></i>
@@ -1766,7 +1763,7 @@
                                                 ) }}"
                                                 target="_blank"
                                             >
-                                                <i class="ph-fill ph-file-pdf"></i>
+                                                <i class="ph-duotone ph-file-pdf"></i>
                                                 <span>Abrir PDF</span>
                                             </a>
                                         @endif
@@ -1787,7 +1784,7 @@
                                             <button
                                                 class="ag-action blue"
                                             >
-                                                <i class="ph-fill ph-arrows-clockwise"></i>
+                                                <i class="ph-duotone ph-arrows-clockwise"></i>
 
                                                 <span>
                                                     {{
@@ -1813,7 +1810,7 @@
                                         <div class="ag-detail-content">
                                             <section class="ag-detail-section">
                                                 <h4>
-                                                    <i class="ph-fill ph-receipt"></i>
+                                                    <i class="ph-duotone ph-receipt"></i>
                                                     Obrigações de origem
                                                 </h4>
 
@@ -1883,7 +1880,7 @@
 
                                             <section class="ag-detail-section">
                                                 <h4>
-                                                    <i class="ph-fill ph-calendar-check"></i>
+                                                    <i class="ph-duotone ph-calendar-check"></i>
                                                     Plano negociado
                                                 </h4>
 
@@ -1948,7 +1945,7 @@
                                                                                 === 'paid'
                                                                         )
                                                                             <span class="ag-status is-paid">
-                                                                                <i class="ph-fill ph-check-circle"></i>
+                                                                                <i class="ph-duotone ph-check-circle"></i>
 
                                                                                 Recebida em
                                                                                 {{
@@ -1969,13 +1966,13 @@
                                                                                 )
                                                                         )
                                                                             <span class="ag-status is-active">
-                                                                                <i class="ph-fill ph-clock"></i>
+                                                                                <i class="ph-duotone ph-clock"></i>
                                                                                 Pendente
                                                                             </span>
 
                                                                             @if($installment->verificationIdentity)
                                                                                 <a class="ag-action blue" href="{{ route('financial-documents.show', $installment->verificationIdentity->public_id) }}" target="_blank" rel="noopener" style="margin-top:.4rem">
-                                                                                    <i class="ph-fill ph-qr-code"></i>
+                                                                                    <i class="ph-duotone ph-qr-code"></i>
                                                                                     <span>Abrir cobrança com QR</span>
                                                                                 </a>
                                                                             @endif
@@ -2063,7 +2060,7 @@
                                                                                         $accounts->isEmpty()
                                                                                     )
                                                                                 >
-                                                                                    <i class="ph-fill ph-check-circle"></i>
+                                                                                    <i class="ph-duotone ph-check-circle"></i>
 
                                                                                     <span>
                                                                                         Receber
@@ -2081,7 +2078,7 @@
                                                                             </form>
                                                                         @else
                                                                             <span class="ag-status is-active">
-                                                                                <i class="ph-fill ph-clock"></i>
+                                                                                <i class="ph-duotone ph-clock"></i>
                                                                                 Pendente
                                                                             </span>
                                                                         @endif
@@ -2170,7 +2167,7 @@
                         >
                             <i
                                 class="
-                                    ph-fill
+                                    ph-duotone
                                     {{ $status['icon'] }}
                                 "
                             ></i>
@@ -2239,7 +2236,7 @@
                                 ) }}"
                                 target="_blank"
                             >
-                                <i class="ph-fill ph-file-pdf"></i>
+                                <i class="ph-duotone ph-file-pdf"></i>
                                 <span>Abrir PDF</span>
                             </a>
                         @endif
@@ -2258,7 +2255,7 @@
                             @csrf
 
                             <button class="ag-action blue">
-                                <i class="ph-fill ph-arrows-clockwise"></i>
+                                <i class="ph-duotone ph-arrows-clockwise"></i>
 
                                 <span>
                                     {{
@@ -2280,7 +2277,7 @@
                         <div class="ag-detail-content">
                             <section class="ag-detail-section">
                                 <h4>
-                                    <i class="ph-fill ph-receipt"></i>
+                                    <i class="ph-duotone ph-receipt"></i>
                                     Obrigações
                                 </h4>
 
@@ -2350,7 +2347,7 @@
 
                             <section class="ag-detail-section">
                                 <h4>
-                                    <i class="ph-fill ph-calendar-check"></i>
+                                    <i class="ph-duotone ph-calendar-check"></i>
                                     Parcelas
                                 </h4>
 
@@ -2409,7 +2406,7 @@
                                         )
                                             <div style="margin-top:.4rem">
                                                 <span class="ag-status is-paid">
-                                                    <i class="ph-fill ph-check-circle"></i>
+                                                    <i class="ph-duotone ph-check-circle"></i>
 
                                                     Recebida em
                                                     {{
@@ -2432,7 +2429,7 @@
                                         )
                                             @if($installment->verificationIdentity)
                                                 <a class="ag-action blue" href="{{ route('financial-documents.show', $installment->verificationIdentity->public_id) }}" target="_blank" rel="noopener" style="margin-top:.4rem">
-                                                    <i class="ph-fill ph-qr-code"></i>
+                                                    <i class="ph-duotone ph-qr-code"></i>
                                                     <span>Abrir cobrança com QR</span>
                                                 </a>
                                             @endif
@@ -2519,7 +2516,7 @@
                                                         $accounts->isEmpty()
                                                     )
                                                 >
-                                                    <i class="ph-fill ph-check-circle"></i>
+                                                    <i class="ph-duotone ph-check-circle"></i>
 
                                                     <span>
                                                         Receber
@@ -2538,7 +2535,7 @@
                                         @else
                                             <div style="margin-top:.4rem">
                                                 <span class="ag-status is-active">
-                                                    <i class="ph-fill ph-clock"></i>
+                                                    <i class="ph-duotone ph-clock"></i>
                                                     Pendente
                                                 </span>
                                             </div>
@@ -2611,7 +2608,7 @@
             class="ag-action danger"
             data-remove-row
         >
-            <i class="ph-fill ph-trash"></i>
+            <i class="ph-duotone ph-trash"></i>
             <span>Remover</span>
         </button>
     </div>
@@ -3087,4 +3084,5 @@
     refresh();
 })();
 </script>
+</div>
 @endsection

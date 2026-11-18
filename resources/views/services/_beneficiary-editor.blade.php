@@ -1,5 +1,5 @@
 @if($order->operational_status !== 'cancelled' && auth()->user()->checkPermissionTo('operate_all_service_orders_portal'))
-    <button type="button" class="ds-button secondary" style="grid-column:1/-1;justify-self:start" data-open-dialog="beneficiary-dialog"><i class="ph-fill ph-pencil-simple" aria-hidden="true"></i> Corrigir nome</button>
+    <button type="button" class="ds-button secondary" style="grid-column:1/-1;justify-self:start" data-open-dialog="beneficiary-dialog"><i class="ph-duotone ph-pencil-simple" aria-hidden="true"></i> Corrigir nome</button>
     <dialog class="dossier-dialog" id="beneficiary-dialog" aria-labelledby="beneficiary-title">
         <form class="ds-dialog-layout" method="post" action="{{ route('services.management.beneficiary.update', [$tenantSlug, $order]) }}">
             @csrf @method('PATCH')

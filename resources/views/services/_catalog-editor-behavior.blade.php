@@ -1,5 +1,5 @@
 <style>
-    .cc-history { border:1px solid var(--ui-color-border,#dde5e0); border-radius:12px; padding:.85rem; }
+    .cc-history { border:1px solid var(--ui-color-border,var(--ui-color-border)); border-radius:12px; padding:.85rem; }
     .cc-history>summary { cursor:pointer; font-weight:700; }
     .cc-history[open]>summary { margin-bottom:.8rem; }
     .cc-action:disabled,.ct-open:disabled { opacity:.6; cursor:wait; }

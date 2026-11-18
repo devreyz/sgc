@@ -103,49 +103,46 @@
 @endphp
 
 @section('content')
+@include('services._campo-style')
+<div class="services-campo">
 
-@once
-    <link
-        rel="stylesheet"
-        href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css"
-    >
-@endonce
+
 
 <style>
     .provider-preview {
-        --pv-green: var(--ws-green, #219653);
-        --pv-green-soft: #edf8f2;
-        --pv-green-border: #cce8d7;
+        --pv-green: var(--ui-color-primary);
+        --pv-green-soft: var(--ui-color-primary-soft);
+        --pv-green-border: var(--ui-color-primary-border);
 
-        --pv-blue: var(--ws-blue, #3478d4);
-        --pv-blue-soft: #edf4ff;
-        --pv-blue-border: #cfe0f7;
+        --pv-blue: var(--ui-color-primary);
+        --pv-blue-soft: var(--ui-color-primary-soft);
+        --pv-blue-border: var(--ui-color-primary-border);
 
-        --pv-violet: var(--ws-purple, #8a4bd2);
-        --pv-violet-soft: #f5efff;
-        --pv-violet-border: #e1d2f4;
+        --pv-violet: var(--ui-color-primary);
+        --pv-violet-soft: var(--ui-color-primary-soft);
+        --pv-violet-border: var(--ui-color-primary-border);
 
-        --pv-amber: var(--ws-amber, #c38418);
-        --pv-amber-soft: #fff7e8;
-        --pv-amber-border: #f0dcae;
+        --pv-amber: var(--ui-color-warning);
+        --pv-amber-soft: var(--ui-color-warning-soft);
+        --pv-amber-border: var(--ui-color-warning-border);
 
-        --pv-red: var(--ws-red, #cf5050);
-        --pv-red-soft: #fff0f0;
-        --pv-red-border: #efcaca;
+        --pv-red: var(--ui-color-danger);
+        --pv-red-soft: var(--ui-color-danger-soft);
+        --pv-red-border: var(--ui-color-danger-border);
 
-        --pv-cyan: #168eae;
-        --pv-cyan-soft: #ecf8fb;
-        --pv-cyan-border: #cae8ef;
+        --pv-cyan: var(--ui-color-primary);
+        --pv-cyan-soft: var(--ui-color-primary-soft);
+        --pv-cyan-border: var(--ui-color-primary-border);
 
-        --pv-text: #17211d;
-        --pv-text-2: #59655f;
-        --pv-muted: #89938e;
-        --pv-border: #dde5e0;
-        --pv-soft: #f7faf8;
+        --pv-text: var(--ui-color-text);
+        --pv-text-2: var(--ui-color-text-secondary);
+        --pv-muted: var(--ui-color-text-muted);
+        --pv-border: var(--ui-color-border);
+        --pv-soft: var(--ui-color-surface-soft);
 
         display: grid;
         grid-column: 1 / -1;
-        width: min(100%, 980px);
+        width: 100%;
         min-width: 0;
         gap: .7rem;
         margin-inline: auto;
@@ -182,7 +179,7 @@
         padding: .76rem .84rem;
         border: 1px solid var(--pv-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .pv-head-main {
@@ -211,8 +208,8 @@
     .pv-head-copy small {
         display: block;
         color: var(--pv-muted);
-        font-size: .61rem;
-        font-weight: 750;
+        font-size: .75rem;
+        font-weight: 700;
         letter-spacing: .025em;
         text-transform: uppercase;
     }
@@ -222,16 +219,16 @@
         overflow: hidden;
         color: var(--pv-text);
         font-size: clamp(1.02rem, 2vw, 1.22rem);
-        font-weight: 860;
+        font-weight: 700;
         line-height: 1.15;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .pv-head-copy p {
         margin: .12rem 0 0;
         color: var(--pv-muted);
-        font-size: .65rem;
+        font-size: .75rem;
         line-height: 1.4;
     }
 
@@ -244,11 +241,11 @@
         padding: .38rem .56rem;
         border: 1px solid var(--pv-border);
         border-radius: 8px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pv-text-2);
-        font-size: .66rem;
-        font-weight: 760;
-        white-space: nowrap;
+        font-size: .75rem;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     /* =========================================================
@@ -261,7 +258,7 @@
         overflow: hidden;
         border: 1px solid var(--pv-border);
         border-radius: 11px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .pv-mode-button {
@@ -275,7 +272,7 @@
         padding: .45rem .6rem;
         border: 0;
         border-right: 1px solid var(--pv-border);
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pv-muted);
         cursor: pointer;
     }
@@ -310,14 +307,14 @@
 
     .pv-mode-copy strong {
         color: inherit;
-        font-size: .63rem;
-        font-weight: 800;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .pv-mode-copy small {
         margin-top: .02rem;
         color: var(--pv-muted);
-        font-size: .49rem;
+        font-size: .75rem;
     }
 
     .pv-mode-button.active {
@@ -343,7 +340,7 @@
         overflow: hidden;
         border: 1px solid var(--pv-border);
         border-radius: 14px;
-        background: #fff;
+        background: var(--ui-color-surface);
         box-shadow:
             0 12px 34px rgba(31, 70, 44, .05);
     }
@@ -356,7 +353,7 @@
         justify-content: space-between;
         padding: .68rem .72rem;
         border-bottom: 1px solid var(--pv-border);
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .pv-app-title {
@@ -390,7 +387,7 @@
 
     .pv-app-title-copy small {
         color: var(--pv-muted);
-        font-size: .52rem;
+        font-size: .75rem;
         font-weight: 690;
     }
 
@@ -398,10 +395,10 @@
         margin-top: .02rem;
         overflow: hidden;
         color: var(--pv-text);
-        font-size: .72rem;
-        font-weight: 810;
+        font-size: .75rem;
+        font-weight: 700;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .pv-preview-badge {
@@ -413,9 +410,9 @@
         border-radius: 7px;
         background: var(--pv-soft);
         color: var(--pv-muted);
-        font-size: .52rem;
-        font-weight: 760;
-        white-space: nowrap;
+        font-size: .75rem;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .pv-screen {
@@ -435,7 +432,7 @@
         grid-template-columns: repeat(4, minmax(0, 1fr));
         overflow: hidden;
         border-bottom: 1px solid var(--pv-border);
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .pv-create-step {
@@ -446,7 +443,7 @@
         padding: .52rem .48rem;
         border: 0;
         border-right: 1px solid var(--pv-border);
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pv-muted);
         cursor: pointer;
         text-align: left;
@@ -469,16 +466,16 @@
     .pv-create-step strong {
         overflow: hidden;
         color: inherit;
-        font-size: .57rem;
-        font-weight: 790;
+        font-size: .75rem;
+        font-weight: 700;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .pv-create-step small {
         color: var(--pv-muted);
-        font-size: .46rem;
-        white-space: nowrap;
+        font-size: .75rem;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .pv-create-step.active {
@@ -518,7 +515,7 @@
         border-radius: 8px;
         background: var(--pv-blue-soft);
         color: var(--pv-blue);
-        font-size: .72rem;
+        font-size: .75rem;
     }
 
     .pv-section-title-copy {
@@ -532,14 +529,14 @@
 
     .pv-section-title-copy strong {
         color: var(--pv-text);
-        font-size: .7rem;
-        font-weight: 810;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .pv-section-title-copy span {
         margin-top: .02rem;
         color: var(--pv-muted);
-        font-size: .53rem;
+        font-size: .75rem;
         line-height: 1.4;
     }
 
@@ -564,7 +561,7 @@
         gap: .25rem;
         align-items: center;
         color: var(--pv-text-2);
-        font-size: .58rem;
+        font-size: .75rem;
         font-weight: 730;
     }
 
@@ -574,7 +571,7 @@
 
     .pv-unit {
         color: var(--pv-muted);
-        font-size: .5rem;
+        font-size: .75rem;
         font-weight: 650;
     }
 
@@ -586,9 +583,9 @@
         border: 1px solid var(--pv-border);
         border-radius: 8px;
         outline: 0;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pv-text);
-        font-size: .66rem;
+        font-size: .75rem;
     }
 
     textarea.pv-control {
@@ -598,14 +595,14 @@
 
     .pv-control:disabled {
         opacity: 1;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pv-text-2);
         -webkit-text-fill-color: var(--pv-text-2);
     }
 
     .pv-help {
         color: var(--pv-muted);
-        font-size: .5rem;
+        font-size: .75rem;
         line-height: 1.4;
     }
 
@@ -618,7 +615,7 @@
         padding: .4rem .46rem;
         border: 1px solid var(--pv-border);
         border-radius: 8px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .pv-choice-icon {
@@ -629,7 +626,7 @@
         border-radius: 7px;
         background: var(--pv-soft);
         color: var(--pv-text-2);
-        font-size: .7rem;
+        font-size: .75rem;
     }
 
     .pv-choice-copy {
@@ -643,22 +640,22 @@
 
     .pv-choice-copy small {
         color: var(--pv-muted);
-        font-size: .48rem;
+        font-size: .75rem;
     }
 
     .pv-choice-copy strong {
         margin-top: .02rem;
         overflow: hidden;
         color: var(--pv-text);
-        font-size: .62rem;
-        font-weight: 760;
+        font-size: .75rem;
+        font-weight: 700;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .pv-choice i:last-child {
         color: var(--pv-muted);
-        font-size: .62rem;
+        font-size: .75rem;
     }
 
     .pv-create-actions {
@@ -668,7 +665,7 @@
         justify-content: space-between;
         padding: .62rem .72rem;
         border-top: 1px solid var(--pv-border);
-        background: #fbfdfc;
+        background: var(--ui-color-surface);
     }
 
     .pv-button {
@@ -680,17 +677,17 @@
         padding: .36rem .56rem;
         border: 1px solid var(--pv-border);
         border-radius: 8px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pv-text-2);
         cursor: pointer;
-        font-size: .64rem;
-        font-weight: 780;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .pv-button.primary {
         border-color: var(--pv-green);
         background: var(--pv-green);
-        color: #fff;
+        color: var(--sgc-on-primary);
     }
 
     .pv-button:disabled {
@@ -722,16 +719,16 @@
 
     .pv-order-fact small {
         color: var(--pv-muted);
-        font-size: .47rem;
+        font-size: .75rem;
     }
 
     .pv-order-fact strong {
         overflow: hidden;
         color: var(--pv-text);
-        font-size: .57rem;
+        font-size: .75rem;
         font-weight: 740;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .pv-workflow {
@@ -739,9 +736,9 @@
         min-width: 0;
         overflow-x: auto;
         border-bottom: 1px solid var(--pv-border);
-        background: #fff;
+        background: var(--ui-color-surface);
         scrollbar-width: thin;
-        scrollbar-color: #cfd8d2 transparent;
+        scrollbar-color: var(--ui-color-border) transparent;
     }
 
     .pv-workflow::-webkit-scrollbar {
@@ -750,7 +747,7 @@
 
     .pv-workflow::-webkit-scrollbar-thumb {
         border-radius: 999px;
-        background: #cfd8d2;
+        background: var(--ui-color-border);
     }
 
     .pv-workflow-step {
@@ -765,7 +762,7 @@
         padding: .46rem .52rem;
         border: 0;
         border-right: 1px solid var(--pv-border);
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pv-muted);
         cursor: pointer;
         text-align: left;
@@ -793,7 +790,7 @@
         border-radius: 8px;
         background: var(--pv-soft);
         color: var(--pv-muted);
-        font-size: .7rem;
+        font-size: .75rem;
     }
 
     .pv-workflow-copy {
@@ -807,17 +804,17 @@
 
     .pv-workflow-copy strong {
         color: inherit;
-        font-size: .58rem;
-        font-weight: 790;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .pv-workflow-copy small {
         margin-top: .02rem;
         overflow: hidden;
         color: var(--pv-muted);
-        font-size: .46rem;
+        font-size: .75rem;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .pv-workflow-step.active {
@@ -830,7 +827,7 @@
     }
 
     .pv-workflow-step.active .pv-workflow-icon {
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pv-blue);
     }
 
@@ -852,14 +849,14 @@
     }
 
     .pv-evidence strong {
-        font-size: .61rem;
-        font-weight: 790;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .pv-evidence small {
         max-width: 280px;
         color: var(--pv-text-2);
-        font-size: .5rem;
+        font-size: .75rem;
         line-height: 1.4;
     }
 
@@ -869,7 +866,7 @@
         place-items: center;
         padding: 1rem;
         color: var(--pv-muted);
-        font-size: .61rem;
+        font-size: .75rem;
         text-align: center;
     }
 
@@ -881,7 +878,7 @@
         border-radius: 8px;
         background: var(--pv-soft);
         color: var(--pv-text-2);
-        font-size: .53rem;
+        font-size: .75rem;
         line-height: 1.45;
     }
 
@@ -889,7 +886,7 @@
         margin-top: .04rem;
         flex: 0 0 auto;
         color: var(--pv-muted);
-        font-size: .64rem;
+        font-size: .75rem;
     }
 
     /* =========================================================
@@ -922,7 +919,7 @@
             display: flex;
             overflow-x: auto;
             scrollbar-width: thin;
-            scrollbar-color: #cfd8d2 transparent;
+            scrollbar-color: var(--ui-color-border) transparent;
         }
 
         .pv-create-step {
@@ -998,7 +995,7 @@
                 class="pv-head-icon"
                 aria-hidden="true"
             >
-                <i class="ph-fill ph-eye"></i>
+                <i class="ph-duotone ph-eye"></i>
             </span>
 
             <div class="pv-head-copy">
@@ -1024,7 +1021,7 @@
                 ]
             ) }}"
         >
-            <i class="ph-fill ph-arrow-left"></i>
+            <i class="ph-duotone ph-arrow-left"></i>
             <span>Voltar à configuração</span>
         </a>
     </header>
@@ -1038,7 +1035,7 @@
             type="button"
             data-preview-mode="create"
         >
-            <i class="ph-fill ph-plus-circle"></i>
+            <i class="ph-duotone ph-plus-circle"></i>
 
             <span class="pv-mode-copy">
                 <strong>Criação da ordem</strong>
@@ -1051,7 +1048,7 @@
             type="button"
             data-preview-mode="execution"
         >
-            <i class="ph-fill ph-play-circle"></i>
+            <i class="ph-duotone ph-play-circle"></i>
 
             <span class="pv-mode-copy">
                 <strong>Execução do serviço</strong>
@@ -1067,7 +1064,7 @@
                     class="pv-app-title-icon"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-briefcase"></i>
+                    <i class="ph-duotone ph-briefcase"></i>
                 </span>
 
                 <span class="pv-app-title-copy">
@@ -1080,7 +1077,7 @@
             </div>
 
             <span class="pv-preview-badge">
-                <i class="ph-fill ph-eye"></i>
+                <i class="ph-duotone ph-eye"></i>
                 Somente prévia
             </span>
         </header>
@@ -1095,7 +1092,7 @@
         >
             @if(!$createOrderAllowed)
                 <div class="pv-readonly-note">
-                    <i class="ph-fill ph-info"></i>
+                    <i class="ph-duotone ph-info"></i>
 
                     <span>
                         A criação de ordens pelo prestador está desativada
@@ -1140,7 +1137,7 @@
                 >
                     <div class="pv-section-title">
                         <span class="pv-section-title-icon">
-                            <i class="ph-fill ph-wrench"></i>
+                            <i class="ph-duotone ph-wrench"></i>
                         </span>
 
                         <span class="pv-section-title-copy">
@@ -1154,7 +1151,7 @@
 
                     <div class="pv-choice">
                         <span class="pv-choice-icon">
-                            <i class="ph-fill ph-wrench"></i>
+                            <i class="ph-duotone ph-wrench"></i>
                         </span>
 
                         <span class="pv-choice-copy">
@@ -1166,11 +1163,11 @@
                             </strong>
                         </span>
 
-                        <i class="ph-fill ph-check-circle"></i>
+                        <i class="ph-duotone ph-check-circle"></i>
                     </div>
 
                     <div class="pv-readonly-note">
-                        <i class="ph-fill ph-info"></i>
+                        <i class="ph-duotone ph-info"></i>
 
                         <span>
                             Unidade principal:
@@ -1188,7 +1185,7 @@
                 >
                     <div class="pv-section-title">
                         <span class="pv-section-title-icon">
-                            <i class="ph-fill ph-user-circle"></i>
+                            <i class="ph-duotone ph-user-circle"></i>
                         </span>
 
                         <span class="pv-section-title-copy">
@@ -1211,7 +1208,7 @@
 
                             <div class="pv-choice">
                                 <span class="pv-choice-icon">
-                                    <i class="ph-fill ph-user"></i>
+                                    <i class="ph-duotone ph-user"></i>
                                 </span>
 
                                 <span class="pv-choice-copy">
@@ -1228,7 +1225,7 @@
                                     </strong>
                                 </span>
 
-                                <i class="ph-fill ph-caret-right"></i>
+                                <i class="ph-duotone ph-caret-right"></i>
                             </div>
                         </div>
 
@@ -1253,7 +1250,7 @@
                 >
                     <div class="pv-section-title">
                         <span class="pv-section-title-icon">
-                            <i class="ph-fill ph-calendar-check"></i>
+                            <i class="ph-duotone ph-calendar-check"></i>
                         </span>
 
                         <span class="pv-section-title-copy">
@@ -1313,7 +1310,7 @@
                 >
                     <div class="pv-section-title">
                         <span class="pv-section-title-icon">
-                            <i class="ph-fill ph-clipboard-text"></i>
+                            <i class="ph-duotone ph-clipboard-text"></i>
                         </span>
 
                         <span class="pv-section-title-copy">
@@ -1477,7 +1474,7 @@
                                     <div class="pv-evidence">
                                         <i
                                             class="
-                                                ph-fill
+                                                ph-duotone
                                                 {{
                                                     $field->type === 'image'
                                                         ? 'ph-camera'
@@ -1521,7 +1518,7 @@
                     data-create-previous
                     disabled
                 >
-                    <i class="ph-fill ph-arrow-left"></i>
+                    <i class="ph-duotone ph-arrow-left"></i>
                     Voltar
                 </button>
 
@@ -1531,7 +1528,7 @@
                     data-create-next
                 >
                     Continuar
-                    <i class="ph-fill ph-arrow-right"></i>
+                    <i class="ph-duotone ph-arrow-right"></i>
                 </button>
             </footer>
         </div>
@@ -1588,7 +1585,7 @@
                         <span class="pv-workflow-icon">
                             <i
                                 class="
-                                    ph-fill
+                                    ph-duotone
                                     {{ $phaseMeta[$phase]['icon'] }}
                                 "
                             ></i>
@@ -1648,7 +1645,7 @@
                             <span class="pv-section-title-icon">
                                 <i
                                     class="
-                                        ph-fill
+                                        ph-duotone
                                         {{ $phaseMeta[$phase]['icon'] }}
                                     "
                                 ></i>
@@ -1795,7 +1792,7 @@
                                         <div class="pv-evidence">
                                             <i
                                                 class="
-                                                    ph-fill
+                                                    ph-duotone
                                                     {{
                                                         $field->type === 'image'
                                                             ? 'ph-camera'
@@ -1834,7 +1831,7 @@
 
                         @if($phase === 'start')
                             <div class="pv-readonly-note">
-                                <i class="ph-fill ph-info"></i>
+                                <i class="ph-duotone ph-info"></i>
 
                                 <span>
                                     Ao confirmar esta etapa, a ordem entra
@@ -1844,7 +1841,7 @@
                             </div>
                         @elseif($phase === 'finish')
                             <div class="pv-readonly-note">
-                                <i class="ph-fill ph-paper-plane-tilt"></i>
+                                <i class="ph-duotone ph-paper-plane-tilt"></i>
 
                                 <span>
                                     Após preencher os dados obrigatórios,
@@ -1858,7 +1855,7 @@
                             </div>
                         @elseif($phase === 'review')
                             <div class="pv-readonly-note">
-                                <i class="ph-fill ph-magnifying-glass"></i>
+                                <i class="ph-duotone ph-magnifying-glass"></i>
 
                                 <span>
                                     Nesta etapa o prestador acompanha a
@@ -1998,8 +1995,8 @@ document.addEventListener(
 
                 next.innerHTML =
                     last
-                        ? '<i class="ph-fill ph-eye"></i> Prévia concluída'
-                        : 'Continuar <i class="ph-fill ph-arrow-right"></i>';
+                        ? '<i class="ph-duotone ph-eye"></i> Prévia concluída'
+                        : 'Continuar <i class="ph-duotone ph-arrow-right"></i>';
 
                 next.disabled = last;
             }
@@ -2099,4 +2096,5 @@ document.addEventListener(
     }
 );
 </script>
+</div>
 @endsection

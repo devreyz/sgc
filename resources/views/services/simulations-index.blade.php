@@ -32,45 +32,42 @@
 @endphp
 
 @section('content')
+@include('services._campo-style')
+<div class="services-campo">
 
-@once
-    <link
-        rel="stylesheet"
-        href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css"
-    >
-@endonce
+
 
 <style>
     .sim-workspace {
-        --sim-green: var(--ws-green, #219653);
-        --sim-green-soft: #edf8f2;
-        --sim-green-border: #cce8d7;
+        --sim-green: var(--ui-color-primary);
+        --sim-green-soft: var(--ui-color-primary-soft);
+        --sim-green-border: var(--ui-color-primary-border);
 
-        --sim-blue: var(--ws-blue, #3478d4);
-        --sim-blue-soft: #edf4ff;
-        --sim-blue-border: #cfe0f7;
+        --sim-blue: var(--ui-color-primary);
+        --sim-blue-soft: var(--ui-color-primary-soft);
+        --sim-blue-border: var(--ui-color-primary-border);
 
-        --sim-violet: var(--ws-purple, #8a4bd2);
-        --sim-violet-soft: #f5efff;
-        --sim-violet-border: #e1d2f4;
+        --sim-violet: var(--ui-color-primary);
+        --sim-violet-soft: var(--ui-color-primary-soft);
+        --sim-violet-border: var(--ui-color-primary-border);
 
-        --sim-amber: var(--ws-amber, #c38418);
-        --sim-amber-soft: #fff7e8;
-        --sim-amber-border: #f0dcae;
+        --sim-amber: var(--ui-color-warning);
+        --sim-amber-soft: var(--ui-color-warning-soft);
+        --sim-amber-border: var(--ui-color-warning-border);
 
-        --sim-red: var(--ws-red, #cf5050);
-        --sim-red-soft: #fff0f0;
-        --sim-red-border: #efcaca;
+        --sim-red: var(--ui-color-danger);
+        --sim-red-soft: var(--ui-color-danger-soft);
+        --sim-red-border: var(--ui-color-danger-border);
 
-        --sim-text: #17211d;
-        --sim-text-2: #59655f;
-        --sim-muted: #89938e;
-        --sim-border: #dde5e0;
-        --sim-soft: #f7faf8;
+        --sim-text: var(--ui-color-text);
+        --sim-text-2: var(--ui-color-text-secondary);
+        --sim-muted: var(--ui-color-text-muted);
+        --sim-border: var(--ui-color-border);
+        --sim-soft: var(--ui-color-surface-soft);
 
         display: grid;
         grid-column: 1 / -1;
-        width: min(100%, 1320px);
+        width: 100%;
         min-width: 0;
         gap: .72rem;
         margin-inline: auto;
@@ -111,7 +108,7 @@
         padding: .76rem .84rem;
         border: 1px solid var(--sim-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .sim-head-main {
@@ -140,8 +137,8 @@
     .sim-head-copy small {
         display: block;
         color: var(--sim-muted);
-        font-size: .72rem;
-        font-weight: 750;
+        font-size: .75rem;
+        font-weight: 700;
         letter-spacing: .025em;
         text-transform: uppercase;
     }
@@ -150,7 +147,7 @@
         margin: .06rem 0 0;
         color: var(--sim-text);
         font-size: clamp(1.04rem, 2vw, 1.22rem);
-        font-weight: 860;
+        font-weight: 700;
         line-height: 1.15;
     }
 
@@ -179,7 +176,7 @@
 
     .sim-head-meta strong {
         color: var(--sim-text-2);
-        font-weight: 760;
+        font-weight: 700;
     }
 
     .sim-dot {
@@ -187,7 +184,7 @@
         height: 3px;
         flex: 0 0 auto;
         border-radius: 50%;
-        background: #b6c0ba;
+        background: var(--ui-color-border-strong);
     }
 
     .sim-head-state {
@@ -201,8 +198,8 @@
         background: var(--sim-violet-soft);
         color: var(--sim-violet);
         font-size: .76rem;
-        font-weight: 780;
-        white-space: nowrap;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     /* =========================================================
@@ -226,7 +223,7 @@
         height: 34px;
         place-items: center;
         border-radius: 8px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--sim-blue);
         font-size: .82rem;
     }
@@ -237,14 +234,14 @@
     }
 
     .sim-safety-copy strong {
-        color: #315a86;
+        color: var(--ui-color-primary);
         font-size: .82rem;
-        font-weight: 810;
+        font-weight: 700;
     }
 
     .sim-safety-copy span {
         margin-top: .04rem;
-        color: #496987;
+        color: var(--ui-color-primary);
         font-size: .77rem;
         line-height: 1.45;
     }
@@ -262,18 +259,18 @@
         padding: .42rem .62rem;
         border: 1px solid var(--sim-border);
         border-radius: 8px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--sim-text-2);
         cursor: pointer;
         font-size: .82rem;
-        font-weight: 780;
-        white-space: nowrap;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .sim-action.primary {
         border-color: var(--sim-green);
         background: var(--sim-green);
-        color: #fff;
+        color: var(--sgc-on-primary);
     }
 
     .sim-action.blue {
@@ -316,7 +313,7 @@
         overflow: hidden;
         border: 1px solid var(--sim-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .sim-panel-head {
@@ -372,7 +369,7 @@
     .sim-panel-title-copy strong {
         color: var(--sim-text);
         font-size: .9rem;
-        font-weight: 820;
+        font-weight: 700;
     }
 
     .sim-panel-title-copy span {
@@ -430,13 +427,13 @@
     .sim-section-copy strong {
         color: var(--sim-text);
         font-size: .84rem;
-        font-weight: 810;
+        font-weight: 700;
     }
 
     .sim-section-copy span {
         margin-top: .03rem;
         color: var(--sim-muted);
-        font-size: .74rem;
+        font-size: .75rem;
         line-height: 1.45;
     }
 
@@ -478,7 +475,7 @@
 
     .sim-unit {
         color: var(--sim-muted);
-        font-size: .7rem;
+        font-size: .75rem;
         font-weight: 650;
     }
 
@@ -491,7 +488,7 @@
         border: 1px solid var(--sim-border);
         border-radius: 8px;
         outline: 0;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--sim-text);
         font-size: .86rem;
     }
@@ -514,7 +511,7 @@
 
     .sim-help {
         color: var(--sim-muted);
-        font-size: .71rem;
+        font-size: .75rem;
         line-height: 1.45;
     }
 
@@ -550,13 +547,13 @@
     .sim-auto-fill-copy strong {
         color: var(--sim-text);
         font-size: .8rem;
-        font-weight: 790;
+        font-weight: 700;
     }
 
     .sim-auto-fill-copy small {
         margin-top: .04rem;
         color: var(--sim-muted);
-        font-size: .72rem;
+        font-size: .75rem;
         line-height: 1.45;
     }
 
@@ -566,7 +563,7 @@
         align-items: center;
         margin-top: .02rem;
         color: var(--sim-amber);
-        font-size: .72rem;
+        font-size: .75rem;
         font-weight: 720;
     }
 
@@ -594,7 +591,7 @@
         align-items: center;
         color: var(--sim-violet);
         font-size: .78rem;
-        font-weight: 790;
+        font-weight: 700;
     }
 
     .sim-evidence-items {
@@ -607,7 +604,7 @@
         gap: .3rem;
         align-items: center;
         color: var(--sim-text-2);
-        font-size: .74rem;
+        font-size: .75rem;
         line-height: 1.4;
     }
 
@@ -652,7 +649,7 @@
         border-radius: 8px;
         background: var(--sim-soft);
         color: var(--sim-blue);
-        font-size: .72rem;
+        font-size: .75rem;
     }
 
     .sim-check-copy {
@@ -667,13 +664,13 @@
     .sim-check-copy strong {
         color: var(--sim-text);
         font-size: .78rem;
-        font-weight: 780;
+        font-weight: 700;
     }
 
     .sim-check-copy small {
         margin-top: .02rem;
         color: var(--sim-muted);
-        font-size: .69rem;
+        font-size: .75rem;
         line-height: 1.4;
     }
 
@@ -686,7 +683,7 @@
         border-radius: 8px;
         background: var(--sim-soft);
         color: var(--sim-muted);
-        font-size: .72rem;
+        font-size: .75rem;
         line-height: 1.45;
     }
 
@@ -702,8 +699,8 @@
 
     .sim-list-meta {
         color: var(--sim-muted);
-        font-size: .74rem;
-        white-space: nowrap;
+        font-size: .75rem;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .sim-table-wrap {
@@ -725,11 +722,11 @@
         border-bottom: 1px solid var(--sim-border);
         background: var(--sim-soft);
         color: var(--sim-muted);
-        font-size: .74rem;
-        font-weight: 790;
+        font-size: .75rem;
+        font-weight: 700;
         letter-spacing: .015em;
         text-align: left;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .sim-table td {
@@ -759,18 +756,18 @@
         overflow: hidden;
         color: var(--sim-text);
         font-size: .84rem;
-        font-weight: 790;
+        font-weight: 700;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .sim-main small {
         margin-top: .03rem;
         overflow: hidden;
         color: var(--sim-muted);
-        font-size: .72rem;
+        font-size: .75rem;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .sim-status {
@@ -787,9 +784,9 @@
         border-radius: 7px;
         background: var(--soft);
         color: var(--tone);
-        font-size: .72rem;
-        font-weight: 780;
-        white-space: nowrap;
+        font-size: .75rem;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .sim-status.success {
@@ -849,16 +846,16 @@
 
     .sim-mobile-fact small {
         color: var(--sim-muted);
-        font-size: .68rem;
+        font-size: .75rem;
     }
 
     .sim-mobile-fact strong {
         overflow: hidden;
         color: var(--sim-text);
         font-size: .78rem;
-        font-weight: 760;
+        font-weight: 700;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .sim-mobile-actions {
@@ -899,7 +896,7 @@
         overflow: hidden;
         border: 0;
         border-radius: 13px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--sim-text);
         box-shadow: 0 24px 80px rgba(21, 49, 31, .22);
     }
@@ -936,13 +933,13 @@
     .sim-dialog-head strong {
         color: var(--sim-text);
         font-size: .88rem;
-        font-weight: 820;
+        font-weight: 700;
     }
 
     .sim-dialog-head small {
         margin-top: .03rem;
         color: var(--sim-muted);
-        font-size: .72rem;
+        font-size: .75rem;
     }
 
     .sim-dialog-body {
@@ -1017,7 +1014,7 @@
         }
 
         .sim-head-copy small {
-            font-size: .68rem;
+            font-size: .75rem;
         }
 
         .sim-head-copy h1 {
@@ -1025,7 +1022,7 @@
         }
 
         .sim-head-meta {
-            font-size: .74rem;
+            font-size: .75rem;
         }
 
         .sim-head-state {
@@ -1092,7 +1089,7 @@
                 class="sim-head-icon"
                 aria-hidden="true"
             >
-                <i class="ph-fill ph-flask"></i>
+                <i class="ph-duotone ph-flask"></i>
             </span>
 
             <div class="sim-head-copy">
@@ -1102,14 +1099,14 @@
 
                 <div class="sim-head-meta">
                     <span>
-                        <i class="ph-fill ph-database"></i>
+                        <i class="ph-duotone ph-database"></i>
                         Transação descartável
                     </span>
 
                     <span class="sim-dot"></span>
 
                     <span>
-                        <i class="ph-fill ph-files"></i>
+                        <i class="ph-duotone ph-files"></i>
 
                         <strong>{{ $simulationsOnPage }}</strong>
                         nesta página
@@ -1119,7 +1116,7 @@
         </div>
 
         <span class="sim-head-state">
-            <i class="ph-fill ph-shield-check"></i>
+            <i class="ph-duotone ph-shield-check"></i>
             Ambiente de teste
         </span>
     </header>
@@ -1129,7 +1126,7 @@
             class="sim-safety-icon"
             aria-hidden="true"
         >
-            <i class="ph-fill ph-shield-check"></i>
+            <i class="ph-duotone ph-shield-check"></i>
         </span>
 
         <div class="sim-safety-copy">
@@ -1151,7 +1148,7 @@
                         class="sim-panel-title-icon"
                         aria-hidden="true"
                     >
-                        <i class="ph-fill ph-test-tube"></i>
+                        <i class="ph-duotone ph-test-tube"></i>
                     </span>
 
                     <span class="sim-panel-title-copy">
@@ -1189,7 +1186,7 @@
                         <div class="sim-fields">
                             <label class="sim-field">
                                 <span class="sim-label">
-                                    <i class="ph-fill ph-tag"></i>
+                                    <i class="ph-duotone ph-tag"></i>
                                     Nome do cenário
                                 </span>
 
@@ -1204,7 +1201,7 @@
 
                             <label class="sim-field">
                                 <span class="sim-label">
-                                    <i class="ph-fill ph-stack"></i>
+                                    <i class="ph-duotone ph-stack"></i>
                                     Versão do serviço
                                     <span class="sim-required">*</span>
                                 </span>
@@ -1253,7 +1250,7 @@
 
                             <label class="sim-field full">
                                 <span class="sim-label">
-                                    <i class="ph-fill ph-user-gear"></i>
+                                    <i class="ph-duotone ph-user-gear"></i>
                                     Prestador usado no cálculo
                                 </span>
 
@@ -1287,7 +1284,7 @@
                                     class="sim-provider-state"
                                     id="provider-payable-state"
                                 >
-                                    <i class="ph-fill ph-info"></i>
+                                    <i class="ph-duotone ph-info"></i>
                                     Esta versão gera remuneração ao prestador.
                                 </span>
                             </label>
@@ -1516,7 +1513,7 @@
                                     @if($evidenceFields->isNotEmpty())
                                         <div class="sim-evidence-list">
                                             <div class="sim-evidence-head">
-                                                <i class="ph-fill ph-paperclip"></i>
+                                                <i class="ph-duotone ph-paperclip"></i>
                                                 Evidências configuradas
                                             </div>
 
@@ -1525,7 +1522,7 @@
                                                     <div class="sim-evidence-item">
                                                         <i
                                                             class="
-                                                                ph-fill
+                                                                ph-duotone
                                                                 {{
                                                                     ($field['type'] ?? null) === 'image'
                                                                         ? 'ph-camera'
@@ -1562,7 +1559,7 @@
                             class="sim-action primary"
                             type="submit"
                         >
-                            <i class="ph-fill ph-play"></i>
+                            <i class="ph-duotone ph-play"></i>
                             <span>Executar simulação</span>
                         </button>
                     </div>
@@ -1577,7 +1574,7 @@
                         class="sim-panel-title-icon blue"
                         aria-hidden="true"
                     >
-                        <i class="ph-fill ph-check-square-offset"></i>
+                        <i class="ph-duotone ph-check-square-offset"></i>
                     </span>
 
                     <span class="sim-panel-title-copy">
@@ -1594,7 +1591,7 @@
                 <div class="sim-checks">
                     <div class="sim-check-item">
                         <span class="sim-check-icon">
-                            <i class="ph-fill ph-list-checks"></i>
+                            <i class="ph-duotone ph-list-checks"></i>
                         </span>
 
                         <span class="sim-check-copy">
@@ -1605,7 +1602,7 @@
 
                     <div class="sim-check-item">
                         <span class="sim-check-icon">
-                            <i class="ph-fill ph-gauge"></i>
+                            <i class="ph-duotone ph-gauge"></i>
                         </span>
 
                         <span class="sim-check-copy">
@@ -1616,7 +1613,7 @@
 
                     <div class="sim-check-item">
                         <span class="sim-check-icon">
-                            <i class="ph-fill ph-arrows-left-right"></i>
+                            <i class="ph-duotone ph-arrows-left-right"></i>
                         </span>
 
                         <span class="sim-check-copy">
@@ -1627,7 +1624,7 @@
 
                     <div class="sim-check-item">
                         <span class="sim-check-icon">
-                            <i class="ph-fill ph-currency-circle-dollar"></i>
+                            <i class="ph-duotone ph-currency-circle-dollar"></i>
                         </span>
 
                         <span class="sim-check-copy">
@@ -1638,7 +1635,7 @@
 
                     <div class="sim-check-item">
                         <span class="sim-check-icon">
-                            <i class="ph-fill ph-percent"></i>
+                            <i class="ph-duotone ph-percent"></i>
                         </span>
 
                         <span class="sim-check-copy">
@@ -1649,7 +1646,7 @@
 
                     <div class="sim-check-item">
                         <span class="sim-check-icon">
-                            <i class="ph-fill ph-wallet"></i>
+                            <i class="ph-duotone ph-wallet"></i>
                         </span>
 
                         <span class="sim-check-copy">
@@ -1660,7 +1657,7 @@
 
                     <div class="sim-check-item">
                         <span class="sim-check-icon">
-                            <i class="ph-fill ph-camera"></i>
+                            <i class="ph-duotone ph-camera"></i>
                         </span>
 
                         <span class="sim-check-copy">
@@ -1671,7 +1668,7 @@
                 </div>
 
                 <div class="sim-expiration">
-                    <i class="ph-fill ph-clock-countdown"></i>
+                    <i class="ph-duotone ph-clock-countdown"></i>
 
                     <span>
                         Cenários expiram automaticamente após 30 dias
@@ -1689,7 +1686,7 @@
                     class="sim-panel-title-icon green"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-history"></i>
+                    <i class="ph-duotone ph-history"></i>
                 </span>
 
                 <span class="sim-panel-title-copy">
@@ -1796,7 +1793,7 @@
                                         >
                                             <i
                                                 class="
-                                                    ph-fill
+                                                    ph-duotone
                                                     {{
                                                         $simulation->status
                                                             === 'success'
@@ -1835,7 +1832,7 @@
                                             aria-label="Excluir {{ $simulation->name }}"
                                             title="Excluir simulação"
                                         >
-                                            <i class="ph-fill ph-trash"></i>
+                                            <i class="ph-duotone ph-trash"></i>
                                         </button>
 
                                         <form
@@ -1894,7 +1891,7 @@
                         >
                             <i
                                 class="
-                                    ph-fill
+                                    ph-duotone
                                     {{
                                         $simulation->status === 'success'
                                             ? 'ph-check-circle'
@@ -1951,7 +1948,7 @@
                                 ]
                             ) }}"
                         >
-                            <i class="ph-fill ph-eye"></i>
+                            <i class="ph-duotone ph-eye"></i>
                             <span>Abrir simulação</span>
                         </a>
 
@@ -1963,7 +1960,7 @@
                             data-delete-name="{{ $simulation->name }}"
                             aria-label="Excluir {{ $simulation->name }}"
                         >
-                            <i class="ph-fill ph-trash"></i>
+                            <i class="ph-duotone ph-trash"></i>
                         </button>
 
                         <form
@@ -2011,7 +2008,7 @@
             class="sim-dialog-icon"
             aria-hidden="true"
         >
-            <i class="ph-fill ph-trash"></i>
+            <i class="ph-duotone ph-trash"></i>
         </span>
 
         <div>
@@ -2040,7 +2037,7 @@
             type="button"
             id="confirm-delete-simulation"
         >
-            <i class="ph-fill ph-trash"></i>
+            <i class="ph-duotone ph-trash"></i>
             <span>Excluir</span>
         </button>
     </footer>
@@ -2277,4 +2274,5 @@ document.addEventListener(
     }
 );
 </script>
+</div>
 @endsection

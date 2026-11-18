@@ -112,49 +112,46 @@
 @endphp
 
 @section('content')
+@include('services._campo-style')
+<div class="services-campo">
 
-@once
-    <link
-        rel="stylesheet"
-        href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css"
-    >
-@endonce
+
 
 <style>
     .catalog-config {
-        --cc-green: var(--ws-green, #219653);
-        --cc-green-soft: #edf8f2;
-        --cc-green-border: #cce8d7;
+        --cc-green: var(--ui-color-primary);
+        --cc-green-soft: var(--ui-color-primary-soft);
+        --cc-green-border: var(--ui-color-primary-border);
 
-        --cc-blue: var(--ws-blue, #3478d4);
-        --cc-blue-soft: #edf4ff;
-        --cc-blue-border: #cfe0f7;
+        --cc-blue: var(--ui-color-primary);
+        --cc-blue-soft: var(--ui-color-primary-soft);
+        --cc-blue-border: var(--ui-color-primary-border);
 
-        --cc-violet: var(--ws-purple, #8a4bd2);
-        --cc-violet-soft: #f5efff;
-        --cc-violet-border: #e1d2f4;
+        --cc-violet: var(--ui-color-primary);
+        --cc-violet-soft: var(--ui-color-primary-soft);
+        --cc-violet-border: var(--ui-color-primary-border);
 
-        --cc-amber: var(--ws-amber, #c38418);
-        --cc-amber-soft: #fff7e8;
-        --cc-amber-border: #f0dcae;
+        --cc-amber: var(--ui-color-warning);
+        --cc-amber-soft: var(--ui-color-warning-soft);
+        --cc-amber-border: var(--ui-color-warning-border);
 
-        --cc-red: var(--ws-red, #cf5050);
-        --cc-red-soft: #fff0f0;
-        --cc-red-border: #efcaca;
+        --cc-red: var(--ui-color-danger);
+        --cc-red-soft: var(--ui-color-danger-soft);
+        --cc-red-border: var(--ui-color-danger-border);
 
-        --cc-cyan: #168eae;
-        --cc-cyan-soft: #ecf8fb;
-        --cc-cyan-border: #cae8ef;
+        --cc-cyan: var(--ui-color-primary);
+        --cc-cyan-soft: var(--ui-color-primary-soft);
+        --cc-cyan-border: var(--ui-color-primary-border);
 
-        --cc-text: #17211d;
-        --cc-text-2: #59655f;
-        --cc-muted: #89938e;
-        --cc-border: #dde5e0;
-        --cc-soft: #f7faf8;
+        --cc-text: var(--ui-color-text);
+        --cc-text-2: var(--ui-color-text-secondary);
+        --cc-muted: var(--ui-color-text-muted);
+        --cc-border: var(--ui-color-border);
+        --cc-soft: var(--ui-color-surface-soft);
 
         display: grid;
         grid-column: 1 / -1;
-        width: min(100%, 1280px);
+        width: 100%;
         min-width: 0;
         gap: .7rem;
         margin-inline: auto;
@@ -196,7 +193,7 @@
         padding: .76rem .84rem;
         border: 1px solid var(--cc-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .cc-head-top {
@@ -233,8 +230,8 @@
     .cc-head-copy small {
         display: block;
         color: var(--cc-muted);
-        font-size: .61rem;
-        font-weight: 750;
+        font-size: .75rem;
+        font-weight: 700;
         letter-spacing: .025em;
         text-transform: uppercase;
     }
@@ -244,22 +241,22 @@
         overflow: hidden;
         color: var(--cc-text);
         font-size: clamp(1.03rem, 2vw, 1.24rem);
-        font-weight: 860;
+        font-weight: 700;
         line-height: 1.15;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .cc-head-copy p {
         margin: .12rem 0 0;
         color: var(--cc-muted);
-        font-size: .65rem;
+        font-size: .75rem;
         line-height: 1.4;
     }
 
     .cc-head-copy p strong {
         color: var(--cc-text-2);
-        font-weight: 750;
+        font-weight: 700;
     }
 
     .cc-status {
@@ -277,9 +274,9 @@
         border-radius: 7px;
         background: var(--soft);
         color: var(--tone);
-        font-size: .6rem;
-        font-weight: 800;
-        white-space: nowrap;
+        font-size: .75rem;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .cc-status.is-draft {
@@ -316,18 +313,18 @@
         padding: .36rem .53rem;
         border: 1px solid var(--cc-border);
         border-radius: 8px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--cc-text-2);
         cursor: pointer;
-        font-size: .64rem;
-        font-weight: 780;
-        white-space: nowrap;
+        font-size: .75rem;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .cc-action.primary {
         border-color: var(--cc-green);
         background: var(--cc-green);
-        color: #fff;
+        color: var(--sgc-on-primary);
     }
 
     .cc-action.blue {
@@ -363,9 +360,9 @@
         overflow-x: auto;
         border: 1px solid var(--cc-border);
         border-radius: 11px;
-        background: #fff;
+        background: var(--ui-color-surface);
         scrollbar-width: thin;
-        scrollbar-color: #cfd8d2 transparent;
+        scrollbar-color: var(--ui-color-border) transparent;
     }
 
     .cc-tabs::-webkit-scrollbar {
@@ -378,7 +375,7 @@
 
     .cc-tabs::-webkit-scrollbar-thumb {
         border-radius: 999px;
-        background: #cfd8d2;
+        background: var(--ui-color-border);
     }
 
     .cc-tab {
@@ -393,7 +390,7 @@
         padding: .42rem .62rem;
         border: 0;
         border-right: 1px solid var(--cc-border);
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--cc-muted);
         cursor: pointer;
     }
@@ -424,15 +421,15 @@
 
     .cc-tab-copy strong {
         color: inherit;
-        font-size: .61rem;
-        font-weight: 790;
-        white-space: nowrap;
+        font-size: .75rem;
+        font-weight: 700;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .cc-tab-copy small {
         color: var(--cc-muted);
-        font-size: .48rem;
-        white-space: nowrap;
+        font-size: .75rem;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .cc-tab-count {
@@ -444,8 +441,8 @@
         border-radius: 6px;
         background: var(--cc-soft);
         color: var(--cc-muted);
-        font-size: .5rem;
-        font-weight: 800;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .cc-tab.active {
@@ -458,7 +455,7 @@
     }
 
     .cc-tab.active .cc-tab-count {
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--cc-blue);
     }
 
@@ -477,7 +474,7 @@
         overflow: hidden;
         border: 1px solid var(--cc-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .cc-panel[hidden] {
@@ -526,14 +523,14 @@
 
     .cc-panel-title-copy strong {
         color: var(--cc-text);
-        font-size: .73rem;
-        font-weight: 820;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .cc-panel-title-copy span {
         margin-top: .03rem;
         color: var(--cc-muted);
-        font-size: .55rem;
+        font-size: .75rem;
         line-height: 1.4;
     }
 
@@ -563,19 +560,19 @@
         border-bottom: 1px solid var(--cc-border);
         background: var(--cc-soft);
         color: var(--cc-muted);
-        font-size: .51rem;
-        font-weight: 790;
+        font-size: .75rem;
+        font-weight: 700;
         letter-spacing: .025em;
         text-align: left;
         text-transform: uppercase;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .cc-table td {
         padding: .52rem;
         border-bottom: 1px solid var(--cc-border);
         color: var(--cc-text-2);
-        font-size: .62rem;
+        font-size: .75rem;
         vertical-align: middle;
     }
 
@@ -596,10 +593,10 @@
     .cc-field-main strong {
         overflow: hidden;
         color: var(--cc-text);
-        font-size: .66rem;
-        font-weight: 790;
+        font-size: .75rem;
+        font-weight: 700;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .cc-field-main small {
@@ -612,7 +609,7 @@
             Monaco,
             Consolas,
             monospace;
-        font-size: .49rem;
+        font-size: .75rem;
     }
 
     .cc-yes,
@@ -622,8 +619,8 @@
         align-items: center;
         padding: .18rem .32rem;
         border-radius: 6px;
-        font-size: .5rem;
-        font-weight: 750;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .cc-yes {
@@ -676,14 +673,14 @@
 
     .cc-section-copy strong {
         color: var(--cc-text);
-        font-size: .69rem;
-        font-weight: 810;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .cc-section-copy span {
         margin-top: .03rem;
         color: var(--cc-muted);
-        font-size: .54rem;
+        font-size: .75rem;
         line-height: 1.4;
     }
 
@@ -708,13 +705,13 @@
         gap: .28rem;
         align-items: center;
         color: var(--cc-text-2);
-        font-size: .58rem;
+        font-size: .75rem;
         font-weight: 730;
     }
 
     .cc-label i {
         color: var(--cc-muted);
-        font-size: .64rem;
+        font-size: .75rem;
     }
 
     .cc-control {
@@ -725,9 +722,9 @@
         border: 1px solid var(--cc-border);
         border-radius: 8px;
         outline: 0;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--cc-text);
-        font-size: .66rem;
+        font-size: .75rem;
     }
 
     textarea.cc-control {
@@ -742,7 +739,7 @@
 
     .cc-help {
         color: var(--cc-muted);
-        font-size: .5rem;
+        font-size: .75rem;
         line-height: 1.4;
     }
 
@@ -767,7 +764,7 @@
         background: var(--cc-soft);
         color: var(--cc-text-2);
         cursor: pointer;
-        font-size: .57rem;
+        font-size: .75rem;
         line-height: 1.4;
     }
 
@@ -784,7 +781,7 @@
         border-radius: 8px;
         background: var(--cc-soft);
         color: var(--cc-text-2);
-        font-size: .54rem;
+        font-size: .75rem;
         line-height: 1.45;
     }
 
@@ -792,7 +789,7 @@
         margin-top: .04rem;
         color: var(--cc-muted);
         flex: 0 0 auto;
-        font-size: .64rem;
+        font-size: .75rem;
     }
 
     .cc-form-actions {
@@ -824,7 +821,7 @@
         min-width: 0;
         gap: .3rem;
         padding: .62rem;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .cc-financial-side + .cc-financial-side {
@@ -841,22 +838,22 @@
         gap: .35rem;
         align-items: center;
         color: var(--tone);
-        font-size: .62rem;
-        font-weight: 800;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .cc-financial-side strong {
         overflow: hidden;
         color: var(--cc-text);
-        font-size: .68rem;
-        font-weight: 810;
+        font-size: .75rem;
+        font-weight: 700;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .cc-financial-side small {
         color: var(--cc-muted);
-        font-size: .51rem;
+        font-size: .75rem;
         line-height: 1.4;
     }
 
@@ -891,13 +888,13 @@
 
     .cc-financial-block-title strong {
         color: var(--cc-text);
-        font-size: .69rem;
-        font-weight: 810;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .cc-financial-block-title small {
         color: var(--cc-muted);
-        font-size: .52rem;
+        font-size: .75rem;
     }
 
     .cc-enabled {
@@ -908,8 +905,8 @@
         border-radius: 6px;
         background: var(--cc-green-soft);
         color: var(--cc-green);
-        font-size: .5rem;
-        font-weight: 780;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .cc-disabled {
@@ -957,24 +954,24 @@
     .cc-rate-copy strong {
         overflow: hidden;
         color: var(--cc-text);
-        font-size: .65rem;
-        font-weight: 790;
+        font-size: .75rem;
+        font-weight: 700;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .cc-rate-copy small {
         margin-top: .02rem;
         color: var(--cc-muted);
-        font-size: .51rem;
+        font-size: .75rem;
     }
 
     .cc-rate-value {
         color: var(--cc-violet);
-        font-size: .64rem;
-        font-weight: 810;
+        font-size: .75rem;
+        font-weight: 700;
         font-variant-numeric: tabular-nums;
-        white-space: nowrap;
+        var(--ui-color-surface)-space: nowrap;
     }
 
     .cc-empty {
@@ -983,7 +980,7 @@
         place-items: center;
         padding: 1rem;
         color: var(--cc-muted);
-        font-size: .62rem;
+        font-size: .75rem;
         text-align: center;
     }
 
@@ -1000,7 +997,7 @@
         overflow: hidden;
         border: 0;
         border-radius: 14px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--cc-text);
         box-shadow: 0 24px 80px rgba(21, 49, 31, .22);
     }
@@ -1054,14 +1051,14 @@
 
     .cc-dialog-title-copy small {
         color: var(--cc-muted);
-        font-size: .53rem;
+        font-size: .75rem;
     }
 
     .cc-dialog-title-copy strong {
         margin-top: .02rem;
         color: var(--cc-text);
         font-size: .79rem;
-        font-weight: 820;
+        font-weight: 700;
     }
 
     .cc-dialog-close {
@@ -1152,7 +1149,7 @@
             padding:.7rem;
             border:1px solid var(--cc-border);
             border-radius:10px;
-            background:#fff;
+            background:var(--ui-color-surface);
         }
 
         .cc-mobile-version-head {
@@ -1188,7 +1185,7 @@
             align-items: center;
             flex-wrap: wrap;
             color: var(--cc-muted);
-            font-size: .52rem;
+            font-size: .75rem;
         }
 
         .cc-grid {
@@ -1282,7 +1279,7 @@
                 .58rem
                 .7rem
                 max(.58rem, env(safe-area-inset-bottom));
-            background: #fbfdfc;
+            background: var(--ui-color-surface);
         }
     }
 </style>
@@ -1341,7 +1338,7 @@
                     class="cc-head-icon"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-wrench"></i>
+                    <i class="ph-duotone ph-wrench"></i>
                 </span>
 
                 <div class="cc-head-copy">
@@ -1376,7 +1373,7 @@
             >
                 <i
                     class="
-                        ph-fill
+                        ph-duotone
                         {{ $statusMeta['icon'] }}
                     "
                 ></i>
@@ -1397,7 +1394,7 @@
                 ) }}"
                 title="Ver como prestador"
             >
-                <i class="ph-fill ph-eye"></i>
+                <i class="ph-duotone ph-eye"></i>
                 <span>Ver como prestador</span>
             </a>
 
@@ -1413,7 +1410,7 @@
                     ) }}"
                     title="Simular"
                 >
-                    <i class="ph-fill ph-flask"></i>
+                    <i class="ph-duotone ph-flask"></i>
                     <span>Simular</span>
                 </a>
             @endcan
@@ -1436,7 +1433,7 @@
                     type="submit"
                     title="Editar serviço"
                 >
-                    <i class="ph-fill ph-pencil-simple"></i>
+                    <i class="ph-duotone ph-pencil-simple"></i>
                     <span>{{ $isDraft ? 'Continuar edição' : 'Editar serviço' }}</span>
                 </button>
             </form>
@@ -1460,7 +1457,7 @@
                         type="submit"
                         title="Aplicar alterações aos próximos lançamentos"
                     >
-                        <i class="ph-fill ph-paper-plane-tilt"></i>
+                        <i class="ph-duotone ph-paper-plane-tilt"></i>
                         <span>Salvar alterações</span>
                     </button>
                 </form>
@@ -1516,7 +1513,7 @@
                     >
                         <i
                             class="
-                                ph-fill
+                                ph-duotone
                                 {{
                                     $version->status === 'published'
                                         ? 'ph-pause-circle'
@@ -1550,7 +1547,7 @@
             type="button"
             data-tab="fields"
         >
-            <i class="ph-fill ph-list-checks"></i>
+            <i class="ph-duotone ph-list-checks"></i>
 
             <span class="cc-tab-copy">
                 <strong>Campos</strong>
@@ -1567,7 +1564,7 @@
             type="button"
             data-tab="execution"
         >
-            <i class="ph-fill ph-flow-arrow"></i>
+            <i class="ph-duotone ph-flow-arrow"></i>
 
             <span class="cc-tab-copy">
                 <strong>Execução</strong>
@@ -1580,7 +1577,7 @@
             type="button"
             data-tab="finance"
         >
-            <i class="ph-fill ph-wallet"></i>
+            <i class="ph-duotone ph-wallet"></i>
 
             <span class="cc-tab-copy">
                 <strong>Financeiro</strong>
@@ -1599,7 +1596,7 @@
             type="button"
             data-tab="providers"
         >
-            <i class="ph-fill ph-users-three"></i>
+            <i class="ph-duotone ph-users-three"></i>
 
             <span class="cc-tab-copy">
                 <strong>Prestadores</strong>
@@ -1619,7 +1616,7 @@
          ====================================================== --}}
 
     <details class="cc-history"><summary>Histórico de alterações e preços</summary><section class="cc-panel" aria-label="Histórico de versões e preços" style="margin-bottom:1rem">
-        <header class="cc-panel-head"><div class="cc-panel-title"><span class="cc-panel-title-icon"><i class="ph-fill ph-clock-counter-clockwise"></i></span><span class="cc-panel-title-copy"><strong>Configurações anteriores</strong><span>Consulta do histórico. Use Editar serviço para alterar a configuração em uso.</span></span></div></header>
+        <header class="cc-panel-head"><div class="cc-panel-title"><span class="cc-panel-title-icon"><i class="ph-duotone ph-clock-counter-clockwise"></i></span><span class="cc-panel-title-copy"><strong>Configurações anteriores</strong><span>Consulta do histórico. Use Editar serviço para alterar a configuração em uso.</span></span></div></header>
         <div class="cc-panel-body cc-table-wrap">
             <table class="cc-table"><thead><tr><th>Versão</th><th>Situação</th><th>Cobrança padrão</th><th>Remuneração padrão</th><th></th></tr></thead><tbody>
                 @foreach($version->service->versions->sortByDesc('version') as $item)
@@ -1648,7 +1645,7 @@
                     class="cc-panel-title-icon"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-list-checks"></i>
+                    <i class="ph-duotone ph-list-checks"></i>
                 </span>
 
                 <span class="cc-panel-title-copy">
@@ -1666,7 +1663,7 @@
                     type="button"
                     data-open-dialog="field-dialog"
                 >
-                    <i class="ph-fill ph-plus-circle"></i>
+                    <i class="ph-duotone ph-plus-circle"></i>
                     <span>Adicionar campo</span>
                 </button>
             @endif
@@ -1674,7 +1671,7 @@
 
         <div class="cc-panel-body">
             <div class="cc-inline-note">
-                <i class="ph-fill ph-info"></i>
+                <i class="ph-duotone ph-info"></i>
 
                 <span>Estes campos registram a execução. Eles somente participam de valores quando usados em uma fórmula ou regra financeira. Para exigir um comprovante junto de uma medição, crie um campo do tipo Foto ou Arquivo, vincule-o à medição e marque-o obrigatório.</span>
             </div>
@@ -1775,7 +1772,7 @@
 
                                     @if($isDraft)
                                         <td>
-                                            <button type="button" class="cc-action" data-edit-field="{{ json_encode($fieldEditPayload, JSON_HEX_APOS | JSON_HEX_QUOT) }}" aria-label="Editar {{ $field->label }}"><i class="ph-fill ph-pencil"></i></button>
+                                            <button type="button" class="cc-action" data-edit-field="{{ json_encode($fieldEditPayload, JSON_HEX_APOS | JSON_HEX_QUOT) }}" aria-label="Editar {{ $field->label }}"><i class="ph-duotone ph-pencil"></i></button>
                                             <form
                                                 method="post"
                                                 action="{{ route(
@@ -1795,7 +1792,7 @@
                                                     type="submit"
                                                     title="Remover campo"
                                                 >
-                                                    <i class="ph-fill ph-trash"></i>
+                                                    <i class="ph-duotone ph-trash"></i>
                                                 </button>
                                             </form>
                                         </td>
@@ -1834,7 +1831,7 @@
                                 </div>
 
                                 @if($isDraft)
-                                    <button type="button" class="cc-action" data-edit-field="{{ json_encode($fieldEditPayload, JSON_HEX_APOS | JSON_HEX_QUOT) }}" aria-label="Editar {{ $field->label }}"><i class="ph-fill ph-pencil"></i></button>
+                                    <button type="button" class="cc-action" data-edit-field="{{ json_encode($fieldEditPayload, JSON_HEX_APOS | JSON_HEX_QUOT) }}" aria-label="Editar {{ $field->label }}"><i class="ph-duotone ph-pencil"></i></button>
                                     <form
                                         method="post"
                                         action="{{ route(
@@ -1854,7 +1851,7 @@
                                             type="submit"
                                             aria-label="Remover {{ $field->label }}"
                                         >
-                                            <i class="ph-fill ph-trash"></i>
+                                            <i class="ph-duotone ph-trash"></i>
                                         </button>
                                     </form>
                                 @endif
@@ -1907,7 +1904,7 @@
                     class="cc-panel-title-icon"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-flow-arrow"></i>
+                    <i class="ph-duotone ph-flow-arrow"></i>
                 </span>
 
                 <span class="cc-panel-title-copy">
@@ -1953,7 +1950,7 @@
                         <div class="cc-grid">
                             <label class="cc-field">
                                 <span class="cc-label">
-                                    <i class="ph-fill ph-ruler"></i>
+                                    <i class="ph-duotone ph-ruler"></i>
                                     Unidade principal
                                 </span>
 
@@ -1967,7 +1964,7 @@
 
                             <label class="cc-field">
                                 <span class="cc-label">
-                                    <i class="ph-fill ph-check-square"></i>
+                                    <i class="ph-duotone ph-check-square"></i>
                                     Conferência
                                 </span>
 
@@ -2163,7 +2160,7 @@
                             class="cc-action primary"
                             type="submit"
                         >
-                            <i class="ph-fill ph-floppy-disk"></i>
+                            <i class="ph-duotone ph-floppy-disk"></i>
                             <span>Salvar execução</span>
                         </button>
                     </div>
@@ -2192,7 +2189,7 @@
                     class="cc-panel-title-icon"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-wallet"></i>
+                    <i class="ph-duotone ph-wallet"></i>
                 </span>
 
                 <span class="cc-panel-title-copy">
@@ -2215,7 +2212,7 @@
                         ]
                     ) }}"
                 >
-                    <i class="ph-fill ph-flask"></i>
+                    <i class="ph-duotone ph-flask"></i>
                     <span>Simular</span>
                 </a>
             @endcan
@@ -2225,7 +2222,7 @@
             <div class="cc-financial-overview">
                 <div class="cc-financial-side">
                     <div class="cc-financial-side-head">
-                        <i class="ph-fill ph-arrow-circle-down-left"></i>
+                        <i class="ph-duotone ph-arrow-circle-down-left"></i>
                         Cobrança
                     </div>
 
@@ -2251,7 +2248,7 @@
 
                 <div class="cc-financial-side provider">
                     <div class="cc-financial-side-head">
-                        <i class="ph-fill ph-arrow-circle-up-right"></i>
+                        <i class="ph-duotone ph-arrow-circle-up-right"></i>
                         Prestador
                     </div>
 
@@ -2584,13 +2581,13 @@
                                 type="button"
                                 class="cc-action blue"
                             >
-                                <i class="ph-fill ph-plus-circle"></i>
+                                <i class="ph-duotone ph-plus-circle"></i>
                                 <span>Adicionar termo</span>
                             </button>
                         </div>
 
                         <div class="cc-inline-note">
-                            <i class="ph-fill ph-info"></i>
+                            <i class="ph-duotone ph-info"></i>
 
                             <span>
                                 O total de cada lado é calculado pela fórmula
@@ -2630,7 +2627,7 @@
                             class="cc-action primary"
                             type="submit"
                         >
-                            <i class="ph-fill ph-floppy-disk"></i>
+                            <i class="ph-duotone ph-floppy-disk"></i>
                             <span>Salvar valores</span>
                         </button>
                     </div>
@@ -2649,7 +2646,7 @@
                 </template>
             @else
                 <div class="cc-inline-note">
-                    <i class="ph-fill ph-lock-key"></i>
+                    <i class="ph-duotone ph-lock-key"></i>
 
                     <span>
                         Use Editar serviço para alterar os valores e as regras.
@@ -2694,7 +2691,7 @@
                     class="cc-panel-title-icon"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-users-three"></i>
+                    <i class="ph-duotone ph-users-three"></i>
                 </span>
 
                 <span class="cc-panel-title-copy">
@@ -2715,7 +2712,7 @@
                     type="button"
                     data-open-dialog="rate-dialog"
                 >
-                    <i class="ph-fill ph-plus-circle"></i>
+                    <i class="ph-duotone ph-plus-circle"></i>
                     <span>Nova tarifa</span>
                 </button>
             @endif
@@ -2723,7 +2720,7 @@
 
         <div class="cc-panel-body">
             <div class="cc-inline-note">
-                <i class="ph-fill ph-info"></i>
+                <i class="ph-duotone ph-info"></i>
 
                 <span>
                     Uma tarifa individual substitui apenas o valor padrão
@@ -2795,7 +2792,7 @@
             <header class="cc-dialog-head">
                 <div class="cc-dialog-title">
                     <span class="cc-dialog-title-icon">
-                        <i class="ph-fill ph-plus-circle"></i>
+                        <i class="ph-duotone ph-plus-circle"></i>
                     </span>
 
                     <span class="cc-dialog-title-copy">
@@ -2810,7 +2807,7 @@
                     data-close-dialog="field-dialog"
                     aria-label="Fechar"
                 >
-                    <i class="ph-fill ph-x"></i>
+                    <i class="ph-duotone ph-x"></i>
                 </button>
             </header>
 
@@ -3088,7 +3085,7 @@
                     type="submit"
                     form="field-form"
                 >
-                    <i class="ph-fill ph-plus-circle"></i>
+                    <i class="ph-duotone ph-plus-circle"></i>
                     <span>Adicionar campo</span>
                 </button>
             </footer>
@@ -3113,7 +3110,7 @@
             <header class="cc-dialog-head">
                 <div class="cc-dialog-title">
                     <span class="cc-dialog-title-icon">
-                        <i class="ph-fill ph-user-gear"></i>
+                        <i class="ph-duotone ph-user-gear"></i>
                     </span>
 
                     <span class="cc-dialog-title-copy">
@@ -3128,7 +3125,7 @@
                     data-close-dialog="rate-dialog"
                     aria-label="Fechar"
                 >
-                    <i class="ph-fill ph-x"></i>
+                    <i class="ph-duotone ph-x"></i>
                 </button>
             </header>
 
@@ -3240,7 +3237,7 @@
                     type="submit"
                     form="rate-form"
                 >
-                    <i class="ph-fill ph-floppy-disk"></i>
+                    <i class="ph-duotone ph-floppy-disk"></i>
                     <span>Salvar tarifa</span>
                 </button>
             </footer>
@@ -3694,4 +3691,5 @@ document.addEventListener(
     }
 );
 </script>
+</div>
 @endsection
