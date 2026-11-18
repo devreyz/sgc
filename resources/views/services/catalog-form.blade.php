@@ -152,7 +152,7 @@
         color: var(--sb-text-2);
         font-size: .75rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .sb-head-step i {
@@ -246,7 +246,7 @@
         font-size: .75rem;
         font-weight: 700;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .sb-step small {
@@ -255,7 +255,7 @@
         color: var(--sb-muted);
         font-size: .75rem;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .sb-step.active {
@@ -621,7 +621,7 @@
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .sb-preview-copy strong {
@@ -646,7 +646,7 @@
         color: var(--sb-text-2);
         font-size: .75rem;
         font-weight: 720;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     /* =========================================================
@@ -724,7 +724,7 @@
         font-size: .75rem;
         font-weight: 700;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     /* =========================================================
@@ -830,7 +830,7 @@
         font-size: .75rem;
         font-weight: 680;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .sb-simulation-flow {
@@ -886,7 +886,7 @@
         font-weight: 700;
         font-variant-numeric: tabular-nums;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .sb-simulation-node span {
@@ -894,7 +894,7 @@
         color: var(--sb-muted);
         font-size: .75rem;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .sb-simulation-arrow {
@@ -942,7 +942,7 @@
         font-size: .75rem;
         font-weight: 700;
         font-variant-numeric: tabular-nums;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .sb-simulation-net.negative {

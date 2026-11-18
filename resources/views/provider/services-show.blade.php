@@ -269,7 +269,7 @@
  * SGC CAMPO · Serviço / ordem de execução · redesign v3
  * Integração com theme.css e design-system.css.
  * Escopo: somente .service-execution. Sem alterar os contratos do Laravel/JS.
- * Design: Campo Claro + Grafite & Ouro. As cores vivem no tema global.
+ * Design: Campo Claro + Grafite & Lima. As cores vivem no tema global.
  */
 .service-execution {
   --svc-canvas:var(--ui-color-canvas,#f4f4ef);

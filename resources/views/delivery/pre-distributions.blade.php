@@ -7,6 +7,9 @@
 @vite('resources/js/pre-distributions.js')
 @endpush
 @section('content')
+@include('delivery._campo-style')
+<div class="delivery-campo">
+
 <main class="pd-workspace" data-pre-distributions
       data-base-url="{{ route('pre-distributions.index', ['tenant' => $tenant->slug]) }}"
       data-manager="{{ $manager ? '1' : '0' }}">
@@ -98,4 +101,5 @@
         </form>
     </dialog>
 </main>
+</div>
 @endsection

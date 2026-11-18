@@ -4,13 +4,16 @@
 @section('page-subtitle', $project->title)
 @section('user-role', 'Registrador')
 @section('content')
+@include('delivery._campo-style')
+<div class="delivery-campo">
+
 @php
     $params = ['tenant' => $currentTenant->slug, 'project' => $project->id, 'menu' => $menu->id];
     $storeMenu = fn($action) => route('delivery.projects.menus.store', $params + ['action' => $action]);
     $statusLabels = ['planned' => 'Planejado', 'calculated' => 'Calculado', 'awaiting_validation' => 'Aguardando validação', 'approved' => 'Aprovado', 'in_execution' => 'Em execução', 'finalized' => 'Finalizado'];
 @endphp
 <style>
-.menu-plan{max-width:1280px;margin:auto;color:var(--color-text,#20332a)}.menu-plan section,.menu-plan details{padding:1rem;margin:1rem 0;background:var(--color-surface,#fff);border:1px solid var(--color-border,#dce7e0);border-radius:12px}.menu-plan h2{font-size:1.1rem;margin:1rem 0}.menu-plan .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.65rem;margin:.8rem 0}.menu-plan label{display:flex;flex-direction:column;gap:.3rem;font-size:.85rem}.menu-plan input,.menu-plan select{border:1px solid #c8d6cd;border-radius:7px;padding:.5rem;background:var(--color-surface,#fff);color:inherit;min-width:0}.menu-plan label[hidden]{display:none}.menu-plan button,.menu-plan .link{display:inline-block;padding:.6rem .9rem;border-radius:8px;background:#168a4d;color:white;border:0;cursor:pointer;margin:.2rem}.menu-plan table{width:100%;border-collapse:collapse;font-size:.8rem}.menu-plan td,.menu-plan th{padding:.5rem;border-bottom:1px solid #dce7e0;text-align:left}.menu-plan .scroll{overflow:auto}.menu-plan .muted{font-size:.85rem;color:var(--color-text-secondary,#52645a)}.menu-plan summary{cursor:pointer;font-weight:600}.menu-plan .error{color:#a32d2d}
+.menu-plan{max-width:1280px;margin:auto;color:var(--color-text,#20332a)}.menu-plan section,.menu-plan details{padding:1rem;margin:1rem 0;background:var(--color-surface,#fff);border:1px solid var(--color-border,#dce7e0);border-radius:12px}.menu-plan h2{font-size:1.1rem;margin:1rem 0}.menu-plan .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.65rem;margin:.8rem 0}.menu-plan label{display:flex;flex-direction:column;gap:.3rem;font-size:.85rem}.menu-plan input,.menu-plan select{border:1px solid #c8d6cd;border-radius:7px;padding:.5rem;background:var(--color-surface,#fff);color:inherit;min-width:0}.menu-plan label[hidden]{display:none}.menu-plan button,.menu-plan .link{display:inline-block;padding:.6rem .9rem;border-radius:8px;background: var(--ui-color-primary);color:white;border:0;cursor:pointer;margin:.2rem}.menu-plan table{width:100%;border-collapse:collapse;font-size:.8rem}.menu-plan td,.menu-plan th{padding:.5rem;border-bottom:1px solid #dce7e0;text-align:left}.menu-plan .scroll{overflow:auto}.menu-plan .muted{font-size:.85rem;color:var(--color-text-secondary,#52645a)}.menu-plan summary{cursor:pointer;font-weight:600}.menu-plan .error{color:#a32d2d}
 </style>
 <div class="menu-plan">
 <p><a href="{{ route('delivery.projects.planning', ['tenant' => $currentTenant->slug, 'project' => $project->id]) }}#cardapios">← Planejamento do projeto</a></p>
@@ -69,4 +72,5 @@ document.querySelectorAll('[data-menu-meal-form]').forEach(function (form) {
     });
 });
 </script>
+</div>
 @endsection

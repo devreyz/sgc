@@ -21,22 +21,25 @@
 
 
 @section('content')
+@include('delivery._campo-style')
+<div class="delivery-campo">
+
 <style>
     .delivery-admin-page {
-        --da-green: #168a4d;
-        --da-green-soft: #eaf8ef;
+        --da-green: var(--ui-color-primary);
+        --da-green-soft: var(--ui-color-primary-soft);
 
-        --da-blue: #2563eb;
-        --da-blue-soft: #eef4ff;
+        --da-blue: var(--ui-color-info);
+        --da-blue-soft: var(--ui-color-info-soft);
 
-        --da-violet: #7c3aed;
-        --da-violet-soft: #f4f0ff;
+        --da-violet: var(--ui-color-primary);
+        --da-violet-soft: var(--ui-color-primary-soft);
 
-        --da-amber: #c87408;
-        --da-amber-soft: #fff7e8;
+        --da-amber: var(--ui-color-warning);
+        --da-amber-soft: var(--ui-color-warning-soft);
 
-        --da-red: #cf3f3f;
-        --da-red-soft: #fff0f0;
+        --da-red: var(--ui-color-danger);
+        --da-red-soft: var(--ui-color-danger-soft);
 
         --da-slate: #64748b;
         --da-slate-soft: #f1f5f9;
@@ -127,7 +130,7 @@
     .da-section-copy h2 {
         color: var(--color-text);
         font-size: .95rem;
-        font-weight: 840;
+        font-weight:700;
         letter-spacing: -.02em;
     }
 
@@ -148,7 +151,7 @@
         border-radius: 999px;
         background: var(--color-surface-muted);
         color: var(--color-text-secondary);
-        font-size: .7rem;
+        font-size:.75rem;
         font-weight: 770;
         white-space: nowrap;
     }
@@ -196,7 +199,7 @@
         gap: .34rem;
         align-items: center;
         color: var(--da-blue);
-        font-size: .74rem;
+        font-size:.75rem;
         font-weight: 790;
     }
 
@@ -211,7 +214,7 @@
         margin-top: .34rem;
         color: var(--color-text);
         font-size: clamp(1.9rem, 4vw, 2.5rem);
-        font-weight: 875;
+        font-weight:700;
         letter-spacing: -.045em;
         line-height: 1;
     }
@@ -232,7 +235,7 @@
         gap: .5rem;
         align-content: center;
         padding: .78rem;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .da-stat {
@@ -287,7 +290,7 @@
 
     .da-stat-copy span {
         color: var(--color-text-muted);
-        font-size: .69rem;
+        font-size:.75rem;
         font-weight: 680;
     }
 
@@ -295,7 +298,7 @@
         margin-top: .04rem;
         color: var(--color-text);
         font-size: .94rem;
-        font-weight: 840;
+        font-weight:700;
     }
 
     .da-stat.pending .da-stat-copy strong {
@@ -332,7 +335,7 @@
         padding: .55rem .6rem;
         border: 1px solid var(--color-border);
         border-radius: 11px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .da-stock-icon {
@@ -364,7 +367,7 @@
         overflow: hidden;
         color: var(--color-text);
         font-size: .78rem;
-        font-weight: 820;
+        font-weight:700;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
@@ -372,18 +375,18 @@
     .da-stock-copy span {
         margin-top: .04rem;
         color: var(--color-text-muted);
-        font-size: .68rem;
+        font-size:.75rem;
     }
 
     .da-stock-value {
         color: var(--da-green);
         font-size: .84rem;
-        font-weight: 850;
+        font-weight:700;
         white-space: nowrap;
     }
 
     .da-stock-value small {
-        font-size: .68rem;
+        font-size:.75rem;
         font-weight: 700;
     }
 
@@ -409,7 +412,7 @@
 
     .da-status-tab {
         --tab-tone: var(--da-slate);
-        --tab-soft: var(--da-slate-soft);
+        --tab-soft: var(--ui-color-surface-soft);
 
         display: grid;
         min-width: max-content;
@@ -422,7 +425,7 @@
         border-radius: 10px;
         background: transparent;
         color: var(--color-text-secondary);
-        font-size: .73rem;
+        font-size:.75rem;
         font-weight: 760;
         text-decoration: none;
         white-space: nowrap;
@@ -430,22 +433,22 @@
 
     .da-status-tab.pending {
         --tab-tone: var(--da-amber);
-        --tab-soft: var(--da-amber-soft);
+        --tab-soft: var(--ui-color-surface-soft);
     }
 
     .da-status-tab.approved {
         --tab-tone: var(--da-green);
-        --tab-soft: var(--da-green-soft);
+        --tab-soft: var(--ui-color-surface-soft);
     }
 
     .da-status-tab.rejected {
         --tab-tone: var(--da-red);
-        --tab-soft: var(--da-red-soft);
+        --tab-soft: var(--ui-color-surface-soft);
     }
 
     .da-status-tab.cancelled {
         --tab-tone: var(--da-slate);
-        --tab-soft: var(--da-slate-soft);
+        --tab-soft: var(--ui-color-surface-soft);
     }
 
     .da-status-tab > i {
@@ -491,7 +494,7 @@
         display: block;
         margin-bottom: .28rem;
         color: var(--color-text-secondary);
-        font-size: .7rem;
+        font-size:.75rem;
         font-weight: 740;
     }
 
@@ -502,7 +505,7 @@
         padding: .52rem .64rem;
         border: 1px solid var(--color-border-strong);
         border-radius: 10px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--color-text);
         font: inherit;
         font-size: .76rem;
@@ -526,11 +529,11 @@
         padding: .48rem .64rem;
         border: 1px solid var(--color-border-strong);
         border-radius: 10px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--color-text-secondary);
         cursor: pointer;
         font: inherit;
-        font-size: .73rem;
+        font-size:.75rem;
         font-weight: 780;
         text-decoration: none;
         white-space: nowrap;
@@ -575,7 +578,7 @@
         border-radius: 10px;
         background: var(--da-violet-soft);
         color: var(--da-violet);
-        font-size: .71rem;
+        font-size:.75rem;
         font-weight: 720;
     }
 
@@ -587,7 +590,7 @@
 
     .da-filter-note a {
         color: var(--da-violet);
-        font-weight: 800;
+        font-weight:700;
         text-decoration: none;
         white-space: nowrap;
     }
@@ -638,13 +641,13 @@
 
     .da-date strong {
         font-size: .88rem;
-        font-weight: 850;
+        font-weight:700;
         line-height: 1;
     }
 
     .da-date span {
         margin-top: .14rem;
-        font-size: .64rem;
+        font-size:.75rem;
         font-weight: 790;
         line-height: 1;
         text-transform: uppercase;
@@ -679,7 +682,7 @@
         min-width: 0;
         color: var(--color-text);
         font-size: .9rem;
-        font-weight: 840;
+        font-weight:700;
         letter-spacing: -.02em;
         line-height: 1.35;
         overflow-wrap: anywhere;
@@ -695,7 +698,7 @@
         border-radius: 999px;
         background: var(--color-surface-muted);
         color: var(--color-text-secondary);
-        font-size: .64rem;
+        font-size:.75rem;
         font-weight: 790;
         white-space: nowrap;
     }
@@ -729,7 +732,7 @@
         gap: .46rem;
         margin-top: .14rem;
         color: var(--color-text-muted);
-        font-size: .7rem;
+        font-size:.75rem;
     }
 
     .da-delivery-meta span {
@@ -772,7 +775,7 @@
 
     .da-gross span {
         color: var(--color-text-muted);
-        font-size: .68rem;
+        font-size:.75rem;
         font-weight: 680;
     }
 
@@ -780,7 +783,7 @@
         margin-top: .04rem;
         color: var(--da-green);
         font-size: .88rem;
-        font-weight: 850;
+        font-weight:700;
         white-space: nowrap;
     }
 
@@ -806,7 +809,7 @@
 
     .da-detail > span {
         color: var(--color-text-muted);
-        font-size: .67rem;
+        font-size:.75rem;
         font-weight: 680;
     }
 
@@ -814,7 +817,7 @@
         margin-top: .05rem;
         color: var(--color-text);
         font-size: .75rem;
-        font-weight: 820;
+        font-weight:700;
         line-height: 1.35;
         overflow-wrap: anywhere;
     }
@@ -864,11 +867,11 @@
         padding: .36rem .5rem;
         border: 1px solid var(--color-border);
         border-radius: 9px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--color-text-secondary);
         cursor: pointer;
         font: inherit;
-        font-size: .7rem;
+        font-size:.75rem;
         font-weight: 760;
     }
 
@@ -901,7 +904,7 @@
         color: var(--color-text-secondary);
         cursor: pointer;
         font: inherit;
-        font-size: .69rem;
+        font-size:.75rem;
         font-weight: 780;
         white-space: nowrap;
     }
@@ -934,8 +937,7 @@
     }
 
     .btn-approve:hover:not(:disabled) {
-        background: var(--da-green);
-        color: #fff;
+        background: var(--da-green);color:var(--sgc-on-primary);
     }
 
     .btn-reject:hover:not(:disabled),
@@ -996,7 +998,7 @@
     .da-empty strong {
         color: var(--color-text);
         font-size: .86rem;
-        font-weight: 820;
+        font-weight:700;
     }
 
     .da-empty span {
@@ -1031,7 +1033,7 @@
         min-height: 38px;
         border: 1px solid var(--color-border) !important;
         border-radius: 10px !important;
-        background: #fff !important;
+        background: var(--ui-color-surface) !important;
         color: var(--color-text-secondary) !important;
         font-size: .75rem !important;
         font-weight: 780 !important;
@@ -1126,7 +1128,7 @@
 
         .da-stat {
             border-radius: 0;
-            background: #fff;
+            background: var(--ui-color-surface);
         }
 
         .da-stat + .da-stat {
@@ -1950,6 +1952,7 @@
     id="distModal"
     style="display:none"
 ></div>
+</div>
 @endsection
 
 
@@ -2000,7 +2003,7 @@ document.addEventListener('click', async function(e) {
                     if (action === 'approve') {
                         location.reload();
                     } else {
-                        actionCell.innerHTML = '<span style="font-size:.7rem;color:var(--color-text-secondary)">—</span>';
+                        actionCell.innerHTML = '<span style="font-size:.75rem;color:var(--color-text-secondary)">—</span>';
                     }
                 }
             }

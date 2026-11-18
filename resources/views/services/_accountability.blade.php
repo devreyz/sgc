@@ -16,7 +16,7 @@
 <style>
     .accountability-kpi,.accountability details,.accountability-equation{background:var(--ui-color-surface,var(--ui-color-surface-soft));color:var(--ui-color-text,var(--ui-color-text));border-color:var(--ui-color-border,var(--ui-color-border))}
     .accountability-kpi small{color:var(--ui-color-text-muted,var(--ui-color-text-secondary))}
-    .accountability-table{font-size:.85rem}.accountability-table th{var(--ui-color-surface)-space:nowrap}.accountability-table td{min-width:90px}.accountability-table th,.accountability-table td{border-color:var(--ui-color-border,var(--ui-color-border))}
+    .accountability-table{font-size:.85rem}.accountability-table th{white-space:nowrap}.accountability-table td{min-width:90px}.accountability-table th,.accountability-table td{border-color:var(--ui-color-border,var(--ui-color-border))}
     @media(max-width:520px){.accountability-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.accountability-kpi{padding:.7rem}.accountability-kpi strong{font-size:1rem}}
 </style>
 @endunless

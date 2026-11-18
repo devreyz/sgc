@@ -8,8 +8,10 @@ const start = source.indexOf('    async fetchPdf(');
 const end = source.indexOf('\n    },', start) + 7;
 
 test('visualizador busca o PDF sem cache a cada abertura e mantém nome e metadados', async () => {
+    const { documentText, documentFilename } = await import('../../resources/js/document-text.js');
     const requests = [];
     const context = {
+        Headers, documentText, documentFilename,
         fetch: async (url, options) => {
             requests.push({ url, options });
             const version = requests.length;
@@ -29,9 +31,9 @@ test('visualizador busca o PDF sem cache a cada abertura e mantém nome e metada
     for (const request of requests) {
         assert.equal(request.options.cache, 'no-store');
         assert.equal(request.options.credentials, 'same-origin');
-        assert.equal(request.options.headers.Accept, 'application/pdf');
-        assert.equal(request.options.headers['Cache-Control'], 'no-cache');
-        assert.equal(request.options.headers.Pragma, 'no-cache');
+        assert.equal(request.options.headers.get('Accept'), 'application/pdf');
+        assert.equal(request.options.headers.get('Cache-Control'), 'no-cache');
+        assert.equal(request.options.headers.get('Pragma'), 'no-cache');
     }
     assert.equal(second.fileName, 'relatorio.pdf');
     assert.equal(second.title, 'Relatório atualizado');

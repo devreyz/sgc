@@ -2,7 +2,7 @@
 
 const APP_VERSION = new URL(self.location.href).searchParams.get('v') || 'dev';
 const OFFLINE_CACHE = `sgc-offline-${APP_VERSION}`;
-const ASSET_CACHE = `sgc-static-${APP_VERSION}`;
+const ASSET_CACHE = `sgc-static-campo-lima-2-${APP_VERSION}`;
 const OFFLINE_URL = '/offline';
 const STATIC_EXTENSIONS = /\.(?:png|jpe?g|webp|gif|svg|ico|woff2?|ttf|otf)$/i;
 const HASHED_BUILD_ASSET = /^\/build\/assets\/[^/]+-[A-Za-z0-9_-]{6,}\.(?:css|js)$/i;

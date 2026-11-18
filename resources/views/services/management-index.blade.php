@@ -91,9 +91,9 @@
     --cm-subtle: #8e9aa4;
     --cm-line: #333b43;
     --cm-line-soft: #2b333b;
-    --cm-brand: #e7c87d;
+    --cm-brand: #d9f172;
     --cm-on-brand: #1a1d21;
-    --cm-mark: #e7c87d;
+    --cm-mark: #d9f172;
     --cm-mark-ink: #1a1d21;
     --cm-shadow: none;
     --cm-warning-fg: #f0c477;
@@ -263,7 +263,7 @@
 .cm-page .sg-state { color: inherit; }
 /* Modal de remoção: estilo local com cores coerentes com o tema. */
 .cm-dialog { --cm-panel:#fffefb; --cm-ink:#202c25; --cm-muted:#63716a; --cm-heading:#172b21; --cm-line:#d9e1d9; --cm-panel-alt:#f7f8f4; --cm-brand:#173c2e; --cm-danger-fg:#a84041; --cm-danger-bg:#fff0f0; --cm-danger-line:#f0cbcb; width: min(94vw, 460px); max-height: min(86dvh, 640px); margin: auto; padding: 0; border: 1px solid var(--cm-line); border-radius: 14px; background: var(--cm-panel); color: var(--cm-ink); overflow-y: auto; box-shadow: 0 20px 60px rgb(0 0 0 / .18); }
-[data-theme="dark"] .cm-dialog, .dark .cm-dialog { --cm-panel:#191e24; --cm-ink:#edf2f6; --cm-muted:#b0bac2; --cm-heading:#f5f6f8; --cm-line:#333b43; --cm-panel-alt:#20262d; --cm-brand:#e7c87d; --cm-danger-fg:#f3a2a3; --cm-danger-bg:#3a2329; --cm-danger-line:#6c3e44; color-scheme: dark; }
+[data-theme="dark"] .cm-dialog, .dark .cm-dialog { --cm-panel:#191e24; --cm-ink:#edf2f6; --cm-muted:#b0bac2; --cm-heading:#f5f6f8; --cm-line:#333b43; --cm-panel-alt:#20262d; --cm-brand:#d9f172; --cm-danger-fg:#f3a2a3; --cm-danger-bg:#3a2329; --cm-danger-line:#6c3e44; color-scheme: dark; }
 .cm-dialog::backdrop { background: rgb(9 16 13 / .64); }
 .cm-dialog form { display: grid; gap: 1rem; padding: 1.2rem; }
 .cm-dialog h3 { margin: 0; font-size: 1.05rem; font-weight: 830; color: var(--cm-heading); }

@@ -30,8 +30,8 @@ html[data-theme="dark"]{
   color-scheme:dark;
   --canvas:#111418;--surface:#191e24;--surface-soft:#212830;
   --text:#edf2f6;--muted:#afbac6;--border:#323c47;
-  --primary:#e7c87d;--primary-hover:#f0d693;--on-primary:#2e2617;
-  --accent:#e7c87d;--accent-hover:#f0d693;--accent-text:#2e2617;--focus:#d8b465;
+  --primary:#d9f172;--primary-hover:#e5fa98;--on-primary:#173c2e;
+  --accent:#d9f172;--accent-hover:#e5fa98;--accent-text:#173c2e;--focus:#d8b465;
   --soft-green:#252e32;--soft-green-hover:#303a40;
   --success:#94d7a6;--success-soft:#203329;
   --danger:#eda9a2;--danger-soft:#422825;

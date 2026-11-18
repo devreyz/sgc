@@ -358,7 +358,7 @@
         cursor: pointer;
         font-size: .82rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .ag-action.primary {
@@ -421,7 +421,7 @@
         font-weight: 700;
         letter-spacing: .015em;
         text-align: left;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .ag-table td {
@@ -473,7 +473,7 @@
         color: var(--ag-text);
         font-weight: 700;
         font-variant-numeric: tabular-nums;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .ag-obligation-mobile {
@@ -653,7 +653,7 @@
         color: var(--tone);
         font-size: .75rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .ag-status.is-active {
@@ -836,7 +836,7 @@
         font-size: .8rem;
         font-weight: 700;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .ag-empty {

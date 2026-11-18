@@ -13,30 +13,33 @@
 @endphp
 
 @section('content')
+@include('delivery._campo-style')
+<div class="delivery-campo">
+
 <style>
     .pl-page {
-        --pl-green: #168a4d;
-        --pl-green-soft: #eaf8ef;
-        --pl-blue: #2563eb;
-        --pl-blue-soft: #eef4ff;
-        --pl-sky: #0284c7;
-        --pl-sky-soft: #edf8fe;
-        --pl-violet: #7c3aed;
-        --pl-violet-soft: #f4f0ff;
-        --pl-amber: #c87408;
-        --pl-amber-soft: #fff7e8;
-        --pl-red: #cf3f3f;
-        --pl-red-soft: #fff0f0;
+        --pl-green: var(--ui-color-primary);
+        --pl-green-soft: var(--ui-color-primary-soft);
+        --pl-blue: var(--ui-color-info);
+        --pl-blue-soft: var(--ui-color-info-soft);
+        --pl-sky: var(--ui-color-info);
+        --pl-sky-soft: var(--ui-color-info-soft);
+        --pl-violet: var(--ui-color-primary);
+        --pl-violet-soft: var(--ui-color-primary-soft);
+        --pl-amber: var(--ui-color-warning);
+        --pl-amber-soft: var(--ui-color-warning-soft);
+        --pl-red: var(--ui-color-danger);
+        --pl-red-soft: var(--ui-color-danger-soft);
         --pl-slate: #64748b;
         --pl-slate-soft: #f1f5f9;
 
-        --pl-surface: var(--color-surface, #fff);
-        --pl-soft: var(--color-surface-soft, #f8faf9);
-        --pl-muted: var(--color-surface-muted, #eef4f0);
-        --pl-border: var(--color-border, #dce7e0);
-        --pl-border-strong: var(--color-border-strong, #c8d6cd);
-        --pl-text: var(--color-text, #102018);
-        --pl-text-2: var(--color-text-secondary, #52645a);
+        --pl-surface: var(--ui-color-surface);
+        --pl-soft: var(--ui-color-surface-soft);
+        --pl-muted: var(--ui-color-text-muted);
+        --pl-border: var(--ui-color-border);
+        --pl-border-strong: var(--ui-color-border-strong);
+        --pl-text: var(--ui-color-text);
+        --pl-text-2: var(--ui-color-text-secondary);
         --pl-text-3: var(--color-text-muted, #809087);
 
         display: grid;
@@ -144,8 +147,8 @@
     .pl-kicker {
         display: block;
         color: var(--pl-violet);
-        font-size: .67rem;
-        font-weight: 800;
+        font-size:.75rem;
+        font-weight:700;
         line-height: 1.2;
     }
 
@@ -153,7 +156,7 @@
         margin: .05rem 0 0;
         color: var(--pl-text);
         font-size: clamp(1rem, 2vw, 1.18rem);
-        font-weight: 860;
+        font-weight:700;
         letter-spacing: -.03em;
         line-height: 1.25;
     }
@@ -166,7 +169,7 @@
         flex-wrap: wrap;
         margin-top: .15rem;
         color: var(--pl-text-3);
-        font-size: .68rem;
+        font-size:.75rem;
         line-height: 1.3;
     }
 
@@ -196,14 +199,14 @@
 
     .pl-count strong {
         font-size: .96rem;
-        font-weight: 870;
+        font-weight:700;
         line-height: 1;
     }
 
     .pl-count span {
         margin-top: .08rem;
         color: var(--pl-text-3);
-        font-size: .58rem;
+        font-size:.75rem;
         font-weight: 720;
     }
 
@@ -215,7 +218,7 @@
         overflow: hidden;
         border: 1px solid var(--pl-border);
         border-radius: 15px;
-        background: #fff;
+        background: var(--ui-color-surface);
         box-shadow: 0 4px 14px rgba(15, 35, 24, .045);
     }
 
@@ -249,7 +252,7 @@
         min-width: 0;
         color: var(--pl-text);
         font-size: .86rem;
-        font-weight: 830;
+        font-weight:700;
         letter-spacing: -.02em;
     }
 
@@ -285,10 +288,10 @@
         border: 1px solid var(--pl-border-strong);
         border-radius: 9px;
         outline: none;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pl-text);
         font: inherit;
-        font-size: .72rem;
+        font-size:.75rem;
     }
 
     .pl-search-input:focus {
@@ -302,7 +305,7 @@
         padding: 0;
         border: 1px solid var(--pl-border-strong);
         border-radius: 9px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pl-text-2);
         cursor: pointer;
         transition: background .15s ease, border-color .15s ease, color .15s ease;
@@ -328,7 +331,7 @@
         gap: .28rem;
         padding: .48rem .58rem;
         overflow-x: auto;
-        background: #fff;
+        background: var(--ui-color-surface);
         scrollbar-width: none;
         overscroll-behavior-inline: contain;
     }
@@ -339,7 +342,7 @@
 
     .pl-filter {
         --filter-tone: var(--pl-slate);
-        --filter-soft: var(--pl-slate-soft);
+        --filter-soft: var(--ui-color-surface-soft);
         display: inline-flex;
         min-width: max-content;
         min-height: 34px;
@@ -349,9 +352,9 @@
         padding: .34rem .5rem;
         border: 1px solid var(--pl-border);
         border-radius: 9px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pl-text-2);
-        font-size: .66rem;
+        font-size:.75rem;
         font-weight: 760;
         line-height: 1;
         text-decoration: none;
@@ -361,27 +364,27 @@
 
     .pl-filter[data-tone="active"] {
         --filter-tone: var(--pl-green);
-        --filter-soft: var(--pl-green-soft);
+        --filter-soft: var(--ui-color-surface-soft);
     }
 
     .pl-filter[data-tone="awaiting"] {
         --filter-tone: var(--pl-amber);
-        --filter-soft: var(--pl-amber-soft);
+        --filter-soft: var(--ui-color-surface-soft);
     }
 
     .pl-filter[data-tone="delivered"] {
         --filter-tone: var(--pl-blue);
-        --filter-soft: var(--pl-blue-soft);
+        --filter-soft: var(--ui-color-surface-soft);
     }
 
     .pl-filter[data-tone="completed"] {
         --filter-tone: var(--pl-sky);
-        --filter-soft: var(--pl-sky-soft);
+        --filter-soft: var(--ui-color-surface-soft);
     }
 
     .pl-filter[data-tone="draft"] {
         --filter-tone: var(--pl-slate);
-        --filter-soft: var(--pl-slate-soft);
+        --filter-soft: var(--ui-color-surface-soft);
     }
 
     .pl-filter:hover,
@@ -416,46 +419,46 @@
 
     .pl-card {
         --project-tone: var(--pl-blue);
-        --project-soft: var(--pl-blue-soft);
+        --project-soft: var(--ui-color-surface-soft);
         display: grid;
         min-width: 0;
         grid-template-rows: auto 1fr auto;
         overflow: hidden;
         border: 1px solid var(--pl-border);
         border-radius: 15px;
-        background: #fff;
+        background: var(--ui-color-surface);
         box-shadow: 0 4px 14px rgba(15, 35, 24, .04);
         transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
     }
 
     .pl-card.status-active-card {
         --project-tone: var(--pl-green);
-        --project-soft: var(--pl-green-soft);
+        --project-soft: var(--ui-color-surface-soft);
     }
 
     .pl-card.status-draft-card {
         --project-tone: var(--pl-slate);
-        --project-soft: var(--pl-slate-soft);
+        --project-soft: var(--ui-color-surface-soft);
     }
 
     .pl-card.status-awaiting-card {
         --project-tone: var(--pl-amber);
-        --project-soft: var(--pl-amber-soft);
+        --project-soft: var(--ui-color-surface-soft);
     }
 
     .pl-card.status-delivered-card {
         --project-tone: var(--pl-blue);
-        --project-soft: var(--pl-blue-soft);
+        --project-soft: var(--ui-color-surface-soft);
     }
 
     .pl-card.status-completed-card {
         --project-tone: var(--pl-sky);
-        --project-soft: var(--pl-sky-soft);
+        --project-soft: var(--ui-color-surface-soft);
     }
 
     .pl-card.status-cancelled-card {
         --project-tone: var(--pl-red);
-        --project-soft: var(--pl-red-soft);
+        --project-soft: var(--ui-color-surface-soft);
     }
 
     .pl-card:hover {
@@ -499,7 +502,7 @@
         margin: 0;
         color: var(--pl-text);
         font-size: .84rem;
-        font-weight: 840;
+        font-weight:700;
         letter-spacing: -.02em;
         line-height: 1.3;
         overflow: hidden;
@@ -514,7 +517,7 @@
         align-items: center;
         margin-top: .08rem;
         color: var(--pl-text-3);
-        font-size: .66rem;
+        font-size:.75rem;
     }
 
     .pl-customer > i,
@@ -541,8 +544,8 @@
         border-radius: 999px;
         background: var(--project-soft);
         color: var(--project-tone);
-        font-size: .6rem;
-        font-weight: 800;
+        font-size:.75rem;
+        font-weight:700;
         line-height: 1;
         white-space: nowrap;
     }
@@ -567,7 +570,7 @@
         gap: .25rem .58rem;
         flex-wrap: wrap;
         color: var(--pl-text-3);
-        font-size: .64rem;
+        font-size:.75rem;
         line-height: 1.3;
     }
 
@@ -592,7 +595,7 @@
         overflow: hidden;
         border: 1px solid var(--pl-border);
         border-radius: 10px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .pl-stat {
@@ -625,7 +628,7 @@
 
     .pl-stat-label {
         color: var(--pl-text-3);
-        font-size: .6rem;
+        font-size:.75rem;
         font-weight: 690;
         line-height: 1.2;
     }
@@ -634,7 +637,7 @@
         margin-top: .05rem;
         color: var(--stat-tone);
         font-size: .82rem;
-        font-weight: 850;
+        font-weight:700;
         line-height: 1.2;
         overflow-wrap: anywhere;
     }
@@ -658,7 +661,7 @@
         justify-content: space-between;
         gap: .45rem;
         color: var(--pl-text-3);
-        font-size: .61rem;
+        font-size:.75rem;
         font-weight: 700;
     }
 
@@ -676,8 +679,8 @@
 
     .pl-progress-head strong {
         color: var(--progress-tone);
-        font-size: .65rem;
-        font-weight: 820;
+        font-size:.75rem;
+        font-weight:700;
     }
 
     .pl-progress-track {
@@ -721,9 +724,9 @@
         padding: .37rem .48rem;
         border: 1px solid var(--pl-border-strong);
         border-radius: 9px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pl-text-2);
-        font-size: .66rem;
+        font-size:.75rem;
         font-weight: 770;
         line-height: 1;
         text-decoration: none;
@@ -819,14 +822,14 @@
         align-self: end;
         color: var(--pl-text);
         font-size: .78rem;
-        font-weight: 820;
+        font-weight:700;
     }
 
     .pl-empty span:last-child {
         grid-column: 2;
         align-self: start;
         color: var(--pl-text-3);
-        font-size: .68rem;
+        font-size:.75rem;
         line-height: 1.4;
     }
 
@@ -975,12 +978,12 @@
         }
 
         .pl-count strong {
-            font-size: .73rem;
+            font-size:.75rem;
         }
 
         .pl-count span {
             margin-top: 0;
-            font-size: .58rem;
+            font-size:.75rem;
         }
 
         .pl-stats {
@@ -1542,4 +1545,5 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 </script>
+</div>
 @endsection

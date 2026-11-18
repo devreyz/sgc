@@ -160,7 +160,7 @@
         font-weight: 700;
         line-height: 1.15;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .pf-head-meta {
@@ -205,7 +205,7 @@
         cursor: pointer;
         font-size: .82rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .pf-action.primary {
@@ -784,7 +784,7 @@
         color: var(--pf-blue);
         font-size: .76rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .pf-services-empty-filter {

@@ -179,7 +179,7 @@
         font-weight: 700;
         line-height: 1.15;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .sr-head-meta {
@@ -244,7 +244,7 @@
         cursor: pointer;
         font-size: .82rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .sr-action.primary {
@@ -351,7 +351,7 @@
         background: rgba(255,255,255,.75);
         font-size: .75rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .sr-state.success .sr-state-badge {
@@ -596,7 +596,7 @@
         font-weight: 700;
         letter-spacing: .015em;
         text-align: left;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .sr-table td {
@@ -633,7 +633,7 @@
         color: var(--sr-text);
         font-weight: 700;
         font-variant-numeric: tabular-nums;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .sr-effect {
@@ -647,7 +647,7 @@
         color: var(--sr-green);
         font-size: .75rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .sr-effect.subtract {
@@ -662,7 +662,7 @@
         font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
         font-size: .75rem;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     /* =========================================================
@@ -723,7 +723,7 @@
         font-size: .76rem;
         font-weight: 700;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .sr-mobile-formula {

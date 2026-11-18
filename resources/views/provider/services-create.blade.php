@@ -89,14 +89,14 @@
   --svc-ink: var(--ui-color-text, #edf2f6);
   --svc-secondary: var(--ui-color-text-secondary, #afbac6);
   --svc-muted: var(--ui-color-text-muted, #91a0ad);
-  --svc-accent: var(--sgc-accent, #e7c87d);
-  --svc-accent-text: var(--sgc-on-accent, #2e2617);
+  --svc-accent: var(--sgc-accent, #d9f172);
+  --svc-accent-text: var(--sgc-on-accent, #173c2e);
   --svc-rail: var(--sgc-rail, #151a20);
   --svc-rail-text: #edf2f6;
   --svc-danger: #f19c9c;
   --svc-danger-soft: #35272d;
   --svc-danger-line: #70414c;
-  --svc-focus: #e7c87d;
+  --svc-focus: #d9f172;
   --svc-elevation: 0 12px 26px rgba(0, 0, 0, .10);
   color-scheme: dark;
 }

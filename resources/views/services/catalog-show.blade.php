@@ -244,7 +244,7 @@
         font-weight: 700;
         line-height: 1.15;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .cc-head-copy p {
@@ -276,7 +276,7 @@
         color: var(--tone);
         font-size: .75rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .cc-status.is-draft {
@@ -318,7 +318,7 @@
         cursor: pointer;
         font-size: .75rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .cc-action.primary {
@@ -423,13 +423,13 @@
         color: inherit;
         font-size: .75rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .cc-tab-copy small {
         color: var(--cc-muted);
         font-size: .75rem;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .cc-tab-count {
@@ -565,7 +565,7 @@
         letter-spacing: .025em;
         text-align: left;
         text-transform: uppercase;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .cc-table td {
@@ -596,7 +596,7 @@
         font-size: .75rem;
         font-weight: 700;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .cc-field-main small {
@@ -848,7 +848,7 @@
         font-size: .75rem;
         font-weight: 700;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .cc-financial-side small {
@@ -957,7 +957,7 @@
         font-size: .75rem;
         font-weight: 700;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .cc-rate-copy small {
@@ -971,7 +971,7 @@
         font-size: .75rem;
         font-weight: 700;
         font-variant-numeric: tabular-nums;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .cc-empty {

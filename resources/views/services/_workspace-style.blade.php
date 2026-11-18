@@ -21,17 +21,17 @@
     .sg-table { width: 100%; min-width: 48rem; border-spacing: 0; font-size: .86rem; }
     .sg-table th, .sg-table td { text-align: left; padding: .62rem .7rem; border-bottom: 1px solid var(--ui-color-border); border-right: 1px solid var(--ui-color-border); vertical-align: middle; }
     .sg-table tr > :last-child { border-right: 0; }
-    .sg-table thead th { position: sticky; top: 0; z-index: 2; background: #eaf2ed; var(--ui-color-surface)-space: nowrap; }
+    .sg-table thead th { position: sticky; top: 0; z-index: 2; background: #eaf2ed; white-space: nowrap; }
     .sg-table tbody tr:nth-child(even) { background: var(--ui-color-surface-soft); }
     .sg-table tbody tr:focus-within, .sg-table tbody tr:hover { background: #eff7f2; }
     .sg-table small { display: block; margin-top: .15rem; font-weight: 400; }
     .sg-table a, .sg-link { color: #14604a; font-weight: 650; }
-    .sg-table .sg-number { text-align: right; var(--ui-color-surface)-space: nowrap; font-variant-numeric: tabular-nums; }
+    .sg-table .sg-number { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .sg-table .sg-empty { padding: 2rem; text-align: center; }
-    .sg-row-actions { flex-wrap: nowrap; var(--ui-color-surface)-space: nowrap; }
+    .sg-row-actions { flex-wrap: nowrap; white-space: nowrap; }
     .sg-orders .sg-table th:first-child { min-width: 9rem; }
     .sg-orders .sg-table tbody th[scope="row"] { background: #f3f7f4; }
-    .sg-orders .sg-table tbody td:nth-child(2) { var(--ui-color-surface)-space: nowrap; }
+    .sg-orders .sg-table tbody td:nth-child(2) { white-space: nowrap; }
     .sg-orders .sg-table tbody th a { font-variant-numeric: tabular-nums; text-decoration-thickness: 1px; text-underline-offset: 3px; }
     .sg-orders .sg-row-actions .sg-button { min-height: 2rem; padding: .25rem .5rem; }
     .sg-orders .sg-row-edit { background: #edf6f1; }
@@ -42,7 +42,7 @@
     .sg-inline[hidden], .agreements-workspace [hidden] { display: none !important; }
     .sg-link { background: transparent; border: 0; padding: 0; cursor: pointer; font: inherit; text-decoration: underline; }
     .sg-danger { color: #a33129; }
-    .sg-state { display: inline-block; var(--ui-color-surface)-space: nowrap; padding: .18rem .48rem; border-radius: 1rem; background: #e8eff9; color: #244675; font-size: .76rem; font-weight: 650; }
+    .sg-state { display: inline-block; white-space: nowrap; padding: .18rem .48rem; border-radius: 1rem; background: #e8eff9; color: #244675; font-size: .76rem; font-weight: 650; }
     .sg-state[data-state="validated"] { background: #dcefe4; color: #21543f; }
     .sg-state[data-state="cancelled"], .sg-state[data-state="rejected"] { background: #fae7e3; color: #862c26; }
     .sg-state[data-state="submitted"] { background: #fff0ce; color: #76530b; }

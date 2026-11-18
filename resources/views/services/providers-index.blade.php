@@ -203,7 +203,7 @@
         cursor: pointer;
         font-size: .82rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .pv-action.primary {
@@ -393,7 +393,7 @@
     .pv-page-count {
         color: var(--pv-muted);
         font-size: .75rem;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     /* =========================================================
@@ -472,7 +472,7 @@
         font-weight: 700;
         letter-spacing: .015em;
         text-align: left;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .pv-table td {
@@ -524,7 +524,7 @@
         font-size: .85rem;
         font-weight: 700;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .pv-provider-copy small {
@@ -533,7 +533,7 @@
         color: var(--pv-muted);
         font-size: .75rem;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .pv-status {
@@ -552,7 +552,7 @@
         color: var(--tone);
         font-size: .75rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .pv-status.on {
@@ -658,7 +658,7 @@
         font-size: .78rem;
         font-weight: 700;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .pv-mobile-actions {

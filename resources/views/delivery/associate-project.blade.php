@@ -12,6 +12,9 @@
 <x-delivery.notes-modal />
 
 @section('content')
+@include('delivery._campo-style')
+<div class="delivery-campo">
+
 @php
     $tenantSlug = request()->route('tenant') instanceof \App\Models\Tenant
         ? request()->route('tenant')->slug
@@ -58,33 +61,33 @@
         --ap-primary-dark: var(--color-primary-dark, #16a34a);
         --ap-primary-deep: var(--color-primary-deep, #15803d);
 
-        --ap-green: #168a4d;
-        --ap-green-soft: #eaf8ef;
+        --ap-green: var(--ui-color-primary);
+        --ap-green-soft: var(--ui-color-primary-soft);
 
-        --ap-blue: #2563eb;
-        --ap-blue-soft: #eef4ff;
+        --ap-blue: var(--ui-color-info);
+        --ap-blue-soft: var(--ui-color-info-soft);
 
-        --ap-sky: #0284c7;
-        --ap-sky-soft: #edf8fe;
+        --ap-sky: var(--ui-color-info);
+        --ap-sky-soft: var(--ui-color-info-soft);
 
-        --ap-violet: #7c3aed;
-        --ap-violet-soft: #f4f0ff;
+        --ap-violet: var(--ui-color-primary);
+        --ap-violet-soft: var(--ui-color-primary-soft);
 
-        --ap-amber: #c87408;
-        --ap-amber-soft: #fff7e8;
+        --ap-amber: var(--ui-color-warning);
+        --ap-amber-soft: var(--ui-color-warning-soft);
 
-        --ap-red: #cf3f3f;
-        --ap-red-soft: #fff0f0;
+        --ap-red: var(--ui-color-danger);
+        --ap-red-soft: var(--ui-color-danger-soft);
 
         --ap-slate: #64748b;
         --ap-slate-soft: #f1f5f9;
 
-        --ap-surface: var(--color-surface, #fff);
-        --ap-soft: var(--color-surface-soft, #f8faf9);
-        --ap-muted: var(--color-surface-muted, #eef4f0);
-        --ap-border: var(--color-border, #dce6df);
-        --ap-border-strong: var(--color-border-strong, #c8d6cd);
-        --ap-text: var(--color-text, #102018);
+        --ap-surface: var(--ui-color-surface);
+        --ap-soft: var(--ui-color-surface-soft);
+        --ap-muted: var(--ui-color-text-muted);
+        --ap-border: var(--ui-color-border);
+        --ap-border-strong: var(--ui-color-border-strong);
+        --ap-text: var(--ui-color-text);
         --ap-secondary: var(--color-text-secondary, #52645a);
         --ap-faded: var(--color-text-muted, #809087);
     }
@@ -115,7 +118,7 @@
 
     .ap-hero {
         --hero-tone: var(--ap-blue);
-        --hero-soft: var(--ap-blue-soft);
+        --hero-soft: var(--ui-color-surface-soft);
 
         display: grid;
         min-width: 0;
@@ -164,7 +167,7 @@
 
     .ap-back {
         border: 1px solid var(--ap-border);
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--ap-secondary);
         text-decoration: none;
         transition:
@@ -204,7 +207,7 @@
         margin: 0;
         color: var(--ap-text);
         font-size: clamp(1rem, 2vw, 1.18rem);
-        font-weight: 860;
+        font-weight:700;
         letter-spacing: -.03em;
         line-height: 1.28;
         overflow-wrap: anywhere;
@@ -219,7 +222,7 @@
         gap: .48rem;
         margin-top: .16rem;
         color: var(--ap-faded);
-        font-size: .72rem;
+        font-size:.75rem;
         line-height: 1.4;
     }
 
@@ -266,11 +269,11 @@
         padding: .46rem .62rem;
         border: 1px solid var(--ap-border-strong);
         border-radius: 10px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--ap-secondary);
         cursor: pointer;
         font: inherit;
-        font-size: .72rem;
+        font-size:.75rem;
         font-weight: 780;
         text-decoration: none;
         white-space: nowrap;
@@ -350,7 +353,7 @@
 
     .ap-tab {
         --tab-tone: var(--ap-slate);
-        --tab-soft: var(--ap-slate-soft);
+        --tab-soft: var(--ui-color-surface-soft);
 
         display: grid;
         min-width: max-content;
@@ -368,44 +371,44 @@
         color: var(--ap-secondary);
         cursor: pointer;
         font: inherit;
-        font-size: .73rem;
+        font-size:.75rem;
         font-weight: 760;
         white-space: nowrap;
     }
 
     .ap-tab[data-section="summary"] {
         --tab-tone: var(--ap-blue);
-        --tab-soft: var(--ap-blue-soft);
+        --tab-soft: var(--ui-color-surface-soft);
     }
 
     .ap-tab[data-section="limits"] {
         --tab-tone: var(--ap-violet);
-        --tab-soft: var(--ap-violet-soft);
+        --tab-soft: var(--ui-color-surface-soft);
     }
 
     .ap-tab[data-section="deliveries"] {
         --tab-tone: var(--ap-amber);
-        --tab-soft: var(--ap-amber-soft);
+        --tab-soft: var(--ui-color-surface-soft);
     }
 
     .ap-tab[data-section="distributions"] {
         --tab-tone: var(--ap-sky);
-        --tab-soft: var(--ap-sky-soft);
+        --tab-soft: var(--ui-color-surface-soft);
     }
 
     .ap-tab[data-section="receipts"] {
         --tab-tone: var(--ap-slate);
-        --tab-soft: var(--ap-slate-soft);
+        --tab-soft: var(--ui-color-surface-soft);
     }
 
     .ap-tab[data-section="payments"] {
         --tab-tone: var(--ap-green);
-        --tab-soft: var(--ap-green-soft);
+        --tab-soft: var(--ui-color-surface-soft);
     }
 
     .ap-tab[data-section="history"] {
         --tab-tone: #475569;
-        --tab-soft: #f1f5f9;
+        --tab-soft: var(--ui-color-surface-soft);
     }
 
     .ap-tab > i,
@@ -441,39 +444,39 @@
     .ap-overview,
     .ap-section-card {
         --section-tone: var(--ap-blue);
-        --section-soft: var(--ap-blue-soft);
+        --section-soft: var(--ui-color-surface-soft);
 
         min-width: 0;
         overflow: hidden;
         border: 1px solid var(--ap-border);
         border-radius: 15px;
-        background: #fff;
+        background: var(--ui-color-surface);
         box-shadow: var(--shadow-sm);
     }
 
     .ap-section-card.tone-violet {
         --section-tone: var(--ap-violet);
-        --section-soft: var(--ap-violet-soft);
+        --section-soft: var(--ui-color-surface-soft);
     }
 
     .ap-section-card.tone-amber {
         --section-tone: var(--ap-amber);
-        --section-soft: var(--ap-amber-soft);
+        --section-soft: var(--ui-color-surface-soft);
     }
 
     .ap-section-card.tone-sky {
         --section-tone: var(--ap-sky);
-        --section-soft: var(--ap-sky-soft);
+        --section-soft: var(--ui-color-surface-soft);
     }
 
     .ap-section-card.tone-slate {
         --section-tone: var(--ap-slate);
-        --section-soft: var(--ap-slate-soft);
+        --section-soft: var(--ui-color-surface-soft);
     }
 
     .ap-section-card.tone-green {
         --section-tone: var(--ap-green);
-        --section-soft: var(--ap-green-soft);
+        --section-soft: var(--ui-color-surface-soft);
     }
 
     .ap-overview-head,
@@ -535,7 +538,7 @@
     .ap-section-title {
         color: var(--ap-text);
         font-size: .95rem;
-        font-weight: 840;
+        font-weight:700;
         letter-spacing: -.02em;
     }
 
@@ -543,7 +546,7 @@
     .ap-section-subtitle {
         margin-top: .08rem;
         color: var(--ap-faded);
-        font-size: .74rem;
+        font-size:.75rem;
         line-height: 1.42;
     }
 
@@ -569,7 +572,7 @@
 
     .ap-financial-hero {
         --financial-tone: var(--ap-blue);
-        --financial-soft: var(--ap-blue-soft);
+        --financial-soft: var(--ui-color-surface-soft);
 
         display: grid;
         min-width: 0;
@@ -595,12 +598,12 @@
 
     .ap-financial-hero.warning {
         --financial-tone: var(--ap-amber);
-        --financial-soft: var(--ap-amber-soft);
+        --financial-soft: var(--ui-color-surface-soft);
     }
 
     .ap-financial-hero.danger {
         --financial-tone: var(--ap-red);
-        --financial-soft: var(--ap-red-soft);
+        --financial-soft: var(--ui-color-surface-soft);
     }
 
     .ap-financial-label {
@@ -613,7 +616,7 @@
         gap: .32rem;
         align-items: center;
         color: var(--financial-tone);
-        font-size: .74rem;
+        font-size:.75rem;
         font-weight: 790;
     }
 
@@ -627,7 +630,7 @@
         margin-top: .34rem;
         color: var(--ap-text);
         font-size: clamp(1.75rem, 4vw, 2.4rem);
-        font-weight: 875;
+        font-weight:700;
         letter-spacing: -.045em;
         line-height: 1;
         overflow-wrap: anywhere;
@@ -664,7 +667,7 @@
 
     .ap-financial-fact span {
         color: var(--ap-faded);
-        font-size: .67rem;
+        font-size:.75rem;
         font-weight: 680;
     }
 
@@ -672,7 +675,7 @@
         margin-top: .04rem;
         color: var(--ap-text);
         font-size: .75rem;
-        font-weight: 820;
+        font-weight:700;
         overflow-wrap: anywhere;
     }
 
@@ -681,7 +684,7 @@
         min-width: 0;
         align-content: center;
         padding: .72rem;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .ap-overview-row {
@@ -756,7 +759,7 @@
 
     .ap-overview-row-copy span {
         color: var(--ap-faded);
-        font-size: .68rem;
+        font-size:.75rem;
         font-weight: 680;
     }
 
@@ -764,7 +767,7 @@
         margin-top: .04rem;
         color: var(--ap-text);
         font-size: .75rem;
-        font-weight: 810;
+        font-weight:700;
         line-height: 1.35;
         overflow-wrap: anywhere;
     }
@@ -772,7 +775,7 @@
     .ap-overview-row-value {
         color: var(--ap-text);
         font-size: .79rem;
-        font-weight: 840;
+        font-weight:700;
         text-align: right;
         white-space: nowrap;
     }
@@ -783,7 +786,7 @@
 
     .ap-progress {
         --progress-tone: var(--ap-blue);
-        --progress-soft: var(--ap-blue-soft);
+        --progress-soft: var(--ui-color-surface-soft);
 
         height: 8px;
         margin-top: .52rem;
@@ -810,12 +813,12 @@
 
     .ap-progress.warning {
         --progress-tone: var(--ap-amber);
-        --progress-soft: var(--ap-amber-soft);
+        --progress-soft: var(--ui-color-surface-soft);
     }
 
     .ap-progress.danger {
         --progress-tone: var(--ap-red);
-        --progress-soft: var(--ap-red-soft);
+        --progress-soft: var(--ui-color-surface-soft);
     }
 
     /* =========================================================
@@ -833,11 +836,11 @@
         padding: .43rem .58rem;
         border: 1px solid var(--ap-border-strong);
         border-radius: 9px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--ap-secondary);
         cursor: pointer;
         font: inherit;
-        font-size: .7rem;
+        font-size:.75rem;
         font-weight: 780;
         text-decoration: none;
         white-space: nowrap;
@@ -923,7 +926,7 @@
         border: 1px solid var(--ap-border-strong);
         border-radius: 9px;
         outline: none;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--ap-text);
         font: inherit;
         font-size: .75rem;
@@ -1001,7 +1004,7 @@
         color: var(--ap-slate);
         cursor: pointer;
         font: inherit;
-        font-size: .69rem;
+        font-size:.75rem;
         font-weight: 760;
     }
 
@@ -1016,12 +1019,12 @@
             repeat(5, minmax(0, 1fr));
         overflow: hidden;
         border-bottom: 1px solid var(--ap-border);
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .ap-limit-fact {
         --fact-tone: var(--ap-blue);
-        --fact-soft: var(--ap-blue-soft);
+        --fact-soft: var(--ui-color-surface-soft);
 
         display: grid;
         min-width: 0;
@@ -1041,22 +1044,22 @@
 
     .ap-limit-fact.violet {
         --fact-tone: var(--ap-violet);
-        --fact-soft: var(--ap-violet-soft);
+        --fact-soft: var(--ui-color-surface-soft);
     }
 
     .ap-limit-fact.amber {
         --fact-tone: var(--ap-amber);
-        --fact-soft: var(--ap-amber-soft);
+        --fact-soft: var(--ui-color-surface-soft);
     }
 
     .ap-limit-fact.sky {
         --fact-tone: var(--ap-sky);
-        --fact-soft: var(--ap-sky-soft);
+        --fact-soft: var(--ui-color-surface-soft);
     }
 
     .ap-limit-fact.green {
         --fact-tone: var(--ap-green);
-        --fact-soft: var(--ap-green-soft);
+        --fact-soft: var(--ui-color-surface-soft);
     }
 
     .ap-limit-fact-icon {
@@ -1086,7 +1089,7 @@
 
     .ap-limit-fact-copy span {
         color: var(--ap-faded);
-        font-size: .65rem;
+        font-size:.75rem;
         font-weight: 680;
     }
 
@@ -1094,7 +1097,7 @@
         margin-top: .04rem;
         color: var(--ap-text);
         font-size: .75rem;
-        font-weight: 820;
+        font-weight:700;
         line-height: 1.3;
         overflow-wrap: anywhere;
     }
@@ -1107,7 +1110,7 @@
 
     .ap-limit-row {
         --row-tone: var(--ap-blue);
-        --row-soft: var(--ap-blue-soft);
+        --row-soft: var(--ui-color-surface-soft);
 
         display: grid;
         min-width: 0;
@@ -1128,37 +1131,37 @@
 
     .tone-blue {
         --row-tone: var(--ap-blue);
-        --row-soft: var(--ap-blue-soft);
+        --row-soft: var(--ui-color-surface-soft);
         --quota-tone: var(--ap-blue);
-        --quota-soft: var(--ap-blue-soft);
+        --quota-soft: var(--ui-color-surface-soft);
     }
 
     .tone-violet {
         --row-tone: var(--ap-violet);
-        --row-soft: var(--ap-violet-soft);
+        --row-soft: var(--ui-color-surface-soft);
         --quota-tone: var(--ap-violet);
-        --quota-soft: var(--ap-violet-soft);
+        --quota-soft: var(--ui-color-surface-soft);
     }
 
     .tone-sky {
         --row-tone: var(--ap-sky);
-        --row-soft: var(--ap-sky-soft);
+        --row-soft: var(--ui-color-surface-soft);
         --quota-tone: var(--ap-sky);
-        --quota-soft: var(--ap-sky-soft);
+        --quota-soft: var(--ui-color-surface-soft);
     }
 
     .tone-amber {
         --row-tone: var(--ap-amber);
-        --row-soft: var(--ap-amber-soft);
+        --row-soft: var(--ui-color-surface-soft);
         --quota-tone: var(--ap-amber);
-        --quota-soft: var(--ap-amber-soft);
+        --quota-soft: var(--ui-color-surface-soft);
     }
 
     .tone-green {
         --row-tone: var(--ap-green);
-        --row-soft: var(--ap-green-soft);
+        --row-soft: var(--ui-color-surface-soft);
         --quota-tone: var(--ap-green);
-        --quota-soft: var(--ap-green-soft);
+        --quota-soft: var(--ui-color-surface-soft);
     }
 
     .ap-limit-row-icon {
@@ -1189,7 +1192,7 @@
     .ap-limit-row-copy strong {
         color: var(--ap-text);
         font-size: .81rem;
-        font-weight: 820;
+        font-weight:700;
         line-height: 1.35;
         overflow-wrap: anywhere;
     }
@@ -1197,7 +1200,7 @@
     .ap-limit-row-copy span {
         margin-top: .05rem;
         color: var(--ap-faded);
-        font-size: .68rem;
+        font-size:.75rem;
         line-height: 1.4;
     }
 
@@ -1228,15 +1231,15 @@
 
     .ap-limit-row-metric span {
         color: var(--ap-faded);
-        font-size: .63rem;
+        font-size:.75rem;
         font-weight: 680;
     }
 
     .ap-limit-row-metric strong {
         margin-top: .04rem;
         color: var(--ap-text);
-        font-size: .71rem;
-        font-weight: 810;
+        font-size:.75rem;
+        font-weight:700;
         line-height: 1.3;
         overflow-wrap: anywhere;
     }
@@ -1261,20 +1264,20 @@
         gap: .4rem;
         align-items: center;
         color: var(--ap-faded);
-        font-size: .66rem;
+        font-size:.75rem;
         font-weight: 710;
     }
 
     .ap-limit-row-use-head strong {
         color: var(--row-tone);
-        font-size: .68rem;
-        font-weight: 820;
+        font-size:.75rem;
+        font-weight:700;
         white-space: nowrap;
     }
 
     .ap-limit-row .ap-progress {
         --progress-tone: var(--row-tone);
-        --progress-soft: var(--row-soft);
+        --progress-soft: var(--ui-color-surface-soft);
         margin-top: .32rem;
     }
 
@@ -1285,7 +1288,7 @@
     .ap-table-wrap {
         width: 100%;
         overflow-x: auto;
-        background: #fff;
+        background: var(--ui-color-surface);
         scrollbar-width: thin;
     }
 
@@ -1295,7 +1298,7 @@
         border-collapse: separate;
         border-spacing: 0;
         color: var(--ap-text);
-        font-size: .74rem;
+        font-size:.75rem;
     }
 
     .ap-table th,
@@ -1310,13 +1313,13 @@
     .ap-table th {
         background: #f6f9f7;
         color: var(--ap-secondary);
-        font-size: .67rem;
+        font-size:.75rem;
         font-weight: 780;
         letter-spacing: .01em;
     }
 
     .ap-table tbody tr:hover td {
-        background: #fbfdfc;
+        background: var(--ui-color-surface);
     }
 
     .ap-table tbody tr:last-child td {
@@ -1340,8 +1343,8 @@
         border-radius: 999px;
         background: var(--ap-slate-soft);
         color: #475569;
-        font-size: .64rem;
-        font-weight: 800;
+        font-size:.75rem;
+        font-weight:700;
         white-space: nowrap;
     }
 
@@ -1415,7 +1418,7 @@
     .ap-mobile-card-title strong {
         color: var(--ap-text);
         font-size: .82rem;
-        font-weight: 820;
+        font-weight:700;
         line-height: 1.35;
         overflow-wrap: anywhere;
     }
@@ -1423,7 +1426,7 @@
     .ap-mobile-card-title span {
         margin-top: .08rem;
         color: var(--ap-faded);
-        font-size: .69rem;
+        font-size:.75rem;
         line-height: 1.4;
         overflow-wrap: anywhere;
     }
@@ -1451,15 +1454,15 @@
 
     .ap-mobile-metric span {
         color: var(--ap-faded);
-        font-size: .65rem;
+        font-size:.75rem;
         font-weight: 680;
     }
 
     .ap-mobile-metric strong {
         margin-top: .04rem;
         color: var(--ap-text);
-        font-size: .72rem;
-        font-weight: 810;
+        font-size:.75rem;
+        font-weight:700;
         line-height: 1.35;
         overflow-wrap: anywhere;
     }
@@ -1502,7 +1505,7 @@
 
     .ap-pager-info {
         color: var(--ap-faded);
-        font-size: .69rem;
+        font-size:.75rem;
         font-weight: 680;
     }
 
@@ -1554,7 +1557,7 @@
         align-self: end;
         color: var(--ap-text);
         font-size: .8rem;
-        font-weight: 820;
+        font-weight:700;
     }
 
     .ap-state p {
@@ -1564,7 +1567,7 @@
         max-width: 520px;
         margin: 0;
         color: var(--ap-faded);
-        font-size: .71rem;
+        font-size:.75rem;
         line-height: 1.45;
     }
 
@@ -1637,7 +1640,7 @@
         overflow-y: auto;
         border: 1px solid var(--ap-border);
         border-radius: 15px;
-        background: #fff;
+        background: var(--ui-color-surface);
         box-shadow:
             0 24px 68px rgba(15, 23, 42, .22);
         animation:
@@ -1686,14 +1689,14 @@
     .ap-dialog-head strong {
         color: var(--ap-text);
         font-size: .84rem;
-        font-weight: 840;
+        font-weight:700;
     }
 
     .ap-dialog-head small {
         display: block;
         margin-top: .06rem;
         color: var(--ap-faded) !important;
-        font-size: .68rem !important;
+        font-size:.75rem !important;
     }
 
     .ap-dialog-close {
@@ -1703,7 +1706,7 @@
         place-items: center;
         border: 1px solid var(--ap-border);
         border-radius: 9px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--ap-secondary);
         cursor: pointer;
     }
@@ -1734,13 +1737,13 @@
 
     .ap-field label {
         color: var(--ap-text);
-        font-size: .7rem;
+        font-size:.75rem;
         font-weight: 760;
     }
 
     .ap-field small {
         color: var(--ap-faded);
-        font-size: .67rem;
+        font-size:.75rem;
         line-height: 1.4;
     }
 
@@ -1791,7 +1794,7 @@
 
     .ap-confirm-box p {
         margin: 0;
-        font-size: .73rem;
+        font-size:.75rem;
         line-height: 1.5;
     }
 
@@ -1830,13 +1833,13 @@
         margin-top: .05rem;
         color: var(--ap-text);
         font-size: .84rem;
-        font-weight: 840;
+        font-weight:700;
     }
 
     .ap-quota-summary small,
     .ap-quota-card small {
         color: var(--ap-faded);
-        font-size: .67rem;
+        font-size:.75rem;
         line-height: 1.4;
     }
 
@@ -1879,7 +1882,7 @@
 
     .ap-quota-product-option {
         --option-tone: var(--ap-blue);
-        --option-soft: var(--ap-blue-soft);
+        --option-soft: var(--ui-color-surface-soft);
 
         display: grid;
         width: 100%;
@@ -1905,22 +1908,22 @@
 
     .ap-quota-product-option.tone-violet {
         --option-tone: var(--ap-violet);
-        --option-soft: var(--ap-violet-soft);
+        --option-soft: var(--ui-color-surface-soft);
     }
 
     .ap-quota-product-option.tone-sky {
         --option-tone: var(--ap-sky);
-        --option-soft: var(--ap-sky-soft);
+        --option-soft: var(--ui-color-surface-soft);
     }
 
     .ap-quota-product-option.tone-amber {
         --option-tone: var(--ap-amber);
-        --option-soft: var(--ap-amber-soft);
+        --option-soft: var(--ui-color-surface-soft);
     }
 
     .ap-quota-product-option.tone-green {
         --option-tone: var(--ap-green);
-        --option-soft: var(--ap-green-soft);
+        --option-soft: var(--ui-color-surface-soft);
     }
 
     .ap-quota-product-option:hover,
@@ -1953,19 +1956,19 @@
     .ap-quota-product-option strong {
         display: block;
         font-size: .76rem;
-        font-weight: 810;
+        font-weight:700;
     }
 
     .ap-quota-product-option small {
         display: block;
         margin-top: .04rem;
         color: var(--ap-faded);
-        font-size: .67rem;
+        font-size:.75rem;
     }
 
     .ap-quota-product-option > span {
         color: var(--option-tone);
-        font-size: .69rem;
+        font-size:.75rem;
         font-weight: 790;
         white-space: nowrap;
     }
@@ -1977,7 +1980,7 @@
 
     .ap-quota-card {
         --quota-tone: var(--ap-blue);
-        --quota-soft: var(--ap-blue-soft);
+        --quota-soft: var(--ui-color-surface-soft);
 
         min-width: 0;
         padding: .68rem .02rem;
@@ -1989,7 +1992,7 @@
 
     .ap-quota-card.invalid {
         --quota-tone: var(--ap-red);
-        --quota-soft: var(--ap-red-soft);
+        --quota-soft: var(--ui-color-surface-soft);
     }
 
     .ap-quota-card-head {
@@ -2027,7 +2030,7 @@
         display: block;
         color: var(--ap-text);
         font-size: .82rem;
-        font-weight: 820;
+        font-weight:700;
         line-height: 1.35;
         overflow-wrap: anywhere;
     }
@@ -2097,15 +2100,15 @@
 
     .ap-quota-number span {
         color: var(--ap-faded);
-        font-size: .64rem;
+        font-size:.75rem;
         font-weight: 680;
     }
 
     .ap-quota-number strong {
         margin-top: .04rem;
         color: var(--ap-text);
-        font-size: .72rem;
-        font-weight: 810;
+        font-size:.75rem;
+        font-weight:700;
         overflow-wrap: anywhere;
     }
 
@@ -2121,13 +2124,13 @@
         gap: .5rem;
         margin-top: .46rem;
         color: var(--ap-secondary);
-        font-size: .68rem;
+        font-size:.75rem;
         font-weight: 710;
     }
 
     .ap-quota-card .ap-progress {
         --progress-tone: var(--quota-tone);
-        --progress-soft: var(--quota-soft);
+        --progress-soft: var(--ui-color-surface-soft);
         margin-top: .3rem;
     }
 
@@ -2157,7 +2160,7 @@
         display: grid;
         gap: .25rem;
         color: var(--ap-secondary);
-        font-size: .68rem;
+        font-size:.75rem;
         font-weight: 740;
     }
 
@@ -2270,7 +2273,7 @@
         border-radius: 9px;
         background: var(--quota-soft);
         color: var(--ap-secondary);
-        font-size: .68rem;
+        font-size:.75rem;
         line-height: 1.42;
     }
 
@@ -2281,10 +2284,10 @@
         height: 18px;
         place-items: center;
         border-radius: 999px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--quota-tone);
-        font-size: .61rem;
-        font-weight: 900;
+        font-size:.75rem;
+        font-weight:700;
         line-height: 1;
     }
 
@@ -2310,7 +2313,7 @@
         align-items: center;
         padding: .8rem;
         color: var(--ap-secondary);
-        font-size: .72rem;
+        font-size:.75rem;
         text-align: left;
     }
 
@@ -2343,7 +2346,7 @@
         box-shadow:
             0 14px 32px rgba(15, 35, 24, .12);
         color: var(--ap-text);
-        font-size: .71rem;
+        font-size:.75rem;
         font-weight: 720;
         pointer-events: auto;
         animation: ap-toast-in 180ms ease both;
@@ -2830,7 +2833,7 @@
         flex-wrap: wrap;
         gap: .16rem .52rem;
         margin-top: .14rem;
-        font-size: .68rem;
+        font-size:.75rem;
     }
 
     .ap-meta-row > span {
@@ -2866,7 +2869,7 @@
         min-height: 37px;
         padding: .38rem .52rem;
         border-radius: 8px;
-        font-size: .69rem;
+        font-size:.75rem;
     }
 
     .ap-tab.active {
@@ -2909,7 +2912,7 @@
     .ap-overview-head p,
     .ap-section-subtitle {
         margin-top: .04rem;
-        font-size: .67rem;
+        font-size:.75rem;
     }
 
     /* ---------- Resumo ---------- */
@@ -2934,7 +2937,7 @@
     .ap-financial-helper {
         max-width: 360px;
         margin-top: .3rem;
-        font-size: .69rem;
+        font-size:.75rem;
         line-height: 1.42;
     }
 
@@ -2975,11 +2978,11 @@
     }
 
     .ap-overview-row-copy span {
-        font-size: .63rem;
+        font-size:.75rem;
     }
 
     .ap-overview-row-copy strong {
-        font-size: .7rem;
+        font-size:.75rem;
     }
 
     .ap-overview-row-value {
@@ -3002,7 +3005,7 @@
     .ap-quota-input {
         min-height: 39px;
         border-radius: var(--ap-radius-sm);
-        font-size: .71rem;
+        font-size:.75rem;
     }
 
     /* ---------- Limites ---------- */
@@ -3022,11 +3025,11 @@
     }
 
     .ap-limit-fact-copy span {
-        font-size: .61rem;
+        font-size:.75rem;
     }
 
     .ap-limit-fact-copy strong {
-        font-size: .7rem;
+        font-size:.75rem;
     }
 
     .ap-limit-products {
@@ -3046,7 +3049,7 @@
 
     .ap-limit-row-metrics {
         border: 1px solid var(--ap-border);
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .ap-limit-row-metric {
@@ -3061,7 +3064,7 @@
 
     .ap-table {
         min-width: 820px;
-        font-size: .7rem;
+        font-size:.75rem;
     }
 
     .ap-table th,
@@ -3070,7 +3073,7 @@
     }
 
     .ap-table th {
-        font-size: .61rem;
+        font-size:.75rem;
     }
 
     .ap-table tbody tr:hover td {
@@ -3089,7 +3092,7 @@
         padding: .58rem;
         border: 1px solid var(--ap-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
         box-shadow: 0 2px 8px rgba(15, 35, 24, .025);
     }
 
@@ -3102,7 +3105,7 @@
     }
 
     .ap-mobile-card-title span {
-        font-size: .65rem;
+        font-size:.75rem;
     }
 
     .ap-mobile-card-body {
@@ -3260,7 +3263,7 @@
         .ap-meta-row {
             gap: .1rem .4rem;
             margin-top: .1rem;
-            font-size: .63rem;
+            font-size:.75rem;
         }
 
         .ap-meta-row > span {
@@ -3338,7 +3341,7 @@
         }
 
         .ap-financial-helper {
-            font-size: .66rem;
+            font-size:.75rem;
         }
 
         .ap-overview-list {
@@ -3399,7 +3402,7 @@
             padding: .56rem;
             border: 1px solid var(--ap-border);
             border-radius: 12px;
-            background: #fff;
+            background: var(--ui-color-surface);
         }
 
         .ap-limit-row + .ap-limit-row {
@@ -3578,7 +3581,7 @@
         .ap-mobile-card-actions a.ap-btn {
             min-height: 34px;
             padding: .34rem .46rem;
-            font-size: .65rem;
+            font-size:.75rem;
         }
 
         .ap-quota-card-head {
@@ -5262,7 +5265,7 @@
                 </div>
 
                 ${item.obsolete_reason ? `
-                    <div style="padding:0 .75rem .75rem;color:var(--ap-faded);font-size:.6rem">
+                    <div style="padding:0 .75rem .75rem;color:var(--ap-faded);font-size:.75rem">
                         ${esc(item.obsolete_reason)}
                     </div>
                 ` : ''}
@@ -6399,4 +6402,5 @@
 
     icons();
 </script>
+</div>
 @endsection

@@ -23,7 +23,7 @@
 <style>
 /*
  * SGC CAMPO | Painel de serviços do prestador
- * - Tokens do tema global: Campo Claro + Grafite & Ouro
+ * - Tokens do tema global: Campo Claro + Grafite & Lima
  * - Estilos totalmente isolados em .svc-dashboard / .svc-bottom
  * - Nenhuma alteração de dados, rotas, permissões ou contratos de serviço
  */
@@ -326,9 +326,9 @@ html[data-theme='dark'] .svc-dashboard,
     --svc-brand: var(--sgc-rail, #151a20);
     --svc-brand-hover: var(--sgc-rail-hover, #252c34);
     --svc-brand-ink: var(--sgc-rail-text, #f2f5f7);
-    --svc-gold: var(--sgc-accent, #e7c87d);
-    --svc-gold-hover: var(--sgc-accent-hover, #f0d693);
-    --svc-on-gold: var(--sgc-on-accent, #2e2617);
+    --svc-gold: var(--sgc-accent, #d9f172);
+    --svc-gold-hover: var(--sgc-accent-hover, #e5fa98);
+    --svc-on-gold: var(--sgc-on-accent, #173c2e);
 }
 html[data-theme='dark'] .svc-dashboard-head-icon,
 [data-theme='dark'] .svc-dashboard-head-icon { color: var(--svc-gold); }

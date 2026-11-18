@@ -1,5 +1,5 @@
 /*
- * SGC CAMPO — CSS global de produção (Campo Claro + Grafite & Ouro)
+ * SGC CAMPO — CSS global de produção (Campo Claro + Grafite & Lima)
  * Pode substituir resources/css/theme.css no import de resources/css/app.css.
  * NÃO deve ser carregado em paralelo com theme.css (mesmos tokens).
  * Mantém aliases legados --ui-*, --color-*, --app-* e --ws-*.
@@ -9,7 +9,7 @@
  * -----------------------------------------------------------------------------
  * Fonte única dos tokens visuais do SGC.
  *
- * SGC Campo: tema claro Campo e escuro Grafite & Ouro.
+ * SGC Campo: tema claro Campo e escuro Grafite & Lima.
  * Mapeamento semântico retrocompatível: --ui-*, --color-*, --app-* e --ws-*.
  * As classes e os fluxos das views continuam os mesmos.
  */
@@ -219,17 +219,17 @@
     --shadow-sm: var(--ui-shadow-sm);
 }
 
-/* Grafite & Ouro: neutros frios, dourado pontual; sem verde como fundo geral. */
+/* Grafite & Lima: neutros frios, lima pontual; sem verde como fundo geral. */
 html[data-theme='dark'],
 [data-theme='dark'] {
     color-scheme: dark;
-    --ui-brand: #e7c87d;
-    --ui-color-primary: #e7c87d;
-    --ui-color-primary-strong: #d6b46b;
-    --ui-color-primary-deep: #b58d48;
-    --ui-color-primary-soft: #353022;
-    --ui-color-primary-muted: #403728;
-    --ui-color-primary-border: #5b4c35;
+    --ui-brand: #d9f172;
+    --ui-color-primary: #d9f172;
+    --ui-color-primary-strong: #c9e660;
+    --ui-color-primary-deep: #a5c94a;
+    --ui-color-primary-soft: #23382b;
+    --ui-color-primary-muted: #2d4432;
+    --ui-color-primary-border: #49643a;
 
     --ui-color-canvas: #111418;
     --ui-color-canvas-deep: #101317;
@@ -242,7 +242,7 @@ html[data-theme='dark'],
     --ui-color-text: #edf2f6;
     --ui-color-text-secondary: #afbac6;
     --ui-color-text-muted: #94a2ae;
-    --ui-color-focus: #e7c87d;
+    --ui-color-focus: #d9f172;
     --ui-color-overlay: rgb(0 0 0 / 0.72);
 
     --ui-color-info: #95c0e3;
@@ -311,15 +311,15 @@ html[data-theme='dark'],
 }
 html[data-theme='dark'],
 [data-theme='dark'] {
-    --sgc-rail: #151a20;
-    --sgc-rail-hover: #252c34;
+    --sgc-rail: #14251e;
+    --sgc-rail-hover: #203c2d;
     --sgc-rail-text: #f2f5f7;
     --sgc-rail-muted: #a4b0bb;
     --sgc-rail-divider: rgb(255 255 255 / 9%);
-    --sgc-accent: #e7c87d;
-    --sgc-accent-hover: #f0d693;
-    --sgc-on-accent: #2e2617;
-    --sgc-on-primary: #2e2617;
+    --sgc-accent: #d9f172;
+    --sgc-accent-hover: #e5fa98;
+    --sgc-on-accent: #173c2e;
+    --sgc-on-primary: #173c2e;
 }
 
 /* Bridge disponível também em layouts que não herdam o Bento. */

@@ -46,6 +46,9 @@
 <x-delivery.notes-modal />
 
 @section('content')
+@include('delivery._campo-style')
+<div class="delivery-campo">
+
 @once
 <link
     rel="stylesheet"
@@ -59,25 +62,25 @@
     .pr-overlay,
     .pr-dialog,
     .pr-toast-wrap {
-        --pr-blue: #3478d4;
-        --pr-blue-soft: #edf4ff;
-        --pr-blue-border: #cfe0f7;
+        --pr-blue: var(--ui-color-info);
+        --pr-blue-soft: var(--ui-color-info-soft);
+        --pr-blue-border: var(--ui-color-info-border);
 
-        --pr-violet: #8a4bd2;
-        --pr-violet-soft: #f5efff;
-        --pr-violet-border: #e1d2f4;
+        --pr-violet: var(--ui-color-primary);
+        --pr-violet-soft: var(--ui-color-primary-soft);
+        --pr-violet-border: var(--ui-color-primary-border);
 
-        --pr-green: #219653;
-        --pr-green-soft: #edf8f2;
-        --pr-green-border: #cce8d7;
+        --pr-green: var(--ui-color-primary);
+        --pr-green-soft: var(--ui-color-primary-soft);
+        --pr-green-border: var(--ui-color-primary-border);
 
-        --pr-amber: #c38418;
-        --pr-amber-soft: #fff7e8;
-        --pr-amber-border: #f0dcae;
+        --pr-amber: var(--ui-color-warning);
+        --pr-amber-soft: var(--ui-color-warning-soft);
+        --pr-amber-border: var(--ui-color-warning-border);
 
-        --pr-red: #cf5050;
-        --pr-red-soft: #fff0f0;
-        --pr-red-border: #efcaca;
+        --pr-red: var(--ui-color-danger);
+        --pr-red-soft: var(--ui-color-danger-soft);
+        --pr-red-border: var(--ui-color-danger-border);
 
         --pr-cyan: #168eae;
         --pr-cyan-soft: #ecf8fb;
@@ -86,13 +89,13 @@
         --pr-slate: #66756d;
         --pr-slate-soft: #f1f5f3;
 
-        --pr-text: #17211d;
+        --pr-text: var(--ui-color-text);
         --pr-secondary: #59655f;
         --pr-muted-text: #89938e;
-        --pr-border: #dde5e0;
-        --pr-border-strong: #ccd8d1;
-        --pr-surface: #fff;
-        --pr-soft: #f7faf8;
+        --pr-border: var(--ui-color-border);
+        --pr-border-strong: var(--ui-color-border-strong);
+        --pr-surface: var(--ui-color-surface);
+        --pr-soft: var(--ui-color-surface-soft);
     }
 
     .pr {
@@ -139,8 +142,8 @@
 
     .pr-head {
         --head-tone: var(--pr-blue);
-        --head-soft: var(--pr-blue-soft);
-        --head-border: var(--pr-blue-border);
+        --head-soft: var(--ui-color-surface-soft);
+        --head-border: var(--ui-color-border);
 
         display: grid;
         min-width: 0;
@@ -150,25 +153,25 @@
         padding: .72rem .8rem;
         border: 1px solid var(--pr-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .pr-head.status-draft {
         --head-tone: var(--pr-amber);
-        --head-soft: var(--pr-amber-soft);
-        --head-border: var(--pr-amber-border);
+        --head-soft: var(--ui-color-surface-soft);
+        --head-border: var(--ui-color-border);
     }
 
     .pr-head.status-completed {
         --head-tone: var(--pr-green);
-        --head-soft: var(--pr-green-soft);
-        --head-border: var(--pr-green-border);
+        --head-soft: var(--ui-color-surface-soft);
+        --head-border: var(--ui-color-border);
     }
 
     .pr-head.status-cancelled {
         --head-tone: var(--pr-red);
-        --head-soft: var(--pr-red-soft);
-        --head-border: var(--pr-red-border);
+        --head-soft: var(--ui-color-surface-soft);
+        --head-border: var(--ui-color-border);
     }
 
     .pr-back,
@@ -184,7 +187,7 @@
     .pr-back,
     .pr-head-action {
         border: 1px solid var(--pr-border);
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pr-secondary);
     }
 
@@ -213,7 +216,7 @@
         overflow: hidden;
         color: var(--pr-text);
         font-size: clamp(1.04rem, 2vw, 1.2rem);
-        font-weight: 850;
+        font-weight:700;
         line-height: 1.2;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -259,7 +262,7 @@
         border-radius: 7px;
         background: var(--head-soft);
         color: var(--head-tone);
-        font-size: .73rem;
+        font-size:.75rem;
         font-weight: 780;
         white-space: nowrap;
     }
@@ -270,8 +273,8 @@
 
     .pr-btn {
         --button-tone: var(--pr-secondary);
-        --button-bg: #fff;
-        --button-border: var(--pr-border-strong);
+        --button-bg: var(--ui-color-canvas);
+        --button-border: var(--ui-color-border);
 
         display: inline-flex;
         min-height: 39px;
@@ -301,14 +304,14 @@
 
     .pr-btn.primary {
         --button-tone: #fff;
-        --button-bg: var(--pr-blue);
-        --button-border: var(--pr-blue);
+        --button-bg: var(--ui-color-canvas);
+        --button-border: var(--ui-color-border);
     }
 
     .pr-btn.danger {
         --button-tone: var(--pr-red);
-        --button-bg: var(--pr-red-soft);
-        --button-border: var(--pr-red-border);
+        --button-bg: var(--ui-color-canvas);
+        --button-border: var(--ui-color-border);
     }
 
     .pr-btn.icon {
@@ -342,7 +345,7 @@
         overflow: hidden;
         border: 1px solid var(--pr-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .pr-overview-head {
@@ -387,7 +390,7 @@
     .pr-overview-copy h2 {
         color: var(--pr-text);
         font-size: .9rem;
-        font-weight: 820;
+        font-weight:700;
     }
 
     .pr-overview-copy p {
@@ -413,7 +416,7 @@
 
     .pr-stat {
         --stat-tone: var(--pr-slate);
-        --stat-soft: var(--pr-slate-soft);
+        --stat-soft: var(--ui-color-surface-soft);
 
         display: grid;
         min-width: 0;
@@ -424,7 +427,7 @@
         padding: .52rem .58rem;
         border: 0;
         border-right: 1px solid var(--pr-border);
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pr-text);
         text-align: left;
         cursor: pointer;
@@ -436,27 +439,27 @@
 
     .pr-stat[data-summary-filter="all"] {
         --stat-tone: var(--pr-blue);
-        --stat-soft: var(--pr-blue-soft);
+        --stat-soft: var(--ui-color-surface-soft);
     }
 
     .pr-stat[data-summary-filter="pending"] {
         --stat-tone: var(--pr-amber);
-        --stat-soft: var(--pr-amber-soft);
+        --stat-soft: var(--ui-color-surface-soft);
     }
 
     .pr-stat[data-summary-filter="complement"] {
         --stat-tone: var(--pr-violet);
-        --stat-soft: var(--pr-violet-soft);
+        --stat-soft: var(--ui-color-surface-soft);
     }
 
     .pr-stat[data-summary-filter="obsolete"] {
         --stat-tone: var(--pr-red);
-        --stat-soft: var(--pr-red-soft);
+        --stat-soft: var(--ui-color-surface-soft);
     }
 
     .pr-stat[data-summary-filter="paid"] {
         --stat-tone: var(--pr-green);
-        --stat-soft: var(--pr-green-soft);
+        --stat-soft: var(--ui-color-surface-soft);
     }
 
     .pr-stat:hover,
@@ -493,14 +496,14 @@
     .pr-stat-copy strong {
         color: var(--stat-tone);
         font-size: .94rem;
-        font-weight: 840;
+        font-weight:700;
         line-height: 1;
     }
 
     .pr-stat-copy small {
         margin-top: .1rem;
         color: var(--pr-secondary);
-        font-size: .7rem;
+        font-size:.75rem;
         font-weight: 700;
         line-height: 1.3;
     }
@@ -518,7 +521,7 @@
         padding: .6rem;
         border: 1px solid var(--pr-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .pr-tools {
@@ -551,7 +554,7 @@
         border: 1px solid var(--pr-border-strong);
         border-radius: 8px;
         outline: none;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pr-text);
         font-size: .84rem;
     }
@@ -585,12 +588,12 @@
         overflow: hidden;
         border: 1px solid var(--pr-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .pr-card {
         --card-tone: var(--pr-slate);
-        --card-soft: var(--pr-slate-soft);
+        --card-soft: var(--ui-color-surface-soft);
 
         display: grid;
         min-width: 0;
@@ -602,7 +605,7 @@
         align-items: center;
         padding: .66rem .7rem;
         border-bottom: 1px solid var(--pr-border);
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .pr-card:last-child {
@@ -611,27 +614,27 @@
 
     .pr-card.is-warning {
         --card-tone: var(--pr-amber);
-        --card-soft: var(--pr-amber-soft);
+        --card-soft: var(--ui-color-surface-soft);
     }
 
     .pr-card.is-danger {
         --card-tone: var(--pr-red);
-        --card-soft: var(--pr-red-soft);
+        --card-soft: var(--ui-color-surface-soft);
     }
 
     .pr-card.is-success {
         --card-tone: var(--pr-green);
-        --card-soft: var(--pr-green-soft);
+        --card-soft: var(--ui-color-surface-soft);
     }
 
     .pr-card.is-blue {
         --card-tone: var(--pr-blue);
-        --card-soft: var(--pr-blue-soft);
+        --card-soft: var(--ui-color-surface-soft);
     }
 
     .pr-card.is-violet {
         --card-tone: var(--pr-violet);
-        --card-soft: var(--pr-violet-soft);
+        --card-soft: var(--ui-color-surface-soft);
     }
 
     .pr-card-head {
@@ -659,8 +662,8 @@
         border-radius: 9px;
         background: var(--card-soft);
         color: var(--card-tone);
-        font-size: .72rem;
-        font-weight: 830;
+        font-size:.75rem;
+        font-weight:700;
     }
 
     .pr-card h2 {
@@ -668,7 +671,7 @@
         overflow: hidden;
         color: var(--pr-text);
         font-size: .86rem;
-        font-weight: 810;
+        font-weight:700;
         line-height: 1.3;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -678,7 +681,7 @@
         margin-top: .04rem;
         overflow: hidden;
         color: var(--pr-muted-text);
-        font-size: .72rem;
+        font-size:.75rem;
         line-height: 1.4;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -686,8 +689,8 @@
 
     .pr-badge {
         --badge-tone: var(--pr-secondary);
-        --badge-soft: var(--pr-soft);
-        --badge-border: var(--pr-border);
+        --badge-soft: var(--ui-color-surface-soft);
+        --badge-border: var(--ui-color-border);
 
         display: inline-flex;
         width: max-content;
@@ -700,33 +703,33 @@
         border-radius: 7px;
         background: var(--badge-soft);
         color: var(--badge-tone);
-        font-size: .68rem;
+        font-size:.75rem;
         font-weight: 760;
         white-space: nowrap;
     }
 
     .pr-badge.green {
         --badge-tone: var(--pr-green);
-        --badge-soft: var(--pr-green-soft);
-        --badge-border: var(--pr-green-border);
+        --badge-soft: var(--ui-color-surface-soft);
+        --badge-border: var(--ui-color-border);
     }
 
     .pr-badge.yellow {
         --badge-tone: var(--pr-amber);
-        --badge-soft: var(--pr-amber-soft);
-        --badge-border: var(--pr-amber-border);
+        --badge-soft: var(--ui-color-surface-soft);
+        --badge-border: var(--ui-color-border);
     }
 
     .pr-badge.red {
         --badge-tone: var(--pr-red);
-        --badge-soft: var(--pr-red-soft);
-        --badge-border: var(--pr-red-border);
+        --badge-soft: var(--ui-color-surface-soft);
+        --badge-border: var(--ui-color-border);
     }
 
     .pr-badge.blue {
         --badge-tone: var(--pr-blue);
-        --badge-soft: var(--pr-blue-soft);
-        --badge-border: var(--pr-blue-border);
+        --badge-soft: var(--ui-color-surface-soft);
+        --badge-border: var(--ui-color-border);
     }
 
     .pr-meter {
@@ -752,13 +755,13 @@
         justify-content: space-between;
         margin-top: 18px;
         color: var(--pr-muted-text);
-        font-size: .69rem;
+        font-size:.75rem;
         line-height: 1.3;
     }
 
     .pr-progress-label strong {
         color: var(--card-tone);
-        font-weight: 800;
+        font-weight:700;
     }
 
     .pr-values {
@@ -788,7 +791,7 @@
 
     .pr-value span {
         color: var(--pr-muted-text);
-        font-size: .67rem;
+        font-size:.75rem;
         font-weight: 680;
     }
 
@@ -797,7 +800,7 @@
         overflow: hidden;
         color: var(--pr-text);
         font-size: .78rem;
-        font-weight: 800;
+        font-weight:700;
         line-height: 1.3;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -914,7 +917,7 @@
         align-items: center;
         padding: .72rem .78rem;
         border-bottom: 1px solid var(--pr-border);
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .pr-sheet-icon {
@@ -932,13 +935,13 @@
         margin: 0;
         color: var(--pr-text);
         font-size: .9rem;
-        font-weight: 820;
+        font-weight:700;
     }
 
     .pr-sheet-head p {
         margin: .04rem 0 0;
         color: var(--pr-muted-text);
-        font-size: .74rem;
+        font-size:.75rem;
         line-height: 1.4;
     }
 
@@ -962,7 +965,7 @@
             .72rem
             calc(.62rem + env(safe-area-inset-bottom));
         border-top: 1px solid var(--pr-border);
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .pr-sheet-summary {
@@ -976,7 +979,7 @@
 
     .pr-sheet-summary span {
         color: var(--pr-muted-text);
-        font-size: .7rem;
+        font-size:.75rem;
         font-weight: 670;
     }
 
@@ -984,7 +987,7 @@
         margin-top: .03rem;
         color: var(--pr-text);
         font-size: .8rem;
-        font-weight: 800;
+        font-weight:700;
         overflow-wrap: anywhere;
     }
 
@@ -1032,7 +1035,7 @@
         overflow: hidden;
         border: 1px solid var(--pr-border);
         border-radius: 9px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .pr-columns {
@@ -1051,7 +1054,7 @@
         font-size: .76rem;
         font-weight: 780;
         list-style: none;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .pr-columns summary::-webkit-details-marker,
@@ -1112,7 +1115,7 @@
         display: block;
         margin-bottom: .24rem;
         color: var(--pr-secondary);
-        font-size: .74rem;
+        font-size:.75rem;
         font-weight: 740;
     }
 
@@ -1120,7 +1123,7 @@
         min-height: 1rem;
         padding: 0 .58rem .55rem;
         color: var(--pr-muted-text);
-        font-size: .7rem;
+        font-size:.75rem;
         line-height: 1.4;
     }
 
@@ -1165,8 +1168,8 @@
 
     .pr-issue {
         --issue-tone: var(--pr-amber);
-        --issue-soft: var(--pr-amber-soft);
-        --issue-border: var(--pr-amber-border);
+        --issue-soft: var(--ui-color-surface-soft);
+        --issue-border: var(--ui-color-border);
 
         padding: .56rem;
         border: 1px solid var(--issue-border);
@@ -1176,8 +1179,8 @@
 
     .pr-issue.critical {
         --issue-tone: var(--pr-red);
-        --issue-soft: var(--pr-red-soft);
-        --issue-border: var(--pr-red-border);
+        --issue-soft: var(--ui-color-surface-soft);
+        --issue-border: var(--ui-color-border);
     }
 
     .pr-issue-title {
@@ -1187,13 +1190,13 @@
         justify-content: space-between;
         color: var(--pr-text);
         font-size: .78rem;
-        font-weight: 800;
+        font-weight:700;
     }
 
     .pr-issue p {
         margin: .22rem 0 0;
         color: var(--pr-secondary);
-        font-size: .74rem;
+        font-size:.75rem;
         line-height: 1.5;
     }
 
@@ -1221,13 +1224,13 @@
     .pr-section-head h3 {
         color: var(--pr-text);
         font-size: .84rem;
-        font-weight: 810;
+        font-weight:700;
     }
 
     .pr-section-head p {
         margin-top: .04rem;
         color: var(--pr-muted-text);
-        font-size: .72rem;
+        font-size:.75rem;
     }
 
     .pr-receipts {
@@ -1258,7 +1261,7 @@
         color: var(--pr-blue);
         cursor: pointer;
         font: inherit;
-        font-weight: 800;
+        font-weight:700;
         text-align: left;
     }
 
@@ -1268,7 +1271,7 @@
         flex-wrap: wrap;
         margin-top: .18rem;
         color: var(--pr-muted-text);
-        font-size: .72rem;
+        font-size:.75rem;
         line-height: 1.4;
     }
 
@@ -1283,7 +1286,7 @@
         border-radius: 7px;
         background: var(--pr-red-soft);
         color: #9e3636;
-        font-size: .72rem;
+        font-size:.75rem;
         line-height: 1.45;
     }
 
@@ -1304,13 +1307,13 @@
         padding: .56rem;
         border: 1px solid var(--pr-border);
         border-radius: 9px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .pr-selection-tools strong {
         color: var(--pr-text);
         font-size: .82rem;
-        font-weight: 810;
+        font-weight:700;
     }
 
     .pr-selection-list {
@@ -1320,8 +1323,8 @@
 
     .pr-dist {
         --dist-tone: var(--pr-blue);
-        --dist-soft: var(--pr-blue-soft);
-        --dist-border: var(--pr-blue-border);
+        --dist-soft: var(--ui-color-surface-soft);
+        --dist-border: var(--ui-color-border);
 
         display: grid;
         min-width: 0;
@@ -1359,7 +1362,7 @@
         margin: 0;
         color: var(--pr-text);
         font-size: .8rem;
-        font-weight: 800;
+        font-weight:700;
         line-height: 1.35;
         overflow-wrap: anywhere;
     }
@@ -1367,7 +1370,7 @@
     .pr-dist-client {
         margin-top: .05rem;
         color: var(--pr-muted-text);
-        font-size: .72rem;
+        font-size:.75rem;
         line-height: 1.4;
     }
 
@@ -1398,14 +1401,14 @@
 
     .pr-dist-value span {
         color: var(--pr-muted-text);
-        font-size: .66rem;
+        font-size:.75rem;
     }
 
     .pr-dist-value strong {
         margin-top: .03rem;
         overflow: hidden;
         color: var(--pr-text);
-        font-size: .73rem;
+        font-size:.75rem;
         font-weight: 780;
         line-height: 1.3;
         text-overflow: ellipsis;
@@ -1415,7 +1418,7 @@
     .pr-dist-error {
         margin-top: .4rem;
         color: var(--pr-red);
-        font-size: .72rem;
+        font-size:.75rem;
         font-weight: 720;
         line-height: 1.4;
     }
@@ -1431,7 +1434,7 @@
         overflow: hidden;
         border: 0;
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pr-text);
         box-shadow: 0 24px 68px rgba(8, 24, 15, .22);
     }
@@ -1448,7 +1451,7 @@
         margin: 0;
         color: var(--pr-text);
         font-size: .88rem;
-        font-weight: 820;
+        font-weight:700;
     }
 
     .pr-dialog p {
@@ -1485,7 +1488,7 @@
         padding: .6rem .68rem;
         border: 1px solid var(--pr-green-border);
         border-radius: 9px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--pr-secondary);
         box-shadow: 0 12px 30px rgba(15, 23, 42, .12);
         font-size: .78rem;
@@ -1582,7 +1585,7 @@
         }
 
         .pr-head-meta {
-            font-size: .74rem;
+            font-size:.75rem;
         }
 
         .pr-head-side {
@@ -1803,40 +1806,40 @@
     }
     /* Hierarquia dos documentos: resumo, vínculos e ações. */
     .pr-document-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem;margin:0 0 1rem}
-    .pr-document-summary>div{padding:.8rem;border:1px solid var(--pr-border);border-radius:12px;background:#fff}
-    .pr-document-summary small{display:block;color:var(--pr-muted-text);font-size:.68rem;line-height:1.4}
+    .pr-document-summary>div{padding:.8rem;border:1px solid var(--pr-border);border-radius:12px;background: var(--ui-color-surface)}
+    .pr-document-summary small{display:block;color:var(--pr-muted-text);font-size:.75rem;line-height:1.4}
     .pr-document-summary strong{display:block;margin-top:.2rem;font-size:1.2rem;color:var(--pr-text)}
     .pr-document-summary>div:last-child{background:#eff6ff;border-color:#dbeafe}
     .pr-receipts{gap:.9rem}.pr-sheet .pr-receipt{padding:1rem;border-radius:15px;box-shadow:0 3px 12px #0f172a04}
     .pr-receipt-heading{display:flex;align-items:center;gap:.65rem;min-width:0}
     .pr-receipt-emblem{display:grid;place-items:center;flex:none;width:39px;height:45px;background:#eef2ff;border:1px solid #e0e7ff;border-radius:10px;color:#6366f1;font-size:1.2rem}
-    .pr-receipt-heading small{display:block;color:var(--pr-muted-text);font-size:.65rem;margin-bottom:.1rem}
+    .pr-receipt-heading small{display:block;color:var(--pr-muted-text);font-size:.75rem;margin-bottom:.1rem}
     .pr-sheet .pr-receipt h4{font-size:1rem}.pr-sheet .pr-receipt-link{color:var(--pr-text)}
     .pr-receipt-metrics{display:grid;grid-template-columns:1fr 1fr 1.3fr;margin:.9rem 0;gap:.5rem}
-    .pr-receipt-metrics>div{min-width:0;padding:.55rem .65rem;border-radius:9px;background:#f8fafc}
-    .pr-receipt-metrics small{display:block;color:var(--pr-muted-text);font-size:.65rem}
+    .pr-receipt-metrics>div{min-width:0;padding:.55rem .65rem;border-radius:9px;background: var(--ui-color-surface-soft)}
+    .pr-receipt-metrics small{display:block;color:var(--pr-muted-text);font-size:.75rem}
     .pr-receipt-metrics strong{display:block;margin-top:.2rem;font-size:.8rem;overflow-wrap:anywhere}
     .pr-receipt-metrics .is-amount{background:#ecfdf5;color:#166534}.pr-receipt-metrics .is-amount strong{font-size:1rem}
-    .pr-reference-heading{display:block;font-size:.65rem;color:var(--pr-muted-text);margin:0 0 .35rem;font-weight:750;letter-spacing:.03em}
+    .pr-reference-heading{display:block;font-size:.75rem;color:var(--pr-muted-text);margin:0 0 .35rem;font-weight:750;letter-spacing:.03em}
     .pr-documents{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem;margin:.75rem 0}
     .pr-document-stack{display:grid;gap:.4rem;align-content:start;min-width:0}
     .pr-document-chip{display:flex;gap:.5rem;align-items:flex-start;padding:.65rem .7rem;border:1px solid #dbeafe;border-left:3px solid #60a5fa;border-radius:9px;background:#eff6ff;color:#1e40af;font-size:.75rem;min-width:0}
     .pr-document-chip>i{font-size:1rem;margin-top:.05rem;flex:none}.pr-document-chip>div{min-width:0}
     .pr-document-chip strong,.pr-document-chip small{display:block;overflow-wrap:anywhere;line-height:1.4}
-    .pr-document-chip strong{font-size:.8rem}.pr-document-chip small{margin-top:.15rem;font-size:.66rem;opacity:.85}
-    .pr-document-chip[data-tone=neutral]{background:#f8fafc;border-color:#e2e8f0;border-left-color:#cbd5e1;color:#64748b}
+    .pr-document-chip strong{font-size:.8rem}.pr-document-chip small{margin-top:.15rem;font-size:.75rem;opacity:.85}
+    .pr-document-chip[data-tone=neutral]{background: var(--ui-color-surface-soft);border-color: var(--ui-color-border);border-left-color:#cbd5e1;color: var(--ui-color-text-secondary)}
     .pr-document-chip[data-tone=warning]{background:#fffbeb;border-color:#fde68a;border-left-color:#fbbf24;color:#92400e}
     .pr-document-chip[data-tone=success]{background:#f0fdf4;border-color:#bbf7d0;border-left-color:#4ade80;color:#166534}
     .pr-receipt-main-actions{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.9rem}.pr-receipt-main-actions>.pr-btn{flex:1;min-height:40px}
     .pr-receipt-secondary{margin-top:.65rem;padding-top:.6rem;border-top:1px solid var(--pr-border)}
-    .pr-receipt-secondary>summary{cursor:pointer;font-size:.72rem;color:var(--pr-muted-text);padding:.25rem 0}
+    .pr-receipt-secondary>summary{cursor:pointer;font-size:.75rem;color:var(--pr-muted-text);padding:.25rem 0}
     .pr-sheet .pr-dist{padding:.85rem;border-radius:13px;gap:.7rem}.pr-sheet .pr-dist h4{font-size:.9rem}
     .pr-dist.disabled{opacity:.8}.pr-dist.disabled .pr-dist-check{opacity:.5}
-    .pr-dist-meta{margin-top:.25rem;color:var(--pr-muted-text);font-size:.72rem;line-height:1.5}
+    .pr-dist-meta{margin-top:.25rem;color:var(--pr-muted-text);font-size:.75rem;line-height:1.5}
     .pr-dist-readonly{grid-template-columns:minmax(0,1fr);cursor:default}
     .pr-dist-readonly .pr-dist-values{grid-template-columns:repeat(3,minmax(0,1fr))}
-    .pr-inspection-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;padding:.8rem;background:#f8fafc}
-    .pr-inspection-filters label{display:grid;gap:.35rem;font-size:.7rem;color:var(--pr-secondary);min-width:0}.pr-inspection-filters select{width:100%;min-width:0}
+    .pr-inspection-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;padding:.8rem;background: var(--ui-color-surface-soft)}
+    .pr-inspection-filters label{display:grid;gap:.35rem;font-size:.75rem;color:var(--pr-secondary);min-width:0}.pr-inspection-filters select{width:100%;min-width:0}
     .pr-sheet .pr-section-head{align-items:center;margin:.8rem 0;flex-wrap:wrap}
     @media(max-width:520px){.pr-documents{grid-template-columns:1fr}.pr-sheet .pr-receipt{padding:.8rem}.pr-receipt-top{flex-wrap:wrap}.pr-receipt-metrics{grid-template-columns:1fr 1fr}.pr-receipt-metrics .is-amount{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:.5rem}.pr-document-summary{gap:.35rem}.pr-document-summary>div{padding:.6rem .5rem}.pr-inspection-filters{grid-template-columns:1fr}.pr-sheet .pr-dist{padding:.7rem}.pr-document-summary strong{font-size:1.1rem}}
 </style>
@@ -3173,4 +3176,5 @@
     }
 })();
 </script>
+</div>
 @endsection

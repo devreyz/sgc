@@ -199,7 +199,7 @@
         color: var(--sim-violet);
         font-size: .76rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     /* =========================================================
@@ -264,7 +264,7 @@
         cursor: pointer;
         font-size: .82rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .sim-action.primary {
@@ -700,7 +700,7 @@
     .sim-list-meta {
         color: var(--sim-muted);
         font-size: .75rem;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .sim-table-wrap {
@@ -726,7 +726,7 @@
         font-weight: 700;
         letter-spacing: .015em;
         text-align: left;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .sim-table td {
@@ -758,7 +758,7 @@
         font-size: .84rem;
         font-weight: 700;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .sim-main small {
@@ -767,7 +767,7 @@
         color: var(--sim-muted);
         font-size: .75rem;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .sim-status {
@@ -786,7 +786,7 @@
         color: var(--tone);
         font-size: .75rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .sim-status.success {
@@ -855,7 +855,7 @@
         font-size: .78rem;
         font-weight: 700;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .sim-mobile-actions {

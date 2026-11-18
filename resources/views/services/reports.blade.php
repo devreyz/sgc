@@ -191,7 +191,7 @@
         color: var(--rp-text);
         font-size: .9rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     /* =========================================================
@@ -266,7 +266,7 @@
         color: var(--rp-text-2);
         font-size: .82rem;
         font-weight: 730;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .rp-filter-form {
@@ -331,7 +331,7 @@
         cursor: pointer;
         font-size: .88rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .rp-button.primary {
@@ -439,7 +439,7 @@
         font-size: .78rem;
         font-weight: 700;
         text-align: left;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .rp-result-body td {

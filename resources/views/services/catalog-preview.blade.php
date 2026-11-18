@@ -222,7 +222,7 @@
         font-weight: 700;
         line-height: 1.15;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .pv-head-copy p {
@@ -245,7 +245,7 @@
         color: var(--pv-text-2);
         font-size: .75rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     /* =========================================================
@@ -398,7 +398,7 @@
         font-size: .75rem;
         font-weight: 700;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .pv-preview-badge {
@@ -412,7 +412,7 @@
         color: var(--pv-muted);
         font-size: .75rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .pv-screen {
@@ -469,13 +469,13 @@
         font-size: .75rem;
         font-weight: 700;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .pv-create-step small {
         color: var(--pv-muted);
         font-size: .75rem;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .pv-create-step.active {
@@ -650,7 +650,7 @@
         font-size: .75rem;
         font-weight: 700;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .pv-choice i:last-child {
@@ -728,7 +728,7 @@
         font-size: .75rem;
         font-weight: 740;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .pv-workflow {
@@ -814,7 +814,7 @@
         color: var(--pv-muted);
         font-size: .75rem;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .pv-workflow-step.active {

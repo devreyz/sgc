@@ -14,8 +14,12 @@
 .services-campo :is(.primary,.sg-primary,.btn-primary):hover{background:var(--sgc-accent-hover)!important}
 .services-campo :is(.service-builder,.catalog-workspace,.catalog-config,.provider-preview,.providers-workspace,.provider-form-page,.reports-workspace,.agreements-workspace,.sim-workspace,.simulation-result){width:100%;max-width:none;margin-inline:0}
 .services-campo :is(.service-builder,.catalog-workspace,.catalog-config,.provider-preview,.providers-workspace,.provider-form-page,.reports-workspace,.agreements-workspace,.sim-workspace,.simulation-result)>header:first-of-type{background:var(--sgc-rail,#173c2e);border-color:var(--sgc-rail,#173c2e);color:var(--sgc-rail-text,#f3f5ee);padding:clamp(1rem,3vw,1.5rem);border-radius:16px;box-shadow:none}
-.services-campo :is(.service-builder,.catalog-workspace,.catalog-config,.provider-preview,.providers-workspace,.provider-form-page,.reports-workspace,.agreements-workspace,.sim-workspace,.simulation-result)>header:first-of-type :is(h1,h2,strong,p,small){color:inherit}
-.services-campo :is(.service-builder,.catalog-workspace,.catalog-config,.provider-preview,.providers-workspace,.provider-form-page,.reports-workspace,.agreements-workspace,.sim-workspace,.simulation-result)>header:first-of-type :is(p,small){opacity:.78}
+.services-campo > * > header:first-of-type h1{color:var(--sgc-rail-text,#f3f5ee)}
+.services-campo > * > header:first-of-type :is([class$="-head-copy"],[class$="-header-copy"],[class$="-heading-copy"]) :is(h1,h2,strong,p,small){color:var(--sgc-rail-text,#f3f5ee)}
+.services-campo > * > header:first-of-type :is([class$="-head-copy"],[class$="-header-copy"],[class$="-heading-copy"]) :is(p,small){opacity:.78}
+.services-campo > * > header:first-of-type :is(.rp-period,.ag-head-stat){color:var(--ui-color-text)}
+.services-campo > * > header:first-of-type :is(.rp-period,.ag-head-stat) strong{color:var(--ui-color-text);opacity:1}
+.services-campo > * > header:first-of-type :is(.rp-period,.ag-head-stat) small{color:var(--ui-color-text-secondary);opacity:1}
 .services-campo dialog{max-height:88dvh;overscroll-behavior:contain;color:var(--ui-color-text);background:var(--ui-color-surface);border-color:var(--ui-color-border)}
 .services-campo dialog::backdrop{background:rgb(10 24 17/.6)}
 .services-campo dialog[open]{animation:services-dialog-enter .18s ease-out}

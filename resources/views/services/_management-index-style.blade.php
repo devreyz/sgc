@@ -77,7 +77,7 @@
     .sg-orders .sg-table tbody > tr > * { border-top: 1px solid var(--ui-color-border); }
     .sg-orders .sg-order:hover { background: var(--ui-color-surface-soft); }
     .sg-orders .sg-table small { display: block; margin-top: .2rem; font-weight: 400; }
-    .sg-orders .sg-number { font-variant-numeric: tabular-nums; var(--ui-color-surface)-space: nowrap; }
+    .sg-orders .sg-number { font-variant-numeric: tabular-nums; white-space: nowrap; }
     .sg-orders .sg-row-actions .sg-button { min-height: 2.125rem; padding: .25rem .5rem; }
     .sg-orders .sg-empty { padding: 2rem 1rem; text-align: center; }
     .sg-orders .sg-empty i { display: block; margin-bottom: .5rem; color: var(--ui-color-primary); font-size: 1.5rem; }

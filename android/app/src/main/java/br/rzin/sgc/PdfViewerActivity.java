@@ -45,10 +45,11 @@ public class PdfViewerActivity extends Activity {
     static final String EXTRA_TITLE = "title";
     static final String EXTRA_RELATIVE_PATH = "relative_path";
     static final String EXTRA_ORIGIN = "origin";
-    private static final int COLOR_PRIMARY = Color.rgb(22, 91, 66);
-    private static final int COLOR_PRIMARY_DARK = Color.rgb(17, 63, 49);
+    private static final int COLOR_PRIMARY = Color.rgb(23, 60, 46);
+    private static final int COLOR_PRIMARY_DARK = Color.rgb(20, 37, 30);
     private static final int COLOR_SURFACE = Color.rgb(250, 253, 251);
-    private static final int COLOR_CANVAS = Color.rgb(238, 244, 240);
+    private int colorCanvas = Color.rgb(244, 244, 239);
+    private int colorSecondary = Color.rgb(83, 104, 92);
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private LinearLayout pages;
     private ProgressBar progress;
@@ -60,12 +61,14 @@ public class PdfViewerActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        boolean dark = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        if (dark) { colorCanvas = Color.rgb(17, 20, 24); colorSecondary = Color.rgb(175, 186, 198); }
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         getWindow().setStatusBarColor(COLOR_PRIMARY_DARK);
-        getWindow().setNavigationBarColor(COLOR_CANVAS);
-        LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(COLOR_CANVAS);
+        getWindow().setNavigationBarColor(colorCanvas);
+        LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(colorCanvas);
         LinearLayout header = new LinearLayout(this); header.setOrientation(LinearLayout.VERTICAL); header.setPadding(dp(20), dp(12), dp(20), dp(12)); header.setBackgroundColor(COLOR_PRIMARY); header.setElevation(dp(3));
-        TextView title = new TextView(this); title.setText(getIntent().getStringExtra(EXTRA_TITLE)); title.setTextSize(18); title.setTypeface(null, Typeface.BOLD); title.setTextColor(Color.WHITE); title.setSingleLine(true); title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        TextView title = new TextView(this); title.setText(getIntent().getStringExtra(EXTRA_TITLE)); title.setTextSize(18); title.setTypeface(null, Typeface.BOLD); title.setTextColor(Color.WHITE); title.setSingleLine(false); title.setEllipsize(null);
         header.addView(title, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         if ("google_drive".equals(getIntent().getStringExtra(EXTRA_ORIGIN))) {
@@ -110,7 +113,7 @@ public class PdfViewerActivity extends Activity {
 
     private LinearLayout action(String label, int icon, boolean emphasized) {
         LinearLayout button = new LinearLayout(this); button.setGravity(Gravity.CENTER); button.setOrientation(LinearLayout.HORIZONTAL); button.setClickable(true); button.setFocusable(true); button.setContentDescription(label); button.setPadding(dp(12), dp(10), dp(12), dp(10));
-        GradientDrawable background = new GradientDrawable(); background.setCornerRadius(dp(12)); background.setColor(emphasized ? Color.WHITE : Color.rgb(41, 113, 85)); background.setStroke(dp(1), emphasized ? Color.WHITE : Color.rgb(135, 187, 162)); button.setBackground(background);
+        GradientDrawable background = new GradientDrawable(); background.setCornerRadius(dp(12)); background.setColor(emphasized ? Color.rgb(217, 241, 114) : Color.rgb(32, 60, 45)); background.setStroke(dp(1), emphasized ? Color.rgb(217, 241, 114) : Color.rgb(103, 132, 113)); button.setBackground(background);
         AppCompatImageView image = new AppCompatImageView(this); image.setImageResource(icon); image.setImageTintList(android.content.res.ColorStateList.valueOf(emphasized ? COLOR_PRIMARY : Color.WHITE));
         button.addView(image, new LinearLayout.LayoutParams(dp(18), dp(18)));
         TextView text = new TextView(this); text.setText(label); text.setTextSize(12); text.setTypeface(null, Typeface.BOLD); text.setTextColor(emphasized ? COLOR_PRIMARY : Color.WHITE); text.setPadding(dp(6), 0, 0, 0); button.addView(text);
@@ -191,7 +194,7 @@ public class PdfViewerActivity extends Activity {
     }
 
     private void addPage(Bitmap bitmap, int number, int qualityWidth) {
-        TextView label = new TextView(this); label.setText("Página " + number); label.setTextSize(12); label.setTypeface(null, Typeface.BOLD); label.setPadding(dp(6), dp(14), dp(6), dp(7)); label.setTextColor(Color.rgb(83, 104, 92)); pages.addView(label);
+        TextView label = new TextView(this); label.setText("Página " + number); label.setTextSize(12); label.setTypeface(null, Typeface.BOLD); label.setPadding(dp(6), dp(14), dp(6), dp(7)); label.setTextColor(colorSecondary); pages.addView(label);
         int baseHeight = Math.round((float) bitmap.getHeight() * basePageWidth / bitmap.getWidth());
         AppCompatImageView view = new AppCompatImageView(this); view.setImageBitmap(bitmap); view.setScaleType(android.widget.ImageView.ScaleType.FIT_XY); view.setBackgroundColor(Color.WHITE); view.setElevation(dp(1)); view.setTag(new PageSize(number - 1, baseHeight, qualityWidth)); pages.addView(view, new LinearLayout.LayoutParams(basePageWidth, baseHeight));
     }

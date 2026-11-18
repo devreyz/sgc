@@ -370,11 +370,11 @@
   --as-muted: #94a2ae;
   --as-border: #323c47;
   --as-border-strong: #485461;
-  --as-primary: #e7c87d;
-  --as-primary-hover: #f0d693;
-  --as-on-primary: #2e2617;
-  --as-accent: #e7c87d;
-  --as-on-accent: #2e2617;
+  --as-primary: #d9f172;
+  --as-primary-hover: #e5fa98;
+  --as-on-primary: #173c2e;
+  --as-accent: #d9f172;
+  --as-on-accent: #173c2e;
   --as-success: #70c896;
   --as-success-soft: #20392e;
   --as-info: #87b6dc;
@@ -384,7 +384,7 @@
   --as-danger: #f0928d;
   --as-danger-soft: #402b2d;
   --as-chart-neutral: #9cabb9;
-  --as-chart-accent: #e7c87d;
+  --as-chart-accent: #d9f172;
   --as-shadow: none;
 }
 .associate-dashboard *, .associate-dashboard *::before, .associate-dashboard *::after { box-sizing: border-box; }

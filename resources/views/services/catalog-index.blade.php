@@ -254,7 +254,7 @@
         color: var(--ct-text-2);
         font-size: .75rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .ct-action.simulation {
@@ -349,7 +349,7 @@
         color: var(--ct-muted);
         font-size: .75rem;
         font-weight: 740;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     /* =========================================================
@@ -378,7 +378,7 @@
         letter-spacing: .03em;
         text-align: left;
         text-transform: uppercase;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .ct-table th:nth-child(1) {
@@ -451,7 +451,7 @@
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .ct-service-copy strong {
@@ -484,7 +484,7 @@
             monospace;
         font-size: .75rem;
         font-weight: 740;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     /* Versão */
@@ -500,7 +500,7 @@
         color: var(--ct-violet);
         font-size: .75rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .ct-version.empty {
@@ -527,7 +527,7 @@
         color: var(--tone);
         font-size: .75rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .ct-status.is-active {
@@ -572,7 +572,7 @@
         color: var(--ct-blue);
         font-size: .75rem;
         font-weight: 700;
-        var(--ui-color-surface)-space: nowrap;
+        white-space: nowrap;
     }
 
     .ct-open.draft {
@@ -707,7 +707,7 @@
             min-width: 0;
             overflow: hidden;
             text-overflow: ellipsis;
-            var(--ui-color-surface)-space: nowrap;
+            white-space: nowrap;
         }
 
         .ct-mobile-main strong {
@@ -753,7 +753,7 @@
             font-size: .75rem;
             font-weight: 700;
             text-overflow: ellipsis;
-            var(--ui-color-surface)-space: nowrap;
+            white-space: nowrap;
         }
 
         .ct-mobile-bottom {

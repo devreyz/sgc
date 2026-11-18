@@ -4,13 +4,16 @@
 @section('page-subtitle', $project->title)
 @section('user-role', 'Registrador')
 @section('content')
+@include('delivery._campo-style')
+<div class="delivery-campo">
+
 @php
     $base = route('delivery.projects.planning', ['tenant' => $currentTenant->slug, 'project' => $project->id]);
     $store = fn($action) => route('delivery.projects.planning.store', ['tenant' => $currentTenant->slug, 'project' => $project->id, 'action' => $action]);
     $num = fn($value) => $value === null ? 'Não calculável' : number_format((float) $value, 4, ',', '.');
 @endphp
 <style>
-.planning{max-width:1200px;margin:auto;color:var(--color-text,#20332a)}.planning section,.planning details{padding:1rem;margin:1rem 0;background:var(--color-surface,#fff);border:1px solid var(--color-border,#dce7e0);border-radius:12px}.planning h2{font-size:1.1rem;margin-bottom:.8rem}.planning summary{cursor:pointer;font-weight:600}.planning .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;margin:.8rem 0}.planning label{display:flex;flex-direction:column;gap:.3rem;font-size:.85rem}.planning input,.planning select,.planning textarea{border:1px solid #c8d6cd;border-radius:7px;padding:.5rem;background:var(--color-surface,#fff);color:inherit;min-width:0}.planning textarea{min-height:75px}.planning button,.planning .link{display:inline-block;padding:.6rem .9rem;border-radius:8px;background:#168a4d;color:#fff;border:0;cursor:pointer}.planning table{width:100%;border-collapse:collapse;font-size:.8rem}.planning td,.planning th{padding:.55rem;text-align:left;border-bottom:1px solid #dce7e0}.planning .scroll{overflow:auto}.planning .muted{font-size:.85rem;color:var(--color-text-secondary,#52645a)}.planning .error{color:#a32d2d}.planning nav{display:flex;gap:1rem;flex-wrap:wrap}.planning form{margin:.75rem 0}.planning :target{outline:2px solid #168a4d}
+.planning{max-width:1200px;margin:auto;color:var(--color-text,#20332a)}.planning section,.planning details{padding:1rem;margin:1rem 0;background:var(--color-surface,#fff);border:1px solid var(--color-border,#dce7e0);border-radius:12px}.planning h2{font-size:1.1rem;margin-bottom:.8rem}.planning summary{cursor:pointer;font-weight:600}.planning .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;margin:.8rem 0}.planning label{display:flex;flex-direction:column;gap:.3rem;font-size:.85rem}.planning input,.planning select,.planning textarea{border:1px solid #c8d6cd;border-radius:7px;padding:.5rem;background:var(--color-surface,#fff);color:inherit;min-width:0}.planning textarea{min-height:75px}.planning button,.planning .link{display:inline-block;padding:.6rem .9rem;border-radius:8px;background: var(--ui-color-primary);color:var(--sgc-on-primary);border:0;cursor:pointer}.planning table{width:100%;border-collapse:collapse;font-size:.8rem}.planning td,.planning th{padding:.55rem;text-align:left;border-bottom:1px solid #dce7e0}.planning .scroll{overflow:auto}.planning .muted{font-size:.85rem;color:var(--color-text-secondary,#52645a)}.planning .error{color:#a32d2d}.planning nav{display:flex;gap:1rem;flex-wrap:wrap}.planning form{margin:.75rem 0}.planning :target{outline:2px solid #168a4d}
 </style>
 <div class="planning">
 <nav><a href="{{ route('delivery.projects.deliveries', ['tenant' => $currentTenant->slug, 'project' => $project->id]) }}">← Entregas</a><a href="#publico">Público</a><a href="#produtos">Produtos</a><a href="#criterios">Critérios</a><a href="#atendimento">Atendimento</a><a href="#consumo">Consumo e conformidade</a><a href="#nutricao">Nutrição</a><a href="#cardapios">Receitas e cardápios</a></nav>
@@ -79,4 +82,5 @@
     window.addEventListener('hashchange', openTarget);
 })();
 </script>
+</div>
 @endsection

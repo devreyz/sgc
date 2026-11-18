@@ -14,4 +14,4 @@
     <small style="display:block">Valor por serviço</small>
 @endif
 @if(!$valueFrozen && $valueTotal !== null)<small style="display:block">Prévia para conferência</small>@endif
-@if(isset($valuePreview['error']))<small style="display:block;var(--ui-color-surface)-space:normal;max-width:16rem" role="status">{{ $valuePreview['error'] }}</small>@endif
+@if(isset($valuePreview['error']))<small style="display:block;white-space:normal;max-width:16rem" role="status">{{ $valuePreview['error'] }}</small>@endif

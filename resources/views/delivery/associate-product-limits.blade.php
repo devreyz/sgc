@@ -11,18 +11,21 @@
 
 
 @section('content')
+@include('delivery._campo-style')
+<div class="delivery-campo">
+
 <style>
     .limits-page {
-        --limit-green: #168a4d;
-        --limit-green-soft: #eaf8ef;
-        --limit-blue: #2563eb;
-        --limit-blue-soft: #eef4ff;
-        --limit-violet: #7c3aed;
-        --limit-violet-soft: #f4f0ff;
-        --limit-amber: #c87408;
-        --limit-amber-soft: #fff7e8;
-        --limit-red: #cf3f3f;
-        --limit-red-soft: #fff0f0;
+        --limit-green: var(--ui-color-primary);
+        --limit-green-soft: var(--ui-color-primary-soft);
+        --limit-blue: var(--ui-color-info);
+        --limit-blue-soft: var(--ui-color-info-soft);
+        --limit-violet: var(--ui-color-primary);
+        --limit-violet-soft: var(--ui-color-primary-soft);
+        --limit-amber: var(--ui-color-warning);
+        --limit-amber-soft: var(--ui-color-warning-soft);
+        --limit-red: var(--ui-color-danger);
+        --limit-red-soft: var(--ui-color-danger-soft);
         --limit-slate: #64748b;
         --limit-slate-soft: #f1f5f9;
 
@@ -104,7 +107,7 @@
     .limits-section-copy h2 {
         color: var(--color-text);
         font-size: .95rem;
-        font-weight: 840;
+        font-weight:700;
         letter-spacing: -.02em;
     }
 
@@ -123,7 +126,7 @@
         border-radius: 999px;
         background: var(--color-surface-muted);
         color: var(--color-text-secondary);
-        font-size: .7rem;
+        font-size:.75rem;
         font-weight: 770;
         white-space: nowrap;
     }
@@ -159,7 +162,7 @@
         place-items: center;
         border: 1px solid var(--color-border);
         border-radius: 11px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--color-text-secondary);
         text-decoration: none;
     }
@@ -185,7 +188,7 @@
     .limits-context-label {
         display: block;
         color: var(--limit-green);
-        font-size: .69rem;
+        font-size:.75rem;
         font-weight: 780;
     }
 
@@ -193,7 +196,7 @@
         margin: .08rem 0 0;
         color: var(--color-text);
         font-size: clamp(1rem, 2vw, 1.18rem);
-        font-weight: 860;
+        font-weight:700;
         letter-spacing: -.03em;
         line-height: 1.28;
         overflow-wrap: anywhere;
@@ -208,7 +211,7 @@
         gap: .46rem;
         margin-top: .14rem;
         color: var(--color-text-muted);
-        font-size: .71rem;
+        font-size:.75rem;
     }
 
     .limits-context-meta span {
@@ -241,9 +244,9 @@
         padding: .46rem .62rem;
         border: 1px solid var(--color-border);
         border-radius: 10px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--color-text-secondary);
-        font-size: .72rem;
+        font-size:.75rem;
         font-weight: 780;
         text-decoration: none;
         white-space: nowrap;
@@ -266,7 +269,7 @@
         gap: .48rem;
         padding: .65rem .7rem;
         border-top: 1px solid var(--color-border);
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .limits-guide-item {
@@ -288,8 +291,8 @@
         border-radius: 8px;
         background: var(--limit-blue-soft);
         color: var(--limit-blue);
-        font-size: .67rem;
-        font-weight: 850;
+        font-size:.75rem;
+        font-weight:700;
     }
 
     .limits-guide-copy strong,
@@ -299,14 +302,14 @@
 
     .limits-guide-copy strong {
         color: var(--color-text);
-        font-size: .73rem;
-        font-weight: 810;
+        font-size:.75rem;
+        font-weight:700;
     }
 
     .limits-guide-copy span {
         margin-top: .04rem;
         color: var(--color-text-muted);
-        font-size: .68rem;
+        font-size:.75rem;
         line-height: 1.4;
     }
 
@@ -347,7 +350,7 @@
         gap: .32rem;
         align-items: center;
         color: var(--limit-blue);
-        font-size: .73rem;
+        font-size:.75rem;
         font-weight: 790;
     }
 
@@ -362,7 +365,7 @@
         margin-top: .34rem;
         color: var(--color-text);
         font-size: clamp(1.7rem, 4vw, 2.35rem);
-        font-weight: 875;
+        font-weight:700;
         letter-spacing: -.045em;
         line-height: 1;
     }
@@ -380,7 +383,7 @@
         margin-top: .62rem;
         overflow: hidden;
         border-radius: 999px;
-        background: #dce7e0;
+        background: var(--ui-color-border);
     }
 
     .limits-budget-meter > span {
@@ -419,7 +422,7 @@
         min-width: 0;
         align-content: center;
         padding: .74rem;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .limits-financial-info {
@@ -444,7 +447,7 @@
 
     .limits-financial-stat span {
         color: var(--color-text-muted);
-        font-size: .67rem;
+        font-size:.75rem;
         font-weight: 680;
     }
 
@@ -452,7 +455,7 @@
         margin-top: .05rem;
         color: var(--color-text);
         font-size: .8rem;
-        font-weight: 830;
+        font-weight:700;
         overflow-wrap: anywhere;
     }
 
@@ -478,7 +481,7 @@
         display: block;
         margin-bottom: .28rem;
         color: var(--color-text-secondary);
-        font-size: .7rem;
+        font-size:.75rem;
         font-weight: 740;
     }
 
@@ -486,7 +489,7 @@
         display: block;
         margin-top: .24rem;
         color: var(--color-text-muted);
-        font-size: .66rem;
+        font-size:.75rem;
         line-height: 1.35;
     }
 
@@ -497,7 +500,7 @@
         border: 1px solid var(--color-border-strong);
         border-radius: 10px;
         outline: none;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--color-text);
         font: inherit;
         font-size: .78rem;
@@ -526,7 +529,7 @@
         gap: .5rem;
         padding: .66rem .72rem;
         border-bottom: 1px solid var(--color-border);
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .limits-search-wrap {
@@ -561,11 +564,11 @@
         padding: .48rem .64rem;
         border: 1px solid var(--color-border-strong);
         border-radius: 10px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--color-text-secondary);
         cursor: pointer;
         font: inherit;
-        font-size: .73rem;
+        font-size:.75rem;
         font-weight: 780;
         text-decoration: none;
         white-space: nowrap;
@@ -592,7 +595,7 @@
 
     .limits-button.danger {
         border-color: rgba(207, 63, 63, .2);
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--limit-red);
     }
 
@@ -635,7 +638,7 @@
         padding: .55rem .6rem;
         border: 1px solid var(--color-border);
         border-radius: 10px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--color-text);
         text-align: left;
         cursor: pointer;
@@ -669,19 +672,19 @@
     .limits-option-copy strong {
         color: var(--color-text);
         font-size: .77rem;
-        font-weight: 810;
+        font-weight:700;
     }
 
     .limits-option-copy span {
         margin-top: .04rem;
         color: var(--color-text-muted);
-        font-size: .68rem;
+        font-size:.75rem;
     }
 
     .limits-option-availability {
         color: var(--limit-green);
-        font-size: .7rem;
-        font-weight: 800;
+        font-size:.75rem;
+        font-weight:700;
         white-space: nowrap;
     }
 
@@ -708,13 +711,13 @@
 
     .limit-card {
         --card-tone: var(--limit-green);
-        --card-soft: var(--limit-green-soft);
+        --card-soft: var(--ui-color-surface-soft);
 
         min-width: 0;
         overflow: hidden;
         border: 1px solid var(--color-border);
         border-radius: 13px;
-        background: #fff;
+        background: var(--ui-color-surface);
         transition:
             border-color 150ms ease,
             box-shadow 150ms ease;
@@ -728,7 +731,7 @@
 
     .limit-card.is-invalid {
         --card-tone: var(--limit-red);
-        --card-soft: var(--limit-red-soft);
+        --card-soft: var(--ui-color-surface-soft);
         border-color: rgba(207, 63, 63, .30);
     }
 
@@ -772,7 +775,7 @@
         display: block;
         color: var(--color-text);
         font-size: .84rem;
-        font-weight: 830;
+        font-weight:700;
         line-height: 1.35;
         overflow-wrap: anywhere;
     }
@@ -781,7 +784,7 @@
         display: block;
         margin-top: .05rem;
         color: var(--color-text-muted);
-        font-size: .68rem;
+        font-size:.75rem;
     }
 
     .limit-card-actions {
@@ -797,7 +800,7 @@
         place-items: center;
         border: 1px solid var(--color-border);
         border-radius: 9px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--color-text-secondary);
         cursor: pointer;
     }
@@ -843,7 +846,7 @@
 
     .limit-metric span {
         color: var(--color-text-muted);
-        font-size: .65rem;
+        font-size:.75rem;
         font-weight: 680;
     }
 
@@ -851,7 +854,7 @@
         margin-top: .05rem;
         color: var(--color-text);
         font-size: .75rem;
-        font-weight: 830;
+        font-weight:700;
         line-height: 1.3;
         overflow-wrap: anywhere;
     }
@@ -869,14 +872,14 @@
 
     .limit-usage span {
         color: var(--color-text-muted);
-        font-size: .68rem;
+        font-size:.75rem;
         font-weight: 710;
     }
 
     .limit-usage strong {
         color: var(--card-tone);
-        font-size: .7rem;
-        font-weight: 820;
+        font-size:.75rem;
+        font-weight:700;
         white-space: nowrap;
     }
 
@@ -921,13 +924,13 @@
 
     .limit-editor-head strong {
         color: var(--limit-violet);
-        font-size: .73rem;
-        font-weight: 820;
+        font-size:.75rem;
+        font-weight:700;
     }
 
     .limit-editor-head span {
         color: var(--color-text-muted);
-        font-size: .66rem;
+        font-size:.75rem;
         text-align: right;
     }
 
@@ -942,7 +945,7 @@
         display: grid;
         gap: .26rem;
         color: var(--color-text-secondary);
-        font-size: .68rem;
+        font-size:.75rem;
         font-weight: 740;
     }
 
@@ -968,7 +971,7 @@
         border-radius: 9px;
         background: var(--color-surface-soft);
         color: var(--color-text-secondary);
-        font-size: .68rem;
+        font-size:.75rem;
         line-height: 1.42;
     }
 
@@ -981,8 +984,8 @@
         border-radius: 999px;
         background: var(--limit-blue-soft);
         color: var(--limit-blue);
-        font-size: .61rem;
-        font-weight: 900;
+        font-size:.75rem;
+        font-weight:700;
         line-height: 1;
     }
 
@@ -1045,7 +1048,7 @@
         gap: .4rem;
         align-items: center;
         color: var(--color-text-secondary);
-        font-size: .72rem;
+        font-size:.75rem;
         font-weight: 710;
     }
 
@@ -1129,7 +1132,7 @@
         margin: 0;
         color: var(--color-text);
         font-size: .84rem;
-        font-weight: 830;
+        font-weight:700;
     }
 
     .limits-dialog-body {
@@ -1187,7 +1190,7 @@
         }
 
         .limits-guide-item {
-            background: #fff;
+            background: var(--ui-color-surface);
         }
 
         .limits-guide-item + .limits-guide-item {
@@ -1246,11 +1249,11 @@
         }
 
         .limit-metric span {
-            font-size: .61rem;
+            font-size:.75rem;
         }
 
         .limit-metric strong {
-            font-size: .69rem;
+            font-size:.75rem;
         }
 
         .limit-editor-fields {
@@ -1368,7 +1371,7 @@
     }
 
     .limits-context-label {
-        font-size: .65rem;
+        font-size:.75rem;
     }
 
     .limits-context-copy h1 {
@@ -1378,7 +1381,7 @@
 
     .limits-context-meta {
         margin-top: .1rem;
-        font-size: .67rem;
+        font-size:.75rem;
     }
 
     .limits-secondary-action,
@@ -1416,7 +1419,7 @@
     .limits-count {
         min-height: 26px;
         padding: .18rem .36rem;
-        font-size: .63rem;
+        font-size:.75rem;
     }
 
     .limits-summary-grid {
@@ -1433,7 +1436,7 @@
     }
 
     .limits-budget-label {
-        font-size: .67rem;
+        font-size:.75rem;
     }
 
     .limits-budget-value {
@@ -1443,7 +1446,7 @@
 
     .limits-budget-helper {
         margin-top: .22rem;
-        font-size: .66rem;
+        font-size:.75rem;
         font-weight: 700;
         color: var(--color-text-secondary);
     }
@@ -1466,11 +1469,11 @@
     .limits-financial-stat {
         padding: .48rem .52rem;
         border: 1px solid var(--color-border);
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .limits-financial-stat span {
-        font-size: .62rem;
+        font-size:.75rem;
     }
 
     .limits-financial-stat strong {
@@ -1485,13 +1488,13 @@
 
     .limits-field label {
         margin-bottom: .2rem;
-        font-size: .65rem;
+        font-size:.75rem;
     }
 
     .limits-control {
         min-height: 39px;
         border-radius: 9px;
-        font-size: .72rem;
+        font-size:.75rem;
     }
 
     .limits-control:focus {
@@ -1557,7 +1560,7 @@
     .limit-card-head {
         min-height: 58px;
         padding: .52rem .56rem;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .limit-product-icon {
@@ -1573,7 +1576,7 @@
 
     .limit-product-price {
         margin-top: .02rem;
-        font-size: .64rem;
+        font-size:.75rem;
     }
 
     .limit-card-body {
@@ -1587,14 +1590,14 @@
         overflow: hidden;
         border: 1px solid var(--color-border);
         border-radius: 10px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .limit-metric {
         min-height: 56px;
         padding: .4rem .44rem;
         border-radius: 0;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .limit-metric + .limit-metric {
@@ -1618,12 +1621,12 @@
     }
 
     .limit-metric span {
-        font-size: .59rem;
+        font-size:.75rem;
     }
 
     .limit-metric strong {
         margin-top: .03rem;
-        font-size: .69rem;
+        font-size:.75rem;
     }
 
     .limit-usage-row {
@@ -1635,8 +1638,8 @@
 
     .limit-usage-row > strong {
         color: var(--limit-violet);
-        font-size: .66rem;
-        font-weight: 820;
+        font-size:.75rem;
+        font-weight:700;
     }
 
     .limit-meter {
@@ -1656,12 +1659,12 @@
     }
 
     .limit-editor-head strong {
-        font-size: .68rem;
+        font-size:.75rem;
     }
 
     .limit-editor-head span,
     .limit-editor-label {
-        font-size: .62rem;
+        font-size:.75rem;
     }
 
     .limit-editor-fields {
@@ -1679,7 +1682,7 @@
         border: 0;
         background: transparent;
         color: var(--color-text-muted);
-        font-size: .62rem;
+        font-size:.75rem;
     }
 
     .limit-message::before {
@@ -1687,7 +1690,7 @@
         height: 16px;
         background: var(--limit-violet-soft);
         color: var(--limit-violet);
-        font-size: .56rem;
+        font-size:.75rem;
     }
 
     .limit-message.error {
@@ -1702,13 +1705,13 @@
     }
 
     .limits-feedback {
-        font-size: .67rem;
+        font-size:.75rem;
     }
 
     .limits-empty,
     .limits-loading {
         min-height: 130px;
-        font-size: .7rem;
+        font-size:.75rem;
     }
 
     @media (max-width: 920px) {
@@ -3688,4 +3691,5 @@
     icons();
 })();
 </script>
+</div>
 @endsection

@@ -491,7 +491,7 @@
 html[data-theme="dark"] .project-workspace .btn.primary,
 [data-theme="dark"] .project-workspace .btn.primary {color:var(--pw-on-accent);background:var(--pw-accent);border-color:var(--pw-accent)}
 html[data-theme="dark"] .project-workspace .btn.primary:hover,
-[data-theme="dark"] .project-workspace .btn.primary:hover {color:var(--pw-on-accent);background:var(--sgc-accent-hover,#f0d693);border-color:var(--sgc-accent-hover,#f0d693)}
+[data-theme="dark"] .project-workspace .btn.primary:hover {color:var(--pw-on-accent);background:var(--sgc-accent-hover,#e5fa98);border-color:var(--sgc-accent-hover,#e5fa98)}
 html[data-theme="dark"] .project-workspace :is(.filter-select,.sim-control),
 [data-theme="dark"] .project-workspace :is(.filter-select,.sim-control) {color-scheme:dark}
 html[data-theme="dark"] .project-workspace .pw-brand-text,

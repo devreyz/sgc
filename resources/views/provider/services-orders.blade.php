@@ -112,9 +112,9 @@
     --ow-muted: #94a2ae;
     --ow-rail: #151a20;
     --ow-rail-text: #f2f5f7;
-    --ow-accent: #e7c87d;
-    --ow-on-accent: #2e2617;
-    --ow-primary: #e7c87d;
+    --ow-accent: #d9f172;
+    --ow-on-accent: #173c2e;
+    --ow-primary: #d9f172;
     --ow-primary-soft: #34352c;
     --ow-green: #69d49b;
     --ow-green-bg: #20392f;

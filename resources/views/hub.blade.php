@@ -449,11 +449,11 @@
     --hub-primary-hover: #303944;
     --hub-primary-text: #f2f5f7;
     --hub-light-tint: #2d3440;
-    --hub-accent: #e7c87d;
+    --hub-accent: #d9f172;
     --hub-accent-text: #2e2619;
-    --hub-link: #e7c87d;
+    --hub-link: #d9f172;
     --hub-status: #a4d6ac;
-    --hub-focus: #e7c87d;
+    --hub-focus: #d9f172;
     --hub-shadow: none;
 }
 .hub-page *, .hub-page *::before, .hub-page *::after, .hub-bottom-nav * { box-sizing: border-box; }

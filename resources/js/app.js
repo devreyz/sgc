@@ -1,7 +1,8 @@
 import "./bootstrap";
 import "./pwa-notifications";
 import { Passkeys } from '@laravel/passkeys';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
+import { documentText, documentFilename } from './document-text';
 import {
     browserSupportsWebAuthn,
     startAuthentication,
@@ -111,9 +112,12 @@ let pdfJsPromise = null;
 
 function loadPdfJs() {
     if (!pdfJsPromise) {
-        pdfJsPromise = import('pdfjs-dist/build/pdf.mjs').then(module => {
+        pdfJsPromise = import('pdfjs-dist/legacy/build/pdf.mjs').then(module => {
             module.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
             return module;
+        }).catch(error => {
+            pdfJsPromise = null;
+            throw error;
         });
     }
     return pdfJsPromise;
@@ -129,12 +133,12 @@ function base64FromBlob(blob) {
 }
 
 function documentTitle(fileName, fallback = 'Documento SGC') {
-    const normalizedFallback = String(fallback || '').trim();
+    const normalizedFallback = documentText(fallback).trim();
     if (normalizedFallback && !/^(documento|comprovante)\s+sgc$/i.test(normalizedFallback)) {
         return normalizedFallback;
     }
 
-    const name = decodeURIComponent(String(fileName || ''))
+    const name = documentText(fileName)
         .replace(/\.pdf$/i, '')
         .replace(/[-_]+/g, ' ')
         .replace(/\s+/g, ' ')
@@ -220,6 +224,8 @@ function closeWebPdfViewer() {
         const pages = viewer.querySelector('[data-sgc-pdf-pages]');
         if (pages) pages.replaceChildren();
     }
+    webPdfState?.renderTask?.cancel();
+    webPdfState?.loadingTask?.destroy().catch(() => {});
     if (webPdfState?.url) URL.revokeObjectURL(webPdfState.url);
     webPdfState = null;
     document.documentElement.style.overflow = '';
@@ -251,13 +257,13 @@ function ensureWebPdfViewer() {
     `;
     const style = document.createElement('style');
     style.textContent = `
-        #sgc-web-pdf-viewer{position:fixed;inset:0;z-index:2147482000;display:grid;grid-template-rows:auto minmax(0,1fr);background:#eef4f0;color:#102018;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+        #sgc-web-pdf-viewer{position:fixed;inset:0;z-index:2147482000;display:grid;grid-template-rows:auto minmax(0,1fr);background:var(--ui-color-canvas,#eef4f0);color:var(--ui-color-text,#102018);padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
         #sgc-web-pdf-viewer[hidden]{display:none}
-        .sgc-pdf-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:#fff;border-bottom:1px solid #dce6df;box-shadow:0 5px 20px rgba(15,35,24,.1)}
-        .sgc-pdf-heading{display:grid;min-width:0}.sgc-pdf-heading span{font-size:11px;color:#718078}.sgc-pdf-heading strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px}
-        .sgc-pdf-toolbar nav{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none}.sgc-pdf-toolbar button{min-height:38px;padding:7px 12px;border:1px solid #b9cec1;border-radius:10px;background:#fff;color:#173d32;font:700 12px/1 system-ui;white-space:nowrap}.sgc-pdf-toolbar button[data-sgc-pdf-close]{background:#173d32;color:#fff;border-color:#173d32}
+        .sgc-pdf-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:var(--ui-color-surface,#fff);border-bottom:1px solid var(--ui-color-border,#dce6df);box-shadow:0 5px 20px rgba(15,35,24,.1)}
+        .sgc-pdf-heading{display:grid;min-width:0}.sgc-pdf-heading span{font-size:11px;color:#718078}.sgc-pdf-heading strong{white-space:normal;overflow-wrap:anywhere;font-size:15px}
+        .sgc-pdf-toolbar nav{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none}.sgc-pdf-toolbar button{min-height:38px;padding:7px 12px;border:1px solid #b9cec1;border-radius:10px;background:var(--ui-color-surface,#fff);color:var(--ui-color-text,#173d32);font:700 12px/1 system-ui;white-space:nowrap}.sgc-pdf-toolbar button[data-sgc-pdf-close]{background:#173d32;color:#fff;border-color:#173d32}
         #sgc-web-pdf-viewer iframe{width:100%;height:100%;border:0;background:#e7ece9}
-        .sgc-pdf-pages{min-height:0;overflow:auto;padding:12px;background:#dfe7e2;text-align:center;overscroll-behavior:contain}.sgc-pdf-pages[hidden]{display:none}.sgc-pdf-pages canvas{display:block;max-width:100%;height:auto;margin:0 auto 12px;background:#fff;box-shadow:0 2px 10px rgba(15,35,24,.16)}.sgc-pdf-pages>p{padding:24px;color:#53675c;font:600 13px system-ui}
+        .sgc-pdf-pages{min-height:0;overflow:auto;padding:12px;background:var(--ui-color-canvas-deep,#dfe7e2);text-align:center;overscroll-behavior:contain}.sgc-pdf-pages[hidden]{display:none}.sgc-pdf-pages canvas{display:block;max-width:100%;height:auto;margin:0 auto 12px;background:#fff;box-shadow:0 2px 10px rgba(15,35,24,.16)}.sgc-pdf-pages>p{padding:24px;color:#53675c;font:600 13px system-ui}
         @media(max-width:720px){.sgc-pdf-toolbar{align-items:stretch;flex-direction:column}.sgc-pdf-toolbar nav{width:100%}.sgc-pdf-toolbar button{flex:1}.sgc-pdf-heading span{display:none}}
     `;
     document.head.appendChild(style);
@@ -287,6 +293,7 @@ function openInBrowser(blob, fileName, title) {
     const viewer = ensureWebPdfViewer();
     const url = URL.createObjectURL(blob);
     webPdfState = { blob, fileName, title, url };
+    viewer.hidden = false;
     viewer.querySelector('[data-sgc-pdf-title]').textContent = title;
     // Parâmetros de leitor (#toolbar/#view) fazem alguns WebViews e PWAs
     // exibirem uma página vazia. O blob puro preserva o visualizador nativo
@@ -296,7 +303,7 @@ function openInBrowser(blob, fileName, title) {
     if (isInstalledPwa() || isMobileBrowser()) {
         frame.hidden = true;
         pages.hidden = false;
-        renderPdfPages(blob, pages);
+        renderPdfPages(blob, pages, webPdfState);
     } else {
         pages.hidden = true;
         frame.hidden = false;
@@ -307,14 +314,18 @@ function openInBrowser(blob, fileName, title) {
     hideNavigationLoading();
 }
 
-async function renderPdfPages(blob, host) {
+async function renderPdfPages(blob, host, state) {
     host.innerHTML = '<p>Renderizando documento…</p>';
     try {
         const pdfjsLib = await loadPdfJs();
-        const pdf = await pdfjsLib.getDocument({data: await blob.arrayBuffer()}).promise;
+        if (state !== webPdfState) return;
+        state.loadingTask = pdfjsLib.getDocument({data: new Uint8Array(await blob.arrayBuffer())});
+        const pdf = await state.loadingTask.promise;
+        if (state !== webPdfState) return;
         host.replaceChildren();
         const availableWidth = Math.max(280, Math.min(1100, host.clientWidth - 24));
         for (let number = 1; number <= pdf.numPages; number += 1) {
+            if (state !== webPdfState) return;
             const page = await pdf.getPage(number);
             const initial = page.getViewport({scale:1});
             const viewport = page.getViewport({scale:Math.min(2.2, availableWidth / initial.width)});
@@ -323,9 +334,13 @@ async function renderPdfPages(blob, host) {
             canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
             canvas.setAttribute('aria-label', `Página ${number} de ${pdf.numPages}`);
             host.appendChild(canvas);
-            await page.render({canvasContext:context, viewport}).promise;
+            state.renderTask = page.render({canvasContext:context, viewport});
+            await state.renderTask.promise;
+            page.cleanup();
         }
-    } catch (_) {
+    } catch (error) {
+        if (state !== webPdfState) return;
+        console.warn('SGC PDF rendering failed', error);
         host.innerHTML = '<p>Não foi possível renderizar este PDF. Use “Baixar” ou “Abrir em nova aba”.</p>';
     }
 }
@@ -398,15 +413,12 @@ window.SgcDocuments = {
         }
         if (!type.includes('pdf')) return null;
         const disposition = response.headers.get('content-disposition') || '';
-        const filenameMatch = disposition.match(/filename\*?=(?:UTF-8''|\")?([^;\"]+)/i);
-        const name = filenameMatch?.[1]
-            ? decodeURIComponent(filenameMatch[1].replace(/[\"]/g, ''))
-            : 'documento-sgc.pdf';
+        const name = documentFilename(disposition);
         return {
             blob: await response.blob(), fileName: name,
-            title: response.headers.get('x-sgc-document-title') || documentTitle(name, title),
-            relativePath: response.headers.get('x-sgc-document-path') || defaultDocumentPath(title),
-            origin: response.headers.get('x-sgc-document-origin') || '',
+            title: documentText(response.headers.get('x-sgc-document-title')) || documentTitle(name, title),
+            relativePath: documentText(response.headers.get('x-sgc-document-path')) || defaultDocumentPath(title),
+            origin: documentText(response.headers.get('x-sgc-document-origin')) || '',
         };
     },
 };

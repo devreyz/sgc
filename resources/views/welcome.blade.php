@@ -32,7 +32,7 @@
   --lp-canvas:#111418;--lp-surface:#191e24;--lp-surface-soft:#212830;
   --lp-ink:#edf2f6;--lp-muted:#afbac6;--lp-faint:#8794a0;--lp-rule:#323c47;
   --lp-deep:#151a20;--lp-deep-hover:#222a33;--lp-on-deep:#f2f5f7;
-  --lp-accent:#e7c87d;--lp-on-accent:#2e2617;--lp-accent-hover:#f0d693;
+  --lp-accent:#d9f172;--lp-on-accent:#173c2e;--lp-accent-hover:#e5fa98;
   --lp-success:#91d2aa;--lp-warn:#e8bf79;--lp-alert-bg:#302b22;
   --lp-shadow:0 22px 60px rgba(0,0,0,.16);
 }
@@ -418,7 +418,7 @@ html {scroll-padding-top:90px}
   .campo-landing *, .campo-landing *::before,.campo-landing *::after {scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}
 }
 
-/* Grafite & Ouro: ouro nos destaques da marca, verde somente em estados funcionais. */
+/* Grafite & Lima: ouro nos destaques da marca, verde somente em estados funcionais. */
 .theme-toggle-input:checked ~ .campo-landing :is(.lp-eyebrow,.lp-kicker,.lp-section-index,.lp-window-label,.lp-shot-heading span,.lp-contact-note span) {color:var(--lp-accent)}
 .theme-toggle-input:checked ~ .campo-landing .lp-kicker-rule {background:var(--lp-accent)}
 .theme-toggle-input:checked ~ .campo-landing :is(.lp-feature-icon,.lp-platform-points>div>span,.lp-window-note-num,.lp-shot-list-icon,.lp-shot-section-title span) {color:var(--lp-accent)}

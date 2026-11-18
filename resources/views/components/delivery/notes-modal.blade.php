@@ -5,19 +5,19 @@
    ═══════════════════════════════════════════════════════════════════════ */
 
 #delivery-notes-overlay {
-    --dn-blue: #2563eb;
-    --dn-blue-soft: #eef4ff;
-    --dn-violet: #7c3aed;
-    --dn-violet-soft: #f4f0ff;
+    --dn-blue: var(--ui-color-info);
+    --dn-blue-soft: var(--ui-color-info-soft);
+    --dn-violet: var(--ui-color-primary);
+    --dn-violet-soft: var(--ui-color-primary-soft);
     --dn-slate: #64748b;
     --dn-slate-soft: #f1f5f9;
 
-    --dn-surface: var(--color-surface, #fff);
-    --dn-soft: var(--color-surface-soft, #f8faf9);
-    --dn-border: var(--color-border, #dce7e0);
-    --dn-border-strong: var(--color-border-strong, #c8d6cd);
-    --dn-text: var(--color-text, #102018);
-    --dn-text-2: var(--color-text-secondary, #52645a);
+    --dn-surface: var(--ui-color-surface);
+    --dn-soft: var(--ui-color-surface-soft);
+    --dn-border: var(--ui-color-border);
+    --dn-border-strong: var(--ui-color-border-strong);
+    --dn-text: var(--ui-color-text);
+    --dn-text-2: var(--ui-color-text-secondary);
     --dn-text-3: var(--color-text-muted, #809087);
 
     position: fixed;
@@ -88,7 +88,7 @@
 .delivery-notes-title {
     color: var(--dn-text);
     font-size: .92rem;
-    font-weight: 850;
+    font-weight:700;
     letter-spacing: -.025em;
     line-height: 1.28;
 }
@@ -97,7 +97,7 @@
     margin-top: .12rem;
     overflow: hidden;
     color: var(--dn-text-3);
-    font-size: .65rem;
+    font-size:.75rem;
     font-weight: 650;
     line-height: 1.35;
     text-overflow: ellipsis;
@@ -117,7 +117,7 @@
     flex: 0 0 auto;
     border: 1px solid var(--dn-border);
     border-radius: 9px;
-    background: #fff;
+    background: var(--ui-color-surface);
     color: var(--dn-text-2);
     cursor: pointer;
     font: inherit;
@@ -193,7 +193,7 @@
     color: var(--dn-blue);
     cursor: pointer;
     font: inherit;
-    font-size: .67rem;
+    font-size:.75rem;
     font-weight: 790;
     line-height: 1;
     transition:
@@ -218,11 +218,11 @@
     padding: .28rem .42rem;
     border: 1px solid var(--dn-border, var(--color-border));
     border-radius: 8px;
-    background: #fff;
+    background: var(--ui-color-surface);
     color: var(--dn-slate, var(--color-text-secondary));
     cursor: pointer;
     font: inherit;
-    font-size: .64rem;
+    font-size:.75rem;
     font-weight: 760;
     line-height: 1;
     white-space: nowrap;
@@ -284,7 +284,7 @@
     }
 
     .delivery-notes-meta {
-        font-size: .61rem;
+        font-size:.75rem;
     }
 
     .delivery-notes-close {
@@ -294,7 +294,7 @@
 
     .delivery-notes-content {
         padding: .68rem .62rem .76rem;
-        font-size: .74rem;
+        font-size:.75rem;
         line-height: 1.58;
     }
 

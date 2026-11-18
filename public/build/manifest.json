@@ -1,10 +1,10 @@
 {
-  "_pdf-viewer-Bk83fwEO.js": {
-    "file": "assets/pdf-viewer-Bk83fwEO.js",
+  "_pdf-viewer-Pfg4kLaO.js": {
+    "file": "assets/pdf-viewer-Pfg4kLaO.js",
     "name": "pdf-viewer",
     "isDynamicEntry": true,
     "assets": [
-      "assets/pdf.worker.min-iDqQPrd3.mjs"
+      "assets/pdf.worker.min-Dr1KORA9.mjs"
     ]
   },
   "_qr-scanner-core-CTBFOQOA.js": {
@@ -15,9 +15,9 @@
     "file": "assets/vendor-D5gOtv1u.js",
     "name": "vendor"
   },
-  "node_modules/pdfjs-dist/build/pdf.worker.min.mjs": {
-    "file": "assets/pdf.worker.min-iDqQPrd3.mjs",
-    "src": "node_modules/pdfjs-dist/build/pdf.worker.min.mjs"
+  "node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs": {
+    "file": "assets/pdf.worker.min-Dr1KORA9.mjs",
+    "src": "node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs"
   },
   "resources/css/accounting-portal.css": {
     "file": "assets/resources/css/accounting-portal-DlXMuXJO.css",
@@ -29,7 +29,7 @@
     ]
   },
   "resources/css/app.css": {
-    "file": "assets/resources/css/app-CL9SMM6Z.css",
+    "file": "assets/resources/css/app-xWaKwZgT.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "resources/css/app.css",
@@ -77,16 +77,16 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/resources/js/app.js-Cn8dlR-y.js",
+    "file": "assets/resources/js/app.js-D35Wh_jg.js",
     "name": "resources/js/app.js",
     "src": "resources/js/app.js",
     "isEntry": true,
     "imports": [
       "_vendor-D5gOtv1u.js",
-      "_pdf-viewer-Bk83fwEO.js"
+      "_pdf-viewer-Pfg4kLaO.js"
     ],
     "dynamicImports": [
-      "_pdf-viewer-Bk83fwEO.js"
+      "_pdf-viewer-Pfg4kLaO.js"
     ]
   },
   "resources/js/document-quick-verification.js": {
