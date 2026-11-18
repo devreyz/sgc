@@ -78,7 +78,7 @@ class ServiceManagementController extends Controller
             ->whereIn('link.service_obligation_id', $orders->getCollection()->flatMap(fn ($order) => $order->execution?->obligations ?? [])->pluck('id'))
             ->pluck('link.service_obligation_id');
 
-        return view('services.management-index', compact('orders', 'statuses', 'accounts', 'negotiated'));
+        return view('services.management-index', compact('tenant', 'orders', 'statuses', 'accounts', 'negotiated'));
     }
 
     public function updateExecutionRow(Request $request, Tenant $tenant, int $order, ServiceExecutionWorkflow $workflow): RedirectResponse
@@ -347,7 +347,7 @@ class ServiceManagementController extends Controller
                 ->where('document_settings->template_key', 'service_internal_note')->latest('id')->limit(5)->get()
             : collect();
 
-        return view('services.management-show', compact('order', 'accounts', 'statuses', 'notes'));
+        return view('services.management-show', compact('tenant', 'order', 'accounts', 'statuses', 'notes'));
     }
 
     public function execute(Request $request, Tenant $tenant, int $order): View
