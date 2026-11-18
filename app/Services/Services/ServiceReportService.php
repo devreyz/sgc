@@ -24,6 +24,7 @@ class ServiceReportService
             ->join('service_orders as orders', fn ($join) => $join->on('orders.id', '=', 'service_executions.service_order_id')
                 ->on('orders.tenant_id', '=', 'service_executions.tenant_id'))
             ->whereNull('orders.deleted_at')
+            ->where(fn ($query) => $query->whereNull('orders.operational_status')->orWhere('orders.operational_status', '!=', 'cancelled'))
             ->when($providerId, fn ($q) => $q->where('service_executions.service_provider_id', $providerId))
             ->when($serviceId, fn ($q) => $q->whereHas('order', fn ($oq) => $oq->where('service_id', $serviceId)))
             ->when($assetId, fn ($q) => $q->whereHas('order', fn ($oq) => $oq->where('asset_id', $assetId)));
@@ -34,7 +35,7 @@ class ServiceReportService
             ->orderBy('report_execution_date')->orderBy('orders.start_time')->orderBy('orders.scheduled_at')->orderBy('service_executions.id')->get();
         $details = $executions->map(function ($execution) use ($to): array {
             $date = \Illuminate\Support\Carbon::parse($execution->report_execution_date);
-            $row = ['execution_id' => $execution->id, 'date' => $date->format('d/m/Y'), 'month' => $date->format('Y-m'),
+            $row = ['execution_id' => $execution->id, 'order_id' => $execution->service_order_id, 'date' => $date->format('d/m/Y'), 'month' => $date->format('Y-m'),
                 'start_time' => $execution->order->start_time, 'end_time' => $execution->order->end_time,
                 'number' => $execution->order->number, 'service' => $execution->order->service?->name ?? data_get($execution->catalog_snapshot, 'service.name', '—'),
                 'beneficiary' => data_get($execution->order->beneficiary_snapshot, 'name', '—'),
@@ -57,7 +58,7 @@ class ServiceReportService
                 }
             }
             foreach (data_get($execution->catalog_snapshot, 'fields', []) as $field) {
-                if ($field['reportable'] ?? false) {
+                if (($field['reportable'] ?? false) && ! in_array($field['type'] ?? null, ['file', 'image', 'signature'], true)) {
                     $row['fields'][$field['label']] = data_get($execution->values, $field['key']);
                 }
             }

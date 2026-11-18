@@ -672,7 +672,7 @@
                 <h1>Prestação de contas</h1>
 
                 <p>
-                    Consulte as execuções do período e gere o documento detalhado.
+                    Veja quem pagou, quanto falta receber e quanto ainda falta pagar aos prestadores. Abra uma OS pelo número para corrigir dados ou valores.
                 </p>
             </div>
         </div>
@@ -924,8 +924,9 @@
                         title="Baixar PDF detalhado"
                     >
                         <i class="ph-fill ph-file-pdf"></i>
-                        <span>Baixar PDF detalhado</span>
+                        <span>Prestação de contas em PDF</span>
                     </button>
+                    <button class="rp-button pdf" type="submit" name="report_type" value="conference"><i class="ph-fill ph-table" aria-hidden="true"></i><span>Conferência · A4 paisagem</span></button>
                 </form>
             </div>
         </header>

@@ -141,6 +141,10 @@ class ServiceProviderCompensationTest extends TestCase
             $t->string('operational_status')->default('validated');
             $t->string('status')->default('scheduled');
             $t->date('execution_date')->nullable();
+            $t->date('scheduled_date')->nullable();
+            $t->dateTime('scheduled_at')->nullable();
+            $t->string('location')->nullable();
+            $t->json('order_data')->nullable();
             $t->time('start_time')->nullable();
             $t->time('end_time')->nullable();
             $t->decimal('actual_quantity', 18, 4)->nullable();
@@ -885,6 +889,183 @@ class ServiceProviderCompensationTest extends TestCase
 
         $this->expectException(ValidationException::class);
         app(ServicePaymentService::class)->record($obligation, 100, 'pix', '2026-09-09', null, (string) Str::uuid(), $actor);
+    }
+
+    public function test_direct_provider_rate_changes_preserve_other_adjustments_and_are_idempotent(): void
+    {
+        [$obligation, , $actor] = $this->payable();
+        $this->prepareRateAdjustment($obligation);
+        $service = app(\App\Services\Services\ServiceObligationAdjustmentService::class);
+        $service->add($obligation, 'increase', 20, 'Reembolso de combustível', (string) Str::uuid(), $actor);
+        $key = (string) Str::uuid();
+        $first = $service->changeProviderRate($obligation, 350, 920, 'Atualização da tarifa', $key, $actor);
+        $retry = $service->changeProviderRate($obligation, 350, 920, 'Atualização da tarifa', $key, $actor);
+        $this->assertSame($first->id, $retry->id);
+        $this->assertSame(1070.0, $obligation->fresh()->total_amount);
+        $service->changeProviderRate($obligation, 400, 1070, 'Segunda atualização da tarifa', (string) Str::uuid(), $actor);
+        $this->assertSame(1220.0, $obligation->fresh()->total_amount);
+        $this->assertSame('900.00', $obligation->fresh()->principal_amount);
+        $this->assertSame(3, $obligation->adjustments()->count());
+    }
+
+    public function test_direct_provider_rate_cannot_reduce_total_below_paid_amount(): void
+    {
+        [$obligation, $account, $actor] = $this->payable();
+        $this->prepareRateAdjustment($obligation);
+        app(ServicePaymentService::class)->record($obligation, 850, 'pix', '2026-09-09', $account->id, (string) Str::uuid(), $actor);
+        try {
+            app(\App\Services\Services\ServiceObligationAdjustmentService::class)->changeProviderRate($obligation, 200, 900, 'Correção da tarifa', (string) Str::uuid(), $actor);
+            $this->fail('A redução abaixo do total pago deveria ser bloqueada.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('amount', $exception->errors());
+            $this->assertSame(900.0, $obligation->fresh()->total_amount);
+            $this->assertSame(0, $obligation->adjustments()->count());
+        }
+    }
+
+    public function test_direct_provider_rate_rejects_a_stale_total(): void
+    {
+        [$obligation, , $actor] = $this->payable();
+        $this->prepareRateAdjustment($obligation);
+        $this->expectException(ValidationException::class);
+        app(\App\Services\Services\ServiceObligationAdjustmentService::class)->changeProviderRate($obligation, 350, 800, 'Correção da tarifa', (string) Str::uuid(), $actor);
+    }
+
+    public function test_catalog_financial_edit_preserves_operational_options_and_accepts_rate_without_unit(): void
+    {
+        [,, $source] = $this->execution(3, 150, 25);
+        $catalog = app(ServiceCatalogService::class);
+        $draft = $catalog->clone($source);
+        $draft->update(['allow_provider_create_order' => true, 'members_only' => true]);
+        $tenant = new \App\Models\Tenant;
+        $tenant->id = 1;
+        $request = $this->catalogRequest(['form_section' => 'financial', 'receivable_enabled' => 1, 'payable_enabled' => 1, 'default_provider_rate' => 30]);
+        app(\App\Http\Controllers\Services\ServiceCatalogController::class)->update($request, $tenant, $draft->id, $catalog);
+        $draft->refresh();
+        $this->assertSame(30.0, (float) $draft->default_provider_rate);
+        $this->assertSame('hora', $draft->unit);
+        $this->assertTrue($draft->members_only);
+        $this->assertTrue($draft->allow_provider_create_order);
+        $this->assertSame(25.0, (float) $source->fresh()->default_provider_rate);
+    }
+
+    public function test_catalog_operational_edit_preserves_financial_options(): void
+    {
+        [,, $source] = $this->execution(3, 150, 25);
+        $catalog = app(ServiceCatalogService::class);
+        $draft = $catalog->clone($source);
+        $tenant = new \App\Models\Tenant;
+        $tenant->id = 1;
+        $request = $this->catalogRequest(['form_section' => 'operational', 'unit' => 'hora', 'review_mode' => 'manual']);
+        app(\App\Http\Controllers\Services\ServiceCatalogController::class)->update($request, $tenant, $draft->id, $catalog);
+        $draft->refresh();
+        $this->assertTrue($draft->receivable_enabled);
+        $this->assertTrue($draft->payable_enabled);
+        $this->assertSame(25.0, (float) $draft->default_provider_rate);
+    }
+
+    private function catalogRequest(array $data): \Illuminate\Http\Request
+    {
+        $actor = \Mockery::mock(User::class)->makePartial();
+        $actor->id = 1;
+        $actor->exists = true;
+        $actor->shouldReceive('checkPermissionTo')->with('manage_service_catalog')->andReturnTrue();
+        $request = \Illuminate\Http\Request::create('/catalog', 'PUT', $data);
+        $request->setUserResolver(fn () => $actor);
+        $request->setLaravelSession(app('session.store'));
+        return $request;
+    }
+
+    public function test_catalog_can_remove_the_last_financial_rule(): void
+    {
+        [,, $source] = $this->execution(3, 150, 25);
+        $catalog = app(ServiceCatalogService::class);
+        $draft = $catalog->clone($source);
+        $draft->update(['financial_config' => ['rules' => [['description' => 'Adicional', 'direction' => 'payable', 'method' => 'fixed_addition', 'effect' => 'add', 'value' => 10]]]]);
+        $tenant = new \App\Models\Tenant;
+        $tenant->id = 1;
+        $request = $this->catalogRequest(['form_section' => 'financial', 'rules_present' => 1, 'receivable_enabled' => 1, 'payable_enabled' => 1]);
+        app(\App\Http\Controllers\Services\ServiceCatalogController::class)->update($request, $tenant, $draft->id, $catalog);
+        $this->assertSame([], data_get($draft->fresh()->financial_config, 'rules'));
+    }
+
+    private function prepareRateAdjustment(ServiceObligation $obligation): void
+    {
+        Schema::dropIfExists('service_obligation_adjustments');
+        Schema::create('service_obligation_adjustments', function (Blueprint $table) {
+            $this->base($table);
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('service_obligation_id');
+            $table->uuid('operation_key');
+            $table->string('type');
+            $table->decimal('amount', 14, 2);
+            $table->text('reason');
+            $table->json('metadata')->nullable();
+            $table->unsignedBigInteger('created_by')->nullable();
+        });
+        Schema::dropIfExists('service_payout_request_items');
+        Schema::dropIfExists('service_payout_requests');
+        Schema::create('service_payout_requests', function (Blueprint $table) {
+            $this->base($table); $table->unsignedBigInteger('tenant_id'); $table->string('status');
+        });
+        Schema::create('service_payout_request_items', function (Blueprint $table) {
+            $this->base($table); $table->unsignedBigInteger('tenant_id'); $table->unsignedBigInteger('service_obligation_id'); $table->unsignedBigInteger('service_payout_request_id');
+        });
+        Schema::getConnection()->table('service_obligations')->where('id', $obligation->id)->update(['composition_snapshot' => json_encode(['lines' => [[
+            'type' => 'base', 'source_key' => 'provider_compensation', 'quantity' => 3, 'unit' => 'hora', 'unit_price' => 300, 'amount' => 900, 'rule_snapshot' => ['method' => 'quantity_x_rate'],
+        ]]])]);
+    }
+
+    public function test_details_of_an_unpaid_validated_order_can_change_without_modifying_financial_data(): void
+    {
+        [$obligation, , $actor] = $this->payable();
+        $order = $obligation->execution->order;
+        $details = app(\App\Services\Services\ServiceOrderDetails::class);
+        $updated = $details->update($order, [
+            'details_token' => $details::token($order), 'beneficiary_name' => 'Nome completo corrigido',
+            'execution_date' => '2025-10-09', 'location' => 'Comunidade Periperi', 'notes' => 'Correção do registro antigo',
+            'reason' => 'Data confirmada no caderno', 'quantity' => 99, 'principal_amount' => 1,
+        ], $actor);
+        $this->assertSame('2025-10-09', $updated->execution_date->toDateString());
+        $this->assertSame('Comunidade Periperi', $updated->location);
+        $this->assertSame('Nome completo corrigido', data_get($updated->beneficiary_snapshot, 'name'));
+        $this->assertSame('validated', $updated->execution->status);
+        $this->assertSame(3.0, (float) $updated->execution->quantity);
+        $this->assertSame(900.0, $obligation->fresh()->total_amount);
+    }
+
+    public function test_stale_order_details_cannot_overwrite_a_previous_correction(): void
+    {
+        [$obligation, , $actor] = $this->payable();
+        $order = $obligation->execution->order;
+        $details = app(\App\Services\Services\ServiceOrderDetails::class);
+        $data = ['details_token' => $details::token($order), 'beneficiary_name' => 'Nome corrigido', 'reason' => 'Correção do beneficiário'];
+        $details->update($order, $data, $actor);
+        $this->expectException(ValidationException::class);
+        $details->update($order, $data + ['location' => 'Local desatualizado'], $actor);
+    }
+
+    public function test_correction_of_submitted_hours_preserves_review_status_and_updates_calculation_units(): void
+    {
+        [$execution] = $this->execution(3, 150, 25);
+        $execution->forceFill(['status' => 'submitted', 'values' => ['hours' => 3], 'catalog_snapshot' => [
+            'review_mode' => 'manual', 'execution_config' => ['quantity_mode' => 'field', 'quantity_field' => 'hours'],
+            'fields' => [['key' => 'hours', 'label' => 'Horas trabalhadas', 'type' => 'decimal', 'phase' => 'execution', 'required' => true]],
+        ]])->saveQuietly();
+        $execution->order->update(['operational_status' => 'submitted']);
+        $actor = new User; $actor->id = 1; $actor->exists = true;
+        $result = app(ServiceExecutionWorkflow::class)->updateFromTable($execution, ['hours' => '4.5'], '2025-10-09', 0, null, $actor, [], null, 'Horas corrigidas no caderno');
+        $this->assertSame('submitted', $result->status);
+        $this->assertSame('submitted', $result->order->operational_status);
+        $this->assertSame(4.5, (float) $result->quantity);
+        $preview = app(ServiceCompositionCalculator::class)->calculate($result, false);
+        $this->assertSame(675.0, $preview['receivable_total']);
+        $this->assertSame(112.5, $preview['payable_total']);
+        $this->assertSame('hora', $preview['payable'][0]['unit']);
+        $this->assertSame(4.5, $preview['payable'][0]['quantity']);
+        $this->assertSame(0, $result->obligations()->count());
+        $this->expectException(ValidationException::class);
+        app(ServiceExecutionWorkflow::class)->approve($result, (string) Str::uuid(), $actor, 0);
     }
 
     private function execution(float $quantity, float $customerRate, ?float $providerRate): array

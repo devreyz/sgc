@@ -53,7 +53,7 @@ class ServiceManagementController extends Controller
         ]);
         $serviceDate = 'COALESCE(execution_date, scheduled_date, DATE(scheduled_at))';
         $orders = ServiceOrder::query()->where('tenant_id', $tenant->id)->whereNotNull('service_version_id')
-            ->with(['service', 'execution.obligations'])
+            ->with(['service', 'execution.obligations', 'execution.compositionLines'])
             ->when($request->boolean('undated'), fn ($query) => $query->whereRaw("$serviceDate IS NULL"))
             ->when(! $request->boolean('undated') ? ($dates['from'] ?? null) : null, fn ($query, $date) => $query->whereRaw("$serviceDate >= ?", [$date]))
             ->when(! $request->boolean('undated') ? ($dates['to'] ?? null) : null, fn ($query, $date) => $query->whereRaw("$serviceDate <= ?", [$date]))
@@ -67,6 +67,11 @@ class ServiceManagementController extends Controller
         $accounts = ($request->user()->checkPermissionTo('manage_service_payables') || $request->user()->checkPermissionTo('manage_service_receivables'))
             ? BankAccount::query()->where('tenant_id', $tenant->id)->active()->orderBy('name')->get()
             : collect();
+        if ($request->user()->checkPermissionTo('view_service_financials')) {
+            $pending = $orders->getCollection()->filter(fn ($item) => $item->execution?->status === 'submitted');
+            $pending->loadMissing(['execution.version.fields', 'execution.provider', 'execution.resources']);
+            foreach ($pending as $pendingOrder) $this->attachFinancialPreview($pendingOrder);
+        }
         $negotiated = $accounts->isEmpty() ? collect() : DB::table('service_payment_plan_obligations as link')
             ->join('service_payment_plans as plan', 'plan.id', '=', 'link.service_payment_plan_id')
             ->where('plan.tenant_id', $tenant->id)->where('plan.status', 'active')
@@ -97,6 +102,8 @@ class ServiceManagementController extends Controller
         }
         $execution = $this->order($tenant, $order)->execution;
         abort_unless($execution, 404);
+        $correctionReason = $execution->status === 'submitted'
+            ? $request->validate(['correction_reason' => 'required|string|min:5|max:500'])['correction_reason'] : null;
         $fields = collect(data_get($execution->catalog_snapshot, 'fields', []))
             ->filter(fn (array $field) => ($field['visible_to_management'] ?? true)
                 && in_array($field['phase'] ?? null, ['start', 'execution', 'finish'], true)
@@ -105,7 +112,8 @@ class ServiceManagementController extends Controller
         $values = array_intersect_key($data['values'] ?? [], array_flip($fields));
         $result = $workflow->updateFromTable($execution, $values, $data['execution_date'] ?? null, (int) $data['lock_version'],
             $data['intent'] === 'submit' ? $data['operation_key'] : null, $request->user(),
-            \Illuminate\Support\Arr::only($data, ['start_time', 'end_time']), $data['provider_rate'] ?? null);
+            \Illuminate\Support\Arr::only($data, ['start_time', 'end_time']), $data['provider_rate'] ?? null, $correctionReason);
+        if ($correctionReason !== null) return back()->with('success', 'Medições corrigidas. A OS continua aguardando conferência.');
 
         return back()->with('success', match ($result->status) {
             'validated' => 'Execução concluída e validada.',
@@ -161,11 +169,19 @@ class ServiceManagementController extends Controller
         return redirect()->route('services.management.index', $tenant->slug)->with('success', count($data['rows']).' ordem(ns) criada(s).');
     }
 
-    public function edit(Request $request, Tenant $tenant, int $order): View
+    public function edit(Request $request, Tenant $tenant, int $order): View|RedirectResponse
     {
         $this->allow($request, 'edit_service_order');
         $order = $this->order($tenant, $order);
-        abort_unless(in_array($order->execution?->status, ['draft', 'in_progress', 'rejected'], true), 409, 'Esta ordem já saiu da edição.');
+        if (in_array($order->execution?->status, ['submitted', 'validated'], true)) {
+            if (! \App\Services\Services\ServiceOrderDetails::editable($order)) {
+                return redirect()->route('services.management.show', [$tenant->slug, $order])->with('error', 'Esta ordem já foi quitada ou anulada. Consulte o histórico para conferir os dados.');
+            }
+            return view('services.management-details', compact('order', 'tenant'));
+        }
+        if (! in_array($order->execution?->status, ['draft', 'in_progress', 'rejected'], true)) {
+            return redirect()->route('services.management.show', [$tenant->slug, $order])->with('error', 'A situação da ordem mudou. Confira os dados atuais antes de editar.');
+        }
 
         return $this->entryView($tenant, $order);
     }
@@ -174,6 +190,19 @@ class ServiceManagementController extends Controller
     {
         $this->allow($request, 'edit_service_order');
         $order = $this->order($tenant, $order);
+        if ($request->boolean('details_only')) {
+            $request->merge(['beneficiary_name' => trim((string) $request->input('beneficiary_name'))]);
+            $data = $request->validate([
+                'details_token' => 'required|string|size:64', 'beneficiary_name' => 'required|string|max:191',
+                'execution_date' => 'nullable|date_format:Y-m-d|before_or_equal:today',
+                'scheduled_at' => 'nullable|date_format:Y-m-d\TH:i',
+                'start_time' => 'nullable|date_format:H:i', 'end_time' => 'nullable|date_format:H:i',
+                'location' => 'nullable|string|max:191', 'notes' => 'nullable|string|max:4000',
+                'reason' => 'required|string|min:5|max:500',
+            ]);
+            app(\App\Services\Services\ServiceOrderDetails::class)->update($order, $data, $request->user());
+            return back()->with('success', 'Detalhes corrigidos. A situação da ordem, as quantidades e os pagamentos foram preservados.');
+        }
         $data = $request->validate($this->entryRules() + ['lock_version' => 'required|integer|min:0', 'reset_customer_rate' => 'sometimes|accepted']);
         $this->allowPriceChanges($request, [$data]);
         $version = ServiceVersion::query()->where('tenant_id', $tenant->id)->findOrFail($data['service_version_id']);
@@ -309,6 +338,7 @@ class ServiceManagementController extends Controller
     {
         $this->allow($request, 'view_service_management');
         $order = $this->order($tenant, $order);
+        if ($request->user()->checkPermissionTo('view_service_financials')) $this->attachFinancialPreview($order);
         $accounts = BankAccount::query()->where('tenant_id', $tenant->id)->active()->orderBy('name')->get();
 
         $notes = $request->user()->checkPermissionTo('view_service_financials') && $order->execution
@@ -374,8 +404,8 @@ class ServiceManagementController extends Controller
     public function approve(Request $request, Tenant $tenant, int $order, ServiceExecutionWorkflow $workflow): RedirectResponse
     {
         $this->allow($request, 'approve_service_execution');
-        $data = $request->validate(['operation_key' => 'required|uuid']);
-        $workflow->approve($this->order($tenant, $order)->execution, $data['operation_key'], $request->user());
+        $data = $request->validate(['operation_key' => 'required|uuid', 'lock_version' => 'required|integer|min:0']);
+        $workflow->approve($this->order($tenant, $order)->execution, $data['operation_key'], $request->user(), (int) $data['lock_version']);
 
         return back()->with('success', 'Execução aprovada e obrigações geradas.');
     }
@@ -419,6 +449,39 @@ class ServiceManagementController extends Controller
         $resources->add($execution, $data, $operationKey, $request->user());
 
         return back()->with('success', 'Recurso registrado e incorporado à futura composição financeira.');
+    }
+
+    public function updateBeneficiary(Request $request, Tenant $tenant, int $order): RedirectResponse
+    {
+        $this->allow($request, 'view_service_management');
+        $this->allow($request, 'operate_all_service_orders_portal');
+        $request->merge(['beneficiary_name' => trim((string) $request->input('beneficiary_name'))]);
+        $data = $request->validate(['beneficiary_name' => 'required|string|max:191', 'previous_name' => 'required|string|max:191', 'reason' => 'required|string|min:5|max:500']);
+        DB::transaction(function () use ($request, $tenant, $order, $data): void {
+            $record = ServiceOrder::query()->where('tenant_id', $tenant->id)->whereNotNull('service_version_id')->whereKey($order)->lockForUpdate()->firstOrFail();
+            abort_if($record->operational_status === 'cancelled', 409, 'Esta ordem foi anulada.');
+            $snapshot = (array) $record->beneficiary_snapshot;
+            if (($snapshot['name'] ?? '') !== $data['previous_name']) {
+                throw ValidationException::withMessages(['beneficiary_name' => 'O nome mudou. Reabra a ordem para conferir.']);
+            }
+            if ($snapshot['name'] === $data['beneficiary_name']) return;
+            $record->update(['beneficiary_snapshot' => array_replace($snapshot, ['name' => $data['beneficiary_name']])]);
+            $record->execution()->where('tenant_id', $tenant->id)->whereIn('status', ['draft', 'in_progress', 'rejected'])->increment('lock_version');
+            activity('service_order')->performedOn($record)->causedBy($request->user())->withProperties([
+                'tenant_id' => $tenant->id, 'previous_name' => $snapshot['name'], 'beneficiary_name' => $data['beneficiary_name'], 'reason' => $data['reason'],
+            ])->log('Nome do beneficiário corrigido');
+        });
+        return back()->with('success', 'Nome corrigido nesta ordem. Documentos já emitidos preservam o registro anterior; emita uma nova via para usar o nome atualizado.');
+    }
+
+    public function updateProviderRate(Request $request, Tenant $tenant, int $obligation, ServiceObligationAdjustmentService $adjustments): RedirectResponse
+    {
+        $this->allow($request, 'view_service_management');
+        $this->allow($request, 'manage_service_payables');
+        $record = ServiceObligation::query()->where('tenant_id', $tenant->id)->whereKey($obligation)->firstOrFail();
+        $data = $request->validate(['operation_key' => 'required|uuid', 'provider_rate' => 'required|numeric|decimal:0,4|gt:0|max:999999999', 'expected_total' => 'required|numeric|min:0', 'reason' => 'required|string|min:5|max:500']);
+        $adjustments->changeProviderRate($record, (float) $data['provider_rate'], (float) $data['expected_total'], $data['reason'], $data['operation_key'], $request->user());
+        return back()->with('success', 'Tarifa do prestador atualizada nesta OS. O saldo foi recalculado e os pagamentos foram preservados.');
     }
 
     public function adjustment(Request $request, Tenant $tenant, int $obligation, ServiceObligationAdjustmentService $adjustments): RedirectResponse
@@ -467,6 +530,12 @@ class ServiceManagementController extends Controller
         $data = $request->validate(['from' => 'required|date', 'to' => 'required|date|after_or_equal:from', 'provider_id' => 'nullable|integer', 'service_id' => 'nullable|integer', 'asset_id' => 'nullable|integer']);
         $summary = $reports->summary($tenant->id, Carbon::parse($data['from']), Carbon::parse($data['to']), $data['provider_id'] ?? null, $data['service_id'] ?? null, $data['asset_id'] ?? null);
 
+        $request->validate(['report_type' => 'nullable|in:accountability,conference']);
+        if ($request->input('report_type') === 'conference') {
+            return app(TemplatedPdfService::class)->generateSystemPdf('pdf.service-conference', compact('summary', 'tenant'), [
+                'title' => 'Relatório de conferência de serviços', 'paper' => 'a4', 'orientation' => 'landscape', 'prefer_runtime_layout' => true,
+            ])->download('conferencia-servicos.pdf');
+        }
         return app(TemplatedPdfService::class)->generateSystemPdf('pdf.service-accountability', compact('summary', 'tenant') + ['suppress_internal_footer' => true], [
             'title' => 'Prestação de contas de serviços',
         ])->download('prestacao-servicos.pdf');
@@ -640,9 +709,27 @@ class ServiceManagementController extends Controller
         return ServiceOrder::query()->where('tenant_id', $tenant->id)->whereNotNull('service_version_id')->whereKey($id)->with(['service', 'serviceVersion', 'serviceProvider', 'associate', 'execution.evidences.document', 'execution.resources', 'execution.compositionLines', 'execution.obligations.allocations.paymentEvent'])->firstOrFail();
     }
 
+    private function attachFinancialPreview(ServiceOrder $order): void
+    {
+        if ($order->execution?->status !== 'submitted') return;
+        try {
+            $order->execution->setAttribute('management_preview', app(\App\Services\Services\ServiceCompositionCalculator::class)->calculate($order->execution, false));
+        } catch (ValidationException $exception) {
+            $order->execution->setAttribute('management_preview', ['error' => collect($exception->errors())->flatten()->first()]);
+        }
+    }
+
     private function executionDocumentVariables(ServiceOrder $order): array
     {
         $execution = $order->execution;
+        $this->attachFinancialPreview($order);
+        $preview = (array) ($execution->management_preview ?? []);
+        $documentLines = $execution->isFrozen() ? $execution->compositionLines : collect(array_merge($preview['receivable'] ?? [], $preview['payable'] ?? []))->map(fn ($line) => (object) $line);
+        $documentTotal = static function (string $direction) use ($execution, $preview, $documentLines): string {
+            $obligations = $execution->obligations->where('direction', $direction);
+            $total = $execution->isFrozen() ? ($obligations->isNotEmpty() ? $obligations->sum('total_amount') : $documentLines->where('direction', $direction)->sum('amount')) : ($preview[$direction.'_total'] ?? null);
+            return $total === null ? 'A calcular' : 'R$ '.number_format((float) $total, 2, ',', '.');
+        };
         $variables = [];
         $fieldRows = '';
 
@@ -652,8 +739,9 @@ class ServiceManagementController extends Controller
             }
             $key = (string) ($field['key'] ?? '');
             $value = data_get($execution->values, $key);
-            if (($field['type'] ?? null) === 'file') {
-                $value = $execution->evidences->where('field_key', $key)->pluck('document.original_name')->filter()->join(', ');
+            if (blank($value) && ! ($field['required'] ?? false)) continue;
+            if (in_array($field['type'] ?? null, ['file', 'image', 'signature'], true)) {
+                continue;
             } elseif (is_bool($value)) {
                 $value = $value ? 'Sim' : 'Não';
             } elseif (is_array($value)) {
@@ -665,9 +753,14 @@ class ServiceManagementController extends Controller
         }
 
         $composition = ['receivable' => '', 'payable' => ''];
-        foreach ($execution->compositionLines as $line) {
+        foreach ($documentLines as $line) {
             $formula = data_get($line->rule_snapshot, 'formula') ?: trim(($line->quantity ?? '').' × '.($line->unit_price ?? ''));
             $composition[$line->direction] .= '<tr><td>'.e($line->description).'</td><td>'.e($formula).'</td><td style="text-align:right">'.($line->amount < 0 ? '− ' : '').'R$ '.number_format(abs((float) $line->amount), 2, ',', '.').'</td></tr>';
+        }
+        foreach ($execution->obligations as $obligation) {
+            foreach ($obligation->adjustments as $adjustment) {
+                $composition[$obligation->direction] .= '<tr><td>'.e($adjustment->reason).'</td><td>Ajuste registrado</td><td style="text-align:right">'.($adjustment->amount < 0 ? '- ' : '').'R$ '.number_format(abs((float) $adjustment->amount), 2, ',', '.').'</td></tr>';
+            }
         }
 
         $table = static fn (string $rows): string => $rows === ''
@@ -675,6 +768,9 @@ class ServiceManagementController extends Controller
             : '<table class="data-table"><thead><tr><th>Descrição</th><th>Fórmula</th><th class="text-right">Total</th></tr></thead><tbody>'.$rows.'</tbody></table>';
 
         return $variables + [
+            'payment_received' => 'R$ '.number_format((float) $execution->obligations->where('direction', 'receivable')->sum('paid_amount'), 2, ',', '.'),
+            'payment_balance' => $execution->isFrozen() ? 'R$ '.number_format((float) $execution->obligations->where('direction', 'receivable')->sum('balance'), 2, ',', '.') : 'A confirmar após conferência',
+            'financial_visible' => auth()->user()?->checkPermissionTo('view_service_financials') ?? false,
             'execution_date' => $order->execution_date?->format('d/m/Y'),
             'start_time' => $order->start_time ? substr($order->start_time, 0, 5) : null,
             'end_time' => $order->end_time ? substr($order->end_time, 0, 5) : null,
@@ -682,8 +778,8 @@ class ServiceManagementController extends Controller
             'campos_execucao' => $fieldRows === '' ? '<p>Nenhum campo adicional informado.</p>' : '<table class="data-table"><thead><tr><th>Campo</th><th>Valor</th><th>Unidade</th></tr></thead><tbody>'.$fieldRows.'</tbody></table>',
             'composicao_receber' => $table($composition['receivable']),
             'composicao_pagar' => $table($composition['payable']),
-            'total_receber' => 'R$ '.number_format((float) $execution->compositionLines->where('direction', 'receivable')->sum('amount'), 2, ',', '.'),
-            'total_pagar' => 'R$ '.number_format((float) $execution->compositionLines->where('direction', 'payable')->sum('amount'), 2, ',', '.'),
+            'total_receber' => $documentTotal('receivable'),
+            'total_pagar' => $documentTotal('payable'),
         ];
     }
 

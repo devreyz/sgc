@@ -3,7 +3,7 @@
 @section('title', $version->service->name)
 @section(
     'page-title',
-    $version->service->name.' · versão '.$version->version
+    $version->service->name
 )
 @section('user-role', 'Configuração do serviço')
 
@@ -50,26 +50,26 @@
         $numericFields;
 
     $statusLabels = [
-        'draft' => 'Rascunho',
-        'published' => 'Publicada',
-        'retired' => 'Substituída',
+        'draft' => 'Em edição',
+        'published' => 'Em uso',
+        'retired' => 'Histórico',
     ];
 
     $statusMeta = match ($version->status) {
         'draft' => [
-            'label' => 'Rascunho',
+            'label' => 'Em edição',
             'class' => 'is-draft',
             'icon' => 'ph-note-pencil',
         ],
 
         'published' => [
-            'label' => 'Publicada',
+            'label' => 'Em uso',
             'class' => 'is-published',
             'icon' => 'ph-check-circle',
         ],
 
         'retired' => [
-            'label' => 'Substituída',
+            'label' => 'Histórico',
             'class' => 'is-retired',
             'icon' => 'ph-archive-box',
         ],
@@ -95,7 +95,7 @@
     );
 
     $providerRatesCount =
-        $version->providerRates->count();
+        $version->providerRates->where('active', true)->count();
 
     $isDraft =
         $version->status === 'draft';
@@ -1346,7 +1346,7 @@
 
                 <div class="cc-head-copy">
                     <small>
-                        Versão {{ $version->version }}
+                        {{ $isDraft ? 'Editando serviço' : 'Configuração do serviço' }}
                     </small>
 
                     <h1>
@@ -1418,10 +1418,11 @@
                 </a>
             @endcan
 
+            @unless($isDraft)
             <form
                 method="post"
                 action="{{ route(
-                    'services.catalog.clone',
+                    'services.catalog.edit',
                     [
                         $tenantSlug,
                         $version,
@@ -1433,13 +1434,14 @@
                 <button
                     class="cc-action"
                     type="submit"
-                    title="Criar nova versão"
+                    title="Editar serviço"
                 >
-                    <i class="ph-fill ph-copy"></i>
-                    <span>Nova versão</span>
+                    <i class="ph-fill ph-pencil-simple"></i>
+                    <span>{{ $isDraft ? 'Continuar edição' : 'Editar serviço' }}</span>
                 </button>
             </form>
 
+            @endunless
             @if($version->status === 'draft')
                 <form
                     method="post"
@@ -1456,10 +1458,10 @@
                     <button
                         class="cc-action primary"
                         type="submit"
-                        title="Publicar"
+                        title="Aplicar alterações aos próximos lançamentos"
                     >
                         <i class="ph-fill ph-paper-plane-tilt"></i>
-                        <span>Publicar</span>
+                        <span>Salvar alterações</span>
                     </button>
                 </form>
             @endif
@@ -1535,6 +1537,9 @@
             @endif
         </div>
     </header>
+
+    @include('services._catalog-name-editor')
+    @include('services._catalog-editor-behavior')
 
     <nav
         class="cc-tabs"
@@ -1613,8 +1618,8 @@
          CAMPOS
          ====================================================== --}}
 
-    <section class="cc-panel" aria-label="Histórico de versões e preços" style="margin-bottom:1rem">
-        <header class="cc-panel-head"><div class="cc-panel-title"><span class="cc-panel-title-icon"><i class="ph-fill ph-clock-counter-clockwise"></i></span><span class="cc-panel-title-copy"><strong>Versões e preços anteriores</strong><span>Versões publicadas permanecem somente para consulta; duplique para fazer alterações.</span></span></div></header>
+    <details class="cc-history"><summary>Histórico de alterações e preços</summary><section class="cc-panel" aria-label="Histórico de versões e preços" style="margin-bottom:1rem">
+        <header class="cc-panel-head"><div class="cc-panel-title"><span class="cc-panel-title-icon"><i class="ph-fill ph-clock-counter-clockwise"></i></span><span class="cc-panel-title-copy"><strong>Configurações anteriores</strong><span>Consulta do histórico. Use Editar serviço para alterar a configuração em uso.</span></span></div></header>
         <div class="cc-panel-body cc-table-wrap">
             <table class="cc-table"><thead><tr><th>Versão</th><th>Situação</th><th>Cobrança padrão</th><th>Remuneração padrão</th><th></th></tr></thead><tbody>
                 @foreach($version->service->versions->sortByDesc('version') as $item)
@@ -1631,7 +1636,7 @@
                 </article>
             @endforeach
         </div>
-    </section>
+    </section></details>
 
     <section
         class="cc-panel"
@@ -1931,6 +1936,8 @@
                 >
                     @csrf
                     @method('put')
+                    <input type="hidden" name="form_section" value="operational">
+                    <input type="hidden" name="expected_updated_at" value="{{ $version->updated_at->toISOString() }}">
 
                     <section class="cc-section">
                         <div class="cc-section-head">
@@ -2164,7 +2171,7 @@
             @else
                 <div class="cc-empty">
                     Esta versão está protegida contra alterações.
-                    Crie uma nova versão para modificar o fluxo operacional.
+                    Use Editar serviço para alterar a execução.
                 </div>
             @endif
         </div>
@@ -2283,6 +2290,9 @@
                 >
                     @csrf
                     @method('put')
+                    <input type="hidden" name="form_section" value="financial">
+                    <input type="hidden" name="rules_present" value="1">
+                    <input type="hidden" name="expected_updated_at" value="{{ $version->updated_at->toISOString() }}">
 
                     @foreach([
                         'customer' => [
@@ -2615,12 +2625,13 @@
                     </section>
 
                     <div class="cc-form-actions">
+                        @if($version->providerRates->contains("active", true))<label><input type="checkbox" name="use_default_for_all" value="1"> Usar o valor padrão também para prestadores com tarifa própria</label>@endif
                         <button
                             class="cc-action primary"
                             type="submit"
                         >
                             <i class="ph-fill ph-floppy-disk"></i>
-                            <span>Salvar financeiro</span>
+                            <span>Salvar valores</span>
                         </button>
                     </div>
                 </form>
@@ -2641,7 +2652,7 @@
                     <i class="ph-fill ph-lock-key"></i>
 
                     <span>
-                        Para alterar regras financeiras, crie uma nova versão.
+                        Use Editar serviço para alterar os valores e as regras.
                     </span>
                 </div>
 
@@ -2721,13 +2732,13 @@
                 </span>
             </div>
 
-            @if($version->providerRates->isEmpty())
+            @if($version->providerRates->where('active', true)->isEmpty())
                 <div class="cc-empty">
                     Nenhuma tarifa específica configurada.
                 </div>
             @else
                 <div class="cc-rate-list">
-                    @foreach($version->providerRates as $rate)
+                    @foreach($version->providerRates->where('active', true) as $rate)
                         <div class="cc-rate">
                             <div class="cc-rate-copy">
                                 <strong>

@@ -2,7 +2,12 @@
     $execution = $order->execution;
     $retry = (int) old('row_order') === (int) $order->id && $errors->any();
 @endphp
-@if($canEdit && in_array($execution?->status, ['draft', 'in_progress', 'rejected'], true))
+@if($canEdit && \App\Services\Services\ServiceOrderDetails::editable($order))
+    <dialog class="cm-dialog cm-operation-dialog sg-dialog" id="details-{{ $order->id }}" aria-labelledby="details-title-{{ $order->id }}" @if((int) old('details_order') === (int) $order->id && $errors->any()) data-reopen @endif>
+        @include('services._order-details-form', ['detailsClose' => true])
+    </dialog>
+@endif
+@if($canEdit && in_array($execution?->status, ['draft', 'in_progress', 'submitted', 'rejected'], true))
     <dialog class="cm-dialog cm-operation-dialog sg-dialog" id="execution-{{ $order->id }}" aria-labelledby="execution-title-{{ $order->id }}" @if($retry) data-reopen @endif>
             <form method="post" action="{{ route('services.management.execution.row', [$tenant->slug, $order]) }}">
                 @csrf
@@ -19,6 +24,10 @@
                     </ul>
                 @endif
                 <div class="sg-fields">
+                    @if($execution->status === 'submitted')
+                        <p>A OS continuará aguardando conferência. As quantidades e a prévia dos valores serão atualizadas ao salvar.</p>
+                        <label>Motivo da correção<input name="correction_reason" minlength="5" maxlength="500" required value="{{ $retry ? old('correction_reason') : '' }}" placeholder="Ex.: corrigir as horas anotadas"></label>
+                    @endif
                     <label>Dia da execução, se conhecido
                         <input name="execution_date" type="date" max="{{ today()->toDateString() }}"
                             value="{{ $retry ? old('execution_date') : $order->execution_date?->toDateString() }}">
@@ -47,8 +56,8 @@
                     @endforeach
                 </div>
                 <div class="sg-actions">
-                    <button class="sg-button sg-primary" type="submit" name="intent" value="save" formnovalidate>Salvar campos</button>
-                    @if($canOperate)
+                    <button class="sg-button sg-primary" type="submit" name="intent" value="save" @if($execution->status !== 'submitted') formnovalidate @endif>{{ $execution->status === 'submitted' ? 'Salvar correções' : 'Salvar campos' }}</button>
+                    @if($canOperate && $execution->status !== 'submitted')
                         <button class="sg-button" type="submit" name="intent" value="submit">{{ data_get($execution->catalog_snapshot, 'review_mode') === 'automatic' ? 'Concluir e validar' : 'Enviar para conferência' }}</button>
                         <a class="sg-link" href="{{ route('services.management.execute', [$tenant->slug, $order]) }}">Execução completa / anexos</a>
                     @endif

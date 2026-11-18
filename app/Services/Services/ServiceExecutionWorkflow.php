@@ -39,14 +39,14 @@ class ServiceExecutionWorkflow
         }, 3);
     }
 
-    public function updateFromTable(ServiceExecution $execution, array $values, ?string $date, int $version, ?string $operationKey, User $actor, array $times = [], ?string $providerRate = null): ServiceExecution
+    public function updateFromTable(ServiceExecution $execution, array $values, ?string $date, int $version, ?string $operationKey, User $actor, array $times = [], ?string $providerRate = null, ?string $correctionReason = null): ServiceExecution
     {
-        return DB::transaction(function () use ($execution, $values, $date, $version, $operationKey, $actor, $times, $providerRate): ServiceExecution {
+        return DB::transaction(function () use ($execution, $values, $date, $version, $operationKey, $actor, $times, $providerRate, $correctionReason): ServiceExecution {
             $locked = $this->lock($execution);
             if ($operationKey && $locked->submit_operation_key === $operationKey) {
                 return $locked;
             }
-            if ((int) $locked->lock_version !== $version || ! in_array($locked->status, ['draft', 'in_progress', 'rejected'], true)) {
+            if ((int) $locked->lock_version !== $version || ! in_array($locked->status, ['draft', 'in_progress', 'submitted', 'rejected'], true)) {
                 throw ValidationException::withMessages(['order' => 'A ordem mudou ou saiu da edição. Atualize a tabela antes de continuar.']);
             }
             $locked->order->update(['execution_date' => $date] + $times);
@@ -66,6 +66,17 @@ class ServiceExecutionWorkflow
                 activity('service_order')->performedOn($locked->order)->causedBy($actor)->withProperties([
                     'tenant_id' => $locked->tenant_id, 'previous_rate' => $oldRate, 'provider_rate' => $providerRate,
                 ])->log('Tarifa do prestador corrigida na ordem');
+            }
+            if ($locked->status === 'submitted') {
+                $previousValues = $locked->values;
+                $merged = array_replace($locked->values ?? [], $values);
+                foreach (['order', 'start', 'execution', 'finish'] as $phase) $this->validator->validate($locked, $phase, $merged);
+                $this->calculator->validateRuleEvidences($locked, (array) data_get($locked->catalog_snapshot, 'financial_config.rules', []), $merged);
+                $derived = $this->quantities($locked, $merged);
+                $this->validateFinancialQuantities($locked, $derived);
+                $locked->forceFill(['values' => $merged, 'derived_values' => $derived, 'quantity' => $derived['primary_quantity'], 'lock_version' => $locked->lock_version + 1])->save();
+                activity('service_order')->performedOn($locked->order)->causedBy($actor)->withProperties(['tenant_id' => $locked->tenant_id, 'previous_values' => $previousValues, 'values' => $merged, 'reason' => $correctionReason])->log('Execução corrigida antes da conferência');
+                return $locked->fresh();
             }
             if (! $operationKey) {
                 return $this->saveDraft($locked, $values, $actor);
@@ -131,14 +142,17 @@ class ServiceExecutionWorkflow
         );
     }
 
-    public function approve(ServiceExecution $execution, string $operationKey, User $actor): ServiceExecution
+    public function approve(ServiceExecution $execution, string $operationKey, User $actor, ?int $expectedVersion = null): ServiceExecution
     {
-        return DB::transaction(function () use ($execution, $operationKey, $actor) {
+        return DB::transaction(function () use ($execution, $operationKey, $actor, $expectedVersion) {
             $execution = $this->lock($execution);
             if ($execution->review_operation_key === $operationKey) {
                 return $execution;
             }if ($execution->status !== 'submitted') {
                 throw ValidationException::withMessages(['status' => 'Somente execução enviada pode ser aprovada.']);
+            }
+            if ($expectedVersion !== null && (int) $execution->lock_version !== $expectedVersion) {
+                throw ValidationException::withMessages(['order' => 'A execução foi corrigida desde que esta tela foi aberta. Confira os dados atualizados antes de validar.']);
             }
 
             return $this->validateLocked($execution, $actor, $operationKey);

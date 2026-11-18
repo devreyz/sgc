@@ -197,7 +197,8 @@ class ServiceProviderPortalController extends Controller
         abort_unless($operator && $request->user()->checkPermissionTo('approve_service_execution'), 403);
         $order = $this->order($tenant, $provider, true, $order);
         $data = $request->validate(['operation_key' => 'required|uuid']);
-        $workflow->approve($order->execution, $data['operation_key'], $request->user());
+        $expectedVersion = $request->validate(['lock_version' => 'required|integer|min:0'])['lock_version'];
+        $workflow->approve($order->execution, $data['operation_key'], $request->user(), (int) $expectedVersion);
 
         return $this->mutationResponse($request, $tenant, $order->fresh(['execution.evidences.document']), 'Execução conferida e concluída.', true);
     }

@@ -1,5 +1,6 @@
 @php
     $pdfMode = $pdfMode ?? false;
+    $canOpenOrder = !$pdfMode && filled($tenantSlug ?? null) && (auth()->user()?->checkPermissionTo('view_service_management') ?? false);
     $details = collect($summary['details']);
     $compositionRows = $details->flatMap(fn ($row) => collect($row['composition'])->map(fn ($line) => ['os' => $row['number']] + $line));
     $fieldRows = $details->flatMap(fn ($row) => collect($row['fields'])->map(fn ($value, $label) => ['os' => $row['number'], 'label' => $label, 'value' => $value]));
@@ -12,6 +13,12 @@
 <style>
     .accountability{display:grid;gap:1rem;max-width:100%}.accountability-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem}.accountability-kpi{padding:.9rem;border:1px solid rgba(148,163,184,.3);border-radius:.75rem;background:rgba(248,250,252,.7)}.accountability-kpi small{display:block;color:#64748b}.accountability-kpi strong{display:block;font-size:1.15rem;margin-top:.25rem}.accountability details{border:1px solid rgba(148,163,184,.3);border-radius:.75rem;padding:.75rem}.accountability summary{cursor:pointer;font-weight:750;font-size:1rem}.accountability-table{width:100%;border-collapse:collapse}.accountability-table th,.accountability-table td{text-align:left;padding:.55rem;border-bottom:1px solid rgba(148,163,184,.25);vertical-align:top}.accountability-scroll{overflow-x:auto;margin-top:.65rem}.accountability-equation{padding:.75rem;border-radius:.65rem;background:#f8fafc;color:#334155}@media(max-width:900px){.accountability-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:520px){.accountability-kpis{grid-template-columns:1fr}}
 </style>
+<style>
+    .accountability-kpi,.accountability details,.accountability-equation{background:var(--ui-color-surface,#f7faf8);color:var(--ui-color-text,#17211d);border-color:var(--ui-color-border,#dde5e0)}
+    .accountability-kpi small{color:var(--ui-color-text-muted,#64748b)}
+    .accountability-table{font-size:.85rem}.accountability-table th{white-space:nowrap}.accountability-table td{min-width:90px}.accountability-table th,.accountability-table td{border-color:var(--ui-color-border,#dde5e0)}
+    @media(max-width:520px){.accountability-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.accountability-kpi{padding:.7rem}.accountability-kpi strong{font-size:1rem}}
+</style>
 @endunless
 <div class="accountability">
     @php($show = fn ($section) => !$pdfMode || in_array($section, $sections ?? [], true))
@@ -22,13 +29,13 @@
             <td>Cobrado dos beneficiários<strong>{{ $money($summary['service_value']) }}</strong></td>
             <td>Recebido no período<strong>{{ $money($summary['cash_received_period']) }}</strong></td>
             <td>Devido aos prestadores<strong>{{ $money($summary['provider_due']) }}</strong></td>
-            <td>Caixa líquido de serviços<strong>{{ $money($cashNet) }}</strong></td>
+            <td>Saldo de caixa dos serviços<strong>{{ $money($cashNet) }}</strong></td>
         </tr></table>
     @else
     <div class="accountability-kpis">
         <div class="accountability-kpi"><small>Cobrado dos beneficiários</small><strong>{{ $money($summary['service_value']) }}</strong><small>Saldo: {{ $money($summary['receivable_balance']) }}</small></div>
         <div class="accountability-kpi"><small>Recebido no período</small><strong>{{ $money($summary['cash_received_period']) }}</strong><small>{{ $summary['executions'] }} execução(ões)</small></div>
-        <div class="accountability-kpi"><small>Devido a prestadores</small><strong>{{ $money($summary['provider_due']) }}</strong><small>Saldo: {{ $money($summary['provider_balance']) }}</small></div>
+        <div class="accountability-kpi"><small>Total dos prestadores</small><strong>{{ $money($summary['provider_due']) }}</strong><small>Saldo: {{ $money($summary['provider_balance']) }}</small></div>
         <div class="accountability-kpi"><small>Caixa líquido de serviços</small><strong>{{ $money($cashNet) }}</strong><small>Recebido − prestadores − despesas pagas</small></div>
     </div>
     @endif
@@ -38,20 +45,20 @@
     @endif
     @if($show('monthly'))
     @if(!$pdfMode)<details open><summary>Resumo mensal</summary>@else<div class="section-title">Resumo mensal</div>@endif
-    <div class="accountability-scroll"><table class="{{ $pdfMode ? 'data-table' : 'accountability-table' }}"><thead><tr><th>Mês</th><th>Execuções</th><th>Quantidades</th><th>Cobrado</th><th>Recebido</th><th>Saldo cliente</th><th>Devido prestador</th><th>Pago</th><th>Saldo prestador</th></tr></thead><tbody>
+    <div class="accountability-scroll"><table class="{{ $pdfMode ? 'data-table' : 'accountability-table' }}"><thead><tr><th>Mês</th><th>Execuções</th><th>Quantidades</th><th>Cobrado</th><th>Recebido</th><th>Falta receber</th><th>Devido prestador</th><th>Pago</th><th>Falta pagar</th></tr></thead><tbody>
     @forelse($summary['monthly'] as $row)<tr><td>{{ $row['month'] }}</td><td>{{ $row['executions'] }}</td><td>@foreach($row['quantities'] as $unit => $qty){{ $qty }} {{ $unit }}<br>@endforeach</td>@foreach(['service_value','received','receivable_balance','provider_due','provider_paid','provider_balance'] as $key) @continue(!$column('balances') && $show('orders') && isset($row['number']) && str_ends_with($key, '_balance')) <td>{{ $money($row[$key]) }}</td>@endforeach</tr>@empty<tr><td colspan="9">Sem movimento no período.</td></tr>@endforelse
     </tbody></table></div>@if(!$pdfMode)</details>@endif
 
     @endif
     @if($show('orders'))
-    @if(!$pdfMode)<details open><summary>Ordens e saldos</summary>@else<div class="section-title">Ordens e saldos</div>@endif
-    <div class="accountability-scroll"><table class="{{ $pdfMode ? 'data-table' : 'accountability-table' }}"><thead><tr><th>OS</th><th>Data</th><th>Serviço</th>@if($column('beneficiary'))<th>Beneficiário</th>@endif @if($column('provider'))<th>Prestador</th>@endif @if($column('quantity'))<th>Quantidade</th>@endif <th>Cobrança</th><th>Recebido</th>@if($column('balances'))<th>Saldo</th>@endif <th>Prestador devido</th><th>Pago</th>@if($column('balances'))<th>Saldo</th>@endif </tr></thead><tbody>
-    @forelse($details as $row)<tr><td>{{ $row['number'] }}</td><td>{{ $row['date'] }}</td><td>{{ $row['service'] }}</td>@if($column('beneficiary'))<td>{{ $row['beneficiary'] }}</td>@endif @if($column('provider'))<td>{{ $row['provider'] }}</td>@endif @if($column('quantity'))<td>{{ $row['quantity'] }} {{ $row['unit'] }}</td>@endif @foreach(['service_value','received','receivable_balance','provider_due','provider_paid','provider_balance'] as $key) @continue(!$column('balances') && $show('orders') && isset($row['number']) && str_ends_with($key, '_balance')) <td>{{ $money($row[$key]) }}</td>@endforeach</tr>@empty<tr><td colspan="12">Nenhuma execução validada.</td></tr>@endforelse
+    @if(!$pdfMode)<details open><summary>Serviços realizados e valores em aberto</summary>@else<div class="section-title">Ordens e saldos</div>@endif
+    <div class="accountability-scroll"><table class="{{ $pdfMode ? 'data-table' : 'accountability-table' }}"><thead><tr><th>OS</th><th>Data</th><th>Serviço</th>@if($column('beneficiary'))<th>Beneficiário</th>@endif @if($column('provider'))<th>Prestador</th>@endif @if($column('quantity'))<th>Quantidade</th>@endif <th>Cobrança</th><th>Recebido</th>@if($column('balances'))<th>Saldo</th>@endif <th>Total do prestador</th><th>Pago</th>@if($column('balances'))<th>Saldo</th>@endif </tr></thead><tbody>
+    @forelse($details as $row)<tr><td>@if($canOpenOrder && isset($row['order_id']))<a href="{{ route('services.management.show', [$tenantSlug, $row['order_id']]) }}" class="underline font-semibold">{{ $row['number'] }}</a>@else{{ $row['number'] }}@endif</td><td>{{ $row['date'] }}</td><td>{{ $row['service'] }}</td>@if($column('beneficiary'))<td>{{ $row['beneficiary'] }}</td>@endif @if($column('provider'))<td>{{ $row['provider'] }}</td>@endif @if($column('quantity'))<td>{{ $row['quantity'] }} {{ $row['unit'] }}</td>@endif @foreach(['service_value','received','receivable_balance','provider_due','provider_paid','provider_balance'] as $key) @continue(!$column('balances') && $show('orders') && isset($row['number']) && str_ends_with($key, '_balance')) <td>{{ $money($row[$key]) }}</td>@endforeach</tr>@empty<tr><td colspan="12">Nenhuma execução validada.</td></tr>@endforelse
     </tbody></table></div>@if(!$pdfMode)</details>@endif
 
     @endif
     @if($show('composition'))
-    @if(!$pdfMode)<details><summary>Origem dos cálculos ({{ $compositionRows->count() }})</summary>@else<div class="section-title">Origem dos cálculos</div>@endif
+    @if(!$pdfMode)<details><summary>Detalhes dos valores ({{ $compositionRows->count() }})</summary>@else<div class="section-title">Origem dos cálculos</div>@endif
     <div class="accountability-scroll"><table class="{{ $pdfMode ? 'data-table' : 'accountability-table' }}"><thead><tr><th>OS</th><th>Composição</th><th>Destino</th><th>Fórmula aplicada</th><th>Valor</th></tr></thead><tbody>
     @forelse($compositionRows as $line)<tr><td>{{ $line['os'] }}</td><td>{{ $line['description'] }}</td><td>{{ $line['direction'] === 'payable' ? 'Prestador' : 'Organização' }}</td><td>{{ data_get($line, 'rule_snapshot.formula') ?: (($line['quantity'] ?? 0).' × '.($line['unit_price'] ?? 0)) }}</td><td>{{ ($line['amount'] ?? 0) < 0 ? '− ' : '' }}{{ $money(abs($line['amount'])) }}</td></tr>@empty<tr><td colspan="5">Nenhuma composição.</td></tr>@endforelse
     </tbody></table></div>@if(!$pdfMode)</details>@endif
@@ -63,7 +70,7 @@
     @endif
 
     @if(($show('fields') && $fieldRows->isNotEmpty()) || ($show('resources') && $resourceRows->isNotEmpty()))
-        @if(!$pdfMode)<details><summary>Dados operacionais, recursos e insumos</summary>@else<div class="section-title">Dados operacionais, recursos e insumos</div>@endif
+        @if(!$pdfMode)<details><summary>Medições, materiais e outros gastos</summary>@else<div class="section-title">Dados operacionais, recursos e insumos</div>@endif
         @if($show('fields') && $fieldRows->isNotEmpty())<div class="accountability-scroll"><table class="{{ $pdfMode ? 'data-table' : 'accountability-table' }}"><thead><tr><th>OS</th><th>Campo operacional</th><th>Valor informado</th></tr></thead><tbody>@foreach($fieldRows as $field)<tr><td>{{ $field['os'] }}</td><td>{{ $field['label'] }}</td><td>{{ is_scalar($field['value']) ? $field['value'] : json_encode($field['value'], JSON_UNESCAPED_UNICODE) }}</td></tr>@endforeach</tbody></table></div>@endif
         @if($show('resources') && $resourceRows->isNotEmpty())<div class="accountability-scroll"><table class="{{ $pdfMode ? 'data-table' : 'accountability-table' }}"><thead><tr><th>OS</th><th>Descrição</th><th>Efeito</th><th>Valor</th><th>Despesa</th></tr></thead><tbody>@foreach($resourceRows as $resource)<tr><td>{{ $resource['os'] }}</td><td>{{ $resource['description'] }}</td><td>{{ $resource['effect'] }}</td><td>{{ $money($resource['amount']) }}</td><td>{{ $resource['expense_id'] ?? '—' }}</td></tr>@endforeach</tbody></table></div>@endif
         @if(!$pdfMode)</details>@endif

@@ -514,6 +514,8 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::post('/obligations/{obligation}/payments', [ServiceManagementController::class, 'payment'])->middleware('throttle:20,1')->whereNumber('obligation')->name('management.payments.store');
         Route::post('/payments/{payment}/reverse', [ServiceManagementController::class, 'reverse'])->middleware('throttle:10,1')->whereNumber('payment')->name('management.payments.reverse');
         Route::post('/orders/{order}/resources', [ServiceManagementController::class, 'resource'])->middleware('throttle:20,1')->whereNumber('order')->name('management.resources.store');
+        Route::patch('/orders/{order}/beneficiary', [ServiceManagementController::class, 'updateBeneficiary'])->middleware('throttle:30,1')->whereNumber('order')->name('management.beneficiary.update');
+        Route::post('/obligations/{obligation}/provider-rate', [ServiceManagementController::class, 'updateProviderRate'])->middleware('throttle:20,1')->whereNumber('obligation')->name('management.provider-rate.update');
         Route::post('/obligations/{obligation}/adjustments', [ServiceManagementController::class, 'adjustment'])->middleware('throttle:20,1')->whereNumber('obligation')->name('management.adjustments.store');
         Route::get('/reports', [ServiceManagementController::class, 'reports'])->name('management.reports');
         Route::post('/reports/document', [ServiceManagementController::class, 'generateReport'])->middleware('throttle:10,1')->name('management.reports.document');
@@ -531,6 +533,8 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::post('/catalog', [ServiceCatalogController::class, 'store'])->middleware('throttle:20,1')->name('catalog.store');
         Route::delete('/catalog/{service}', [ServiceCatalogController::class, 'remove'])->middleware('throttle:10,1')->whereNumber('service')->name('catalog.remove');
         Route::get('/catalog/versions/{version}', [ServiceCatalogController::class, 'show'])->whereNumber('version')->name('catalog.show');
+        Route::patch('/catalog/{service}/name', [ServiceCatalogController::class, 'rename'])->middleware('throttle:20,1')->whereNumber('service')->name('catalog.rename');
+        Route::post('/catalog/versions/{version}/edit', [ServiceCatalogController::class, 'edit'])->middleware('throttle:20,1')->whereNumber('version')->name('catalog.edit');
         Route::put('/catalog/versions/{version}', [ServiceCatalogController::class, 'update'])->middleware('throttle:20,1')->whereNumber('version')->name('catalog.update');
         Route::patch('/catalog/versions/{version}/prices', [ServiceCatalogController::class, 'updatePrices'])->middleware('throttle:20,1')->whereNumber('version')->name('catalog.prices.update');
         Route::post('/catalog/versions/{version}/fields', [ServiceCatalogController::class, 'field'])->middleware('throttle:30,1')->whereNumber('version')->name('catalog.fields.store');

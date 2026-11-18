@@ -2202,6 +2202,7 @@
                                 ) }}"
                             >
                                 @csrf
+                                <input type="hidden" name="lock_version" value="{{ $execution->lock_version }}">
 
                                 <input
                                     type="hidden"

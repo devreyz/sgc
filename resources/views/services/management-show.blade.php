@@ -1755,8 +1755,8 @@
         @endif
 
         <div class="ds-doc-actions" style="margin:.6rem 0">
-            @if(in_array($execution?->status, ['draft', 'in_progress', 'rejected'], true) && auth()->user()->checkPermissionTo('edit_service_order'))
-                <a class="btn" href="{{ route('services.management.edit', [$tenantSlug, $order]) }}">Editar ordem</a>
+            @if(\App\Services\Services\ServiceOrderDetails::editable($order) && auth()->user()->checkPermissionTo('edit_service_order'))
+                <button type="button" class="ds-button secondary" data-open-dialog="order-details">Editar detalhes</button>
             @endif
             @if(auth()->user()->checkPermissionTo('manage_service_expenses'))
                 <a class="btn" href="{{ route('services.management.expenses', ['tenant' => $tenantSlug, 'order' => $order->id]) }}">Despesas da ordem</a>
@@ -1785,6 +1785,8 @@
             @endif
         </div>
 
+        @include('services._order-review-summary')
+        @if($execution?->status === 'submitted' && auth()->user()->checkPermissionTo('edit_service_order'))<a class="ds-button secondary" href="{{ route('services.management.index', [$tenantSlug, 'q' => $order->number]) }}">Corrigir horas e medições na lista</a>@endif
         <div class="ds-facts">
             <div class="ds-fact">
                 <span
@@ -1798,6 +1800,7 @@
                     <small>Beneficiário</small>
                     <strong>{{ $beneficiaryName }}</strong>
                 </span>
+                @include('services._beneficiary-editor')
             </div>
 
             <div class="ds-fact">
@@ -1868,6 +1871,7 @@
                 ) }}"
             >
                 @csrf
+                <input type="hidden" name="lock_version" value="{{ $execution->lock_version }}">
 
                 <input
                     type="hidden"
@@ -2335,6 +2339,7 @@
                                         @endif
                                     </section>
 
+                                    @include('services._provider-rate-editor')
                                     <section class="ds-fin-box">
                                         <div class="ds-fin-box-head">
                                             <i class="ph-fill ph-sliders-horizontal"></i>
@@ -3129,8 +3134,31 @@
     </dialog>
 @endif
 
+@if(\App\Services\Services\ServiceOrderDetails::editable($order) && auth()->user()->checkPermissionTo('edit_service_order'))
+<dialog class="dossier-dialog" id="order-details" aria-labelledby="details-title-{{ $order->id }}">
+    @include('services._order-details-form', ['detailsClose' => true, 'detailsDossier' => true])
+</dialog>
+@endif
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    const money = value => value.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+    document.querySelectorAll('[data-provider-rate-form]').forEach(form => {
+        form.elements.provider_rate.addEventListener('input', () => {
+            const rate = Number(form.elements.provider_rate.value);
+            const difference = Math.round((Number(form.dataset.quantity) * rate - Number(form.dataset.base)) * 100) / 100;
+            form.querySelector('[data-rate-preview]').textContent = rate > 0 ? 'Novo total desta OS: ' + money(Number(form.dataset.total) + difference) + '. Diferença: ' + money(difference) + '. Nenhum pagamento será registrado por esta ação.' : 'Informe a nova tarifa para conferir o total antes de salvar.';
+        });
+    });
+    document.querySelectorAll('.dossier-page form, .dossier-dialog form').forEach(form => form.addEventListener('submit', event => {
+        if (form.dataset.submitting) { event.preventDefault(); return; }
+        form.dataset.submitting = 'true';
+        form.setAttribute('aria-busy', 'true');
+        requestAnimationFrame(() => document.querySelectorAll('button[type="submit"]').forEach(button => {
+            if (button.form !== form) return;
+            button.disabled = true;
+            button.textContent = 'Salvando…';
+        }));
+    }));
     const dialogs = [
         ...document.querySelectorAll(
             '.dossier-dialog'

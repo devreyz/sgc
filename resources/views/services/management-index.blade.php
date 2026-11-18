@@ -487,8 +487,8 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                             $providerName = data_get($order->provider_snapshot, 'name') ?: 'Não informado';
                             $serviceName = $order->service?->name ?: 'Serviço não informado';
                             $orderUrl = route('services.management.show', [$tenant->slug, $order]);
-                            $canEditOrder = $canEdit && in_array($order->execution?->status, ['draft', 'in_progress', 'rejected'], true);
-                            $canEditExecution = $canEdit && in_array($order->execution?->status, ['draft', 'in_progress', 'rejected'], true);
+                            $canEditOrder = $canEdit && \App\Services\Services\ServiceOrderDetails::editable($order);
+                            $canEditExecution = $canEdit && in_array($order->execution?->status, ['draft', 'in_progress', 'submitted', 'rejected'], true);
                             $canValidateOrder = $canApprove && $order->execution?->status === 'submitted';
                             $canRemoveOrder = $canEdit && in_array($order->execution?->status, ['draft', 'in_progress', 'submitted', 'rejected', 'validated'], true);
                             $executionDate = $order->execution_date ?? $order->scheduled_at ?? $order->scheduled_date;
@@ -538,14 +538,14 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                                 </div>
                             </td>
                             @if($canViewFinancials)
-                                <td class="cm-number"><span class="cm-mobile-label">Valor a receber</span>{{ $order->execution?->isFrozen() ? 'R$ '.number_format((float) $order->final_price, 2, ',', '.') : '—' }}</td>
-                                <td class="cm-number"><span class="cm-mobile-label">Valor a pagar</span>{{ $order->execution?->isFrozen() ? 'R$ '.number_format((float) $order->provider_payment, 2, ',', '.') : '—' }}</td>
+                                <td class="cm-number"><span class="cm-mobile-label">Valor a receber</span>@include('services._order-value', ['valueDirection' => 'receivable'])</td>
+                                <td class="cm-number"><span class="cm-mobile-label">Valor a pagar</span>@include('services._order-value', ['valueDirection' => 'payable'])</td>
                             @endif
                             <td class="cm-col-actions">
                                 <div class="cm-order-actions" role="group" aria-label="Ações da ordem {{ $order->number }}">
                                     <a class="cm-icon-action cm-icon-primary" href="{{ $orderUrl }}" aria-label="Abrir ordem" title="Abrir ordem"><i class="ph ph-eye" aria-hidden="true"></i><span aria-hidden="true">Abrir</span></a>
                                     @if($canEditOrder)
-                                        <a class="cm-icon-action" href="{{ route('services.management.edit', [$tenant->slug, $order]) }}" aria-label="Editar ordem" title="Editar ordem"><i class="ph ph-pencil-simple" aria-hidden="true"></i><span aria-hidden="true">Editar</span></a>
+                                        <button class="cm-icon-action" type="button" data-order-dialog="details-{{ $order->id }}" aria-controls="details-{{ $order->id }}" aria-label="Editar detalhes da ordem" title="Editar detalhes"><i class="ph ph-pencil-simple" aria-hidden="true"></i><span aria-hidden="true">Editar</span></button>
                                     @endif
                                     @if($canEditExecution)
                                         <button class="cm-icon-action" type="button" data-order-dialog="execution-{{ $order->id }}" aria-controls="execution-{{ $order->id }}" aria-label="Editar execução" title="Editar execução"><i class="ph ph-timer" aria-hidden="true"></i><span aria-hidden="true">Execução</span></button>
@@ -604,6 +604,8 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                     @csrf
                     <input type="hidden" name="operation_key" value="{{ \Illuminate\Support\Str::uuid() }}">
                     <h3 id="approve-title-{{ $order->id }}">Validar {{ $order->number }}</h3>
+                    <input type="hidden" name="lock_version" value="{{ $order->execution->lock_version }}">
+                    @include('services._order-review-summary')
                     <p>A validação conclui a execução e registra os valores a pagar ou receber.</p>
                     <div class="cm-dialog-actions">
                         <button class="cm-btn" type="button" data-dialog-close>Voltar</button>

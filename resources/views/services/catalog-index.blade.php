@@ -34,7 +34,7 @@
     $versionStatusMeta = static function ($status): array {
         if ($status === null || $status === '') {
             return [
-                'label' => 'Sem versão publicada',
+                'label' => 'Sem configuração ativa',
                 'class' => 'is-empty',
                 'icon' => 'ph-circle-dashed',
             ];
@@ -64,18 +64,14 @@
             'ativo',
             'publicada',
             'publicado' => [
-                'label' => is_string($value) && $value !== ''
-                    ? \Illuminate\Support\Str::headline($value)
-                    : 'Publicada',
+                'label' => 'Em uso',
                 'class' => 'is-active',
                 'icon' => 'ph-check-circle',
             ],
 
             'draft',
             'rascunho' => [
-                'label' => is_string($value) && $value !== ''
-                    ? \Illuminate\Support\Str::headline($value)
-                    : 'Rascunho',
+                'label' => 'Em edição',
                 'class' => 'is-draft',
                 'icon' => 'ph-note-pencil',
             ],
@@ -962,7 +958,7 @@
                         <tr>
                             <th>Serviço</th>
                             <th>Código</th>
-                            <th>Versão atual</th>
+                            <th>Configuração</th>
                             <th>Situação</th>
                             <th aria-label="Ação"></th>
                         </tr>
@@ -1012,9 +1008,7 @@
 
                                             <small>
                                                 {{
-                                                    $versionsCount === 1
-                                                        ? '1 versão'
-                                                        : $versionsCount.' versões'
+                                                    $service->versions->contains('status', 'draft') ? 'Edição pendente' : 'Configuração salva'
                                                 }}
                                             </small>
                                         </span>
@@ -1031,12 +1025,12 @@
                                     @if($versionLabel !== null)
                                         <span class="ct-version">
                                             <i class="ph-fill ph-git-branch"></i>
-                                            v{{ $versionLabel }}
+                                            {{ $service->versions->contains('status', 'draft') ? 'Edição pendente' : 'Atual' }}
                                         </span>
                                     @else
                                         <span class="ct-version empty">
                                             <i class="ph-fill ph-minus"></i>
-                                            Sem versão
+                                            Pendente
                                         </span>
                                     @endif
                                 </td>
@@ -1062,6 +1056,7 @@
 
                                 <td class="ct-open-cell">
                                     @include('services._catalog-remove')
+                                    @include('services._catalog-edit-action')
                                     @if($targetVersion)
                                         <a
                                             class="
@@ -1083,7 +1078,7 @@
                                             {{
                                                 $currentVersion
                                                     ? 'Configurar'
-                                                    : ($targetVersion->status === 'draft' ? 'Abrir rascunho' : 'Ver histórico')
+                                                    : ($targetVersion->status === 'draft' ? 'Ver configuração' : 'Ver histórico')
                                             }}
 
                                             <i class="ph-fill ph-arrow-right"></i>
@@ -1159,22 +1154,22 @@
 
                         <div class="ct-mobile-meta">
                             <span class="ct-mobile-fact">
-                                <small>Versão atual</small>
+                                <small>Configuração</small>
 
                                 <strong>
                                     {{
                                         $versionLabel !== null
-                                            ? 'v'.$versionLabel
-                                            : 'Sem versão'
+                                            ? 'Salva'
+                                            : 'Pendente'
                                     }}
                                 </strong>
                             </span>
 
                             <span class="ct-mobile-fact">
-                                <small>Versões</small>
+                                <small>Edição</small>
 
                                 <strong>
-                                    {{ $versionsCount }}
+                                    {{ $service->versions->contains('status', 'draft') ? 'Pendente' : 'Sem pendências' }}
                                 </strong>
                             </span>
 
@@ -1190,6 +1185,7 @@
                         @if($targetVersion)
                             <div class="ct-mobile-bottom">
                                 @include('services._catalog-remove')
+                                    @include('services._catalog-edit-action')
                                 <a
                                     class="
                                         ct-open
@@ -1210,7 +1206,7 @@
                                     {{
                                         $currentVersion
                                             ? 'Configurar serviço'
-                                            : ($targetVersion->status === 'draft' ? 'Abrir rascunho' : 'Ver histórico')
+                                            : ($targetVersion->status === 'draft' ? 'Ver configuração' : 'Ver histórico')
                                     }}
 
                                     <i class="ph-fill ph-arrow-right"></i>

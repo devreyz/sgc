@@ -28,6 +28,8 @@ class ServiceDocumentService
     public function generate(Model $subject, string $templateKey, string $title, array $variables, User $actor): GeneratedDocument
     {
         $tenantId = (int) ($subject instanceof Tenant ? $subject->id : $subject->tenant_id);
+        $organization = $subject instanceof Tenant ? $subject : Tenant::find($tenantId);
+        $variables += ['organization_name' => $organization?->legal_name ?: $organization?->name, 'organization_document' => $organization?->cnpj];
         $systemView = $templateKey === 'service_report' ? null : (self::PDF_VIEWS[$templateKey] ?? null);
         $resolver = app(SystemPdfConfigurationResolver::class);
         $template = $resolver->templateForKey($templateKey, $tenantId);

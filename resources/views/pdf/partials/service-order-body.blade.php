@@ -2,6 +2,9 @@
     $isOrder = $templateKey === 'service_order';
     $read = fn ($key) => filled($variables[$key] ?? null) ? $variables[$key] : '—';
 @endphp
+@if($isOrder)
+    @include('pdf.partials.service-order-copies')
+@else
 @if(in_array($isOrder ? 'order_info' : 'identity', $sections, true))
     <div class="info-box">
         <strong>{{ $read('order_number') }} · {{ $read('service_name') }}</strong>
@@ -55,4 +58,5 @@
 @endif
 @if($templateKey === 'service_internal_note')
     <p style="color:#64748b">Nota interna de serviço · Sem valor fiscal</p>
+@endif
 @endif

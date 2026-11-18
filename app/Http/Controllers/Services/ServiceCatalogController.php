@@ -78,6 +78,14 @@ class ServiceCatalogController extends Controller
         $this->allow($request, 'manage_service_catalog');
         $version = ServiceVersion::query()->where('tenant_id', $tenant->id)->whereKey($version)->with(['service.versions', 'fields', 'providerRates.provider'])->firstOrFail();
         $providers = ServiceProvider::query()->where('tenant_id', $tenant->id)->active()->orderBy('name')->get();
+        if ($version->status === 'draft' && $request->session()->hasOldInput('form_section')) {
+            $old = $request->session()->getOldInput();
+            $version->fill(\Illuminate\Support\Arr::only($old, ['unit', 'review_mode', 'customer_pricing_method', 'customer_rate', 'customer_percentage', 'provider_pricing_method', 'default_provider_rate', 'provider_percentage', 'execution_config', 'financial_config']));
+            $scope = $old['form_section'];
+            foreach (['allow_provider_create_order', 'members_only', 'receivable_enabled', 'payable_enabled'] as $flag) {
+                if ($scope === 'all' || ($scope === 'financial') === in_array($flag, ['receivable_enabled', 'payable_enabled'], true)) $version->{$flag} = (bool) ($old[$flag] ?? false);
+            }
+        }
 
         return view('services.catalog-show', compact('version', 'providers'));
     }
@@ -119,13 +127,53 @@ class ServiceCatalogController extends Controller
             ->with('success', $updated->is($source) ? 'Os preços já estão atualizados.' : 'Preços atualizados para os próximos lançamentos.');
     }
 
-    public function update(Request $request, Tenant $tenant, int $version): RedirectResponse
+    public function rename(Request $request, Tenant $tenant, int $service): RedirectResponse
+    {
+        $this->allow($request, 'manage_service_catalog');
+        $request->merge(['name' => trim((string) $request->input('name'))]);
+        $data = $request->validate(['name' => 'required|string|max:191', 'previous_name' => 'required|string|max:191']);
+        DB::transaction(function () use ($request, $tenant, $service, $data): void {
+            $record = Service::query()->where('tenant_id', $tenant->id)->whereKey($service)->lockForUpdate()->firstOrFail();
+            if ($record->name !== $data['previous_name']) {
+                throw ValidationException::withMessages(['name' => 'O nome foi alterado em outra tela. Atualize a página para conferir.']);
+            }
+            if ($record->name === $data['name']) return;
+            $record->update(['name' => $data['name']]);
+            activity('service_catalog')->performedOn($record)->causedBy($request->user())->withProperties([
+                'tenant_id' => $tenant->id, 'previous_name' => $data['previous_name'], 'name' => $data['name'],
+            ])->log('Nome global do serviço atualizado');
+        }, 3);
+        return back()->with('success', 'Nome atualizado em todas as versões e ordens deste serviço.');
+    }
+
+    public function edit(Request $request, Tenant $tenant, int $version, ServiceCatalogService $catalog): RedirectResponse
+    {
+        $this->allow($request, 'manage_service_catalog');
+        $source = ServiceVersion::query()->where('tenant_id', $tenant->id)->findOrFail($version);
+        $draft = DB::transaction(function () use ($source, $catalog): ServiceVersion {
+            $service = Service::query()->where('tenant_id', $source->tenant_id)->whereKey($source->service_id)->lockForUpdate()->firstOrFail();
+            $existing = $service->versions()->where('status', 'draft')->orderByDesc('version')->first();
+            if ($existing) return $existing;
+            $current = $service->versions()->whereKey($service->current_version_id ?? $source->id)->firstOrFail();
+            return $catalog->clone($current);
+        }, 3);
+        return redirect()->route('services.catalog.show', [$tenant, $draft])->with('success', 'Edição aberta. Ajuste os dados e clique em Salvar alterações. A configuração atual continua em uso até você salvar.');
+    }
+
+    public function update(Request $request, Tenant $tenant, int $version, ServiceCatalogService $catalog): RedirectResponse
     {
         $this->allow($request, 'manage_service_catalog');
         $version = ServiceVersion::query()->where('tenant_id', $tenant->id)->whereKey($version)->firstOrFail();
-        abort_unless($version->status === 'draft', 422, 'Duplique a versão publicada para alterá-la.');
+        abort_unless($version->status === 'draft', 422, 'Use Editar serviço para iniciar uma edição.');
+        if ($request->boolean('rules_present')) {
+            $request->merge(['financial_config' => array_replace((array) $request->input('financial_config', []), ['rules' => $request->input('financial_config.rules', [])])]);
+        }
         $data = $request->validate([
-            'unit' => 'required|string|max:30', 'review_mode' => 'required|in:automatic,manual',
+            'form_section' => 'nullable|in:operational,financial,all',
+            'intent' => 'nullable|in:save,apply',
+            'use_default_for_all' => 'sometimes|boolean',
+            'expected_updated_at' => 'nullable|string',
+            'unit' => 'sometimes|required|string|max:30', 'review_mode' => 'sometimes|required|in:automatic,manual',
             'allow_provider_create_order' => 'boolean', 'members_only' => 'boolean', 'receivable_enabled' => 'boolean', 'payable_enabled' => 'boolean',
             'customer_pricing_method' => 'nullable|in:fixed,quantity_x_rate,percent_of_base',
             'customer_rate' => 'nullable|numeric|min:0', 'customer_percentage' => 'nullable|numeric|min:0|max:100',
@@ -169,6 +217,7 @@ class ServiceCatalogController extends Controller
         ]);
         $data['execution_config'] = array_replace($version->execution_config ?? [], $data['execution_config'] ?? []);
         if (array_key_exists('financial_config', $data)) {
+            $data['financial_config'] = array_replace($version->financial_config ?? [], $data['financial_config'] ?? []);
             $data['financial_config']['rules'] = collect(data_get($data, 'financial_config.rules', []))->map(function (array $rule): array {
                 $rule['input_required'] = (bool) ($rule['input_required'] ?? false);
                 $rule['evidence_required'] = (bool) ($rule['evidence_required'] ?? false);
@@ -176,14 +225,25 @@ class ServiceCatalogController extends Controller
                 return $rule;
             })->values()->all();
         }
-        $version->update($data + [
-            'allow_provider_create_order' => $request->boolean('allow_provider_create_order'),
-            'members_only' => $request->boolean('members_only'),
-            'receivable_enabled' => $request->boolean('receivable_enabled'),
-            'payable_enabled' => $request->boolean('payable_enabled'),
-        ]);
+        $section = $data['form_section'] ?? ($request->has('unit') ? 'operational' : 'financial');
+        $booleans = $section === 'all' ? ['receivable_enabled', 'payable_enabled', 'allow_provider_create_order', 'members_only'] : ($section === 'financial' ? ['receivable_enabled', 'payable_enabled'] : ['allow_provider_create_order', 'members_only']);
+        foreach ($booleans as $key) $data[$key] = $request->boolean($key);
+        $allowed = $section === 'financial'
+            ? ['receivable_enabled', 'payable_enabled', 'customer_pricing_method', 'customer_rate', 'customer_percentage', 'provider_pricing_method', 'default_provider_rate', 'provider_percentage', 'financial_config', 'execution_config']
+            : ['unit', 'review_mode', 'allow_provider_create_order', 'members_only', 'execution_config'];
+        if ($section === 'all') $allowed = array_merge($allowed, ['receivable_enabled', 'payable_enabled', 'customer_pricing_method', 'customer_rate', 'customer_percentage', 'provider_pricing_method', 'default_provider_rate', 'provider_percentage', 'financial_config']);
+        DB::transaction(function () use ($version, $data, $allowed, $request, $catalog): void {
+            Service::query()->where('tenant_id', $version->tenant_id)->whereKey($version->service_id)->lockForUpdate()->firstOrFail();
+            $locked = ServiceVersion::query()->where('tenant_id', $version->tenant_id)->whereKey($version->id)->lockForUpdate()->firstOrFail();
+            if ($locked->status !== 'draft' || ($request->filled('expected_updated_at') && $locked->updated_at->toISOString() !== $request->input('expected_updated_at'))) {
+                throw ValidationException::withMessages(['version' => 'A configuração mudou. Atualize a página antes de salvar.']);
+            }
+            $locked->update(\Illuminate\Support\Arr::only($data, $allowed));
+            if ($request->boolean('use_default_for_all')) $locked->providerRates()->update(['active' => false]);
+            if ($request->input('intent') === 'apply') $catalog->publish($locked, $request->user());
+        }, 3);
 
-        return back()->with('success', 'Configuração do rascunho atualizada.');
+        return back()->with('success', $request->input('intent') === 'apply' ? 'Configuração atualizada para os próximos lançamentos.' : 'Alterações salvas na edição do serviço.');
     }
 
     public function field(Request $request, Tenant $tenant, int $version): RedirectResponse
@@ -289,7 +349,7 @@ class ServiceCatalogController extends Controller
         $version = ServiceVersion::query()->where('tenant_id', $tenant->id)->whereKey($version)->firstOrFail();
         $catalog->publish($version, $request->user());
 
-        return back()->with('success', 'Versão publicada.');
+        return back()->with('success', 'Alterações aplicadas aos próximos lançamentos.');
     }
 
     public function clone(Request $request, Tenant $tenant, int $version, ServiceCatalogService $catalog): RedirectResponse
