@@ -15,7 +15,7 @@
                 <input type="hidden" name="row_order" value="{{ $order->id }}">
                 <input type="hidden" name="lock_version" value="{{ $retry ? old('lock_version', $execution->lock_version) : $execution->lock_version }}">
                 <input type="hidden" name="operation_key" value="{{ \Illuminate\Support\Str::uuid() }}">
-                <h3 id="execution-title-{{ $order->id }}"><i class="ph ph-pencil-simple" aria-hidden="true"></i> Execução · {{ $order->number }}</h3>
+                <h3 id="execution-title-{{ $order->id }}"><i class="ph-duotone ph-pencil-simple" aria-hidden="true"></i> Execução · {{ $order->number }}</h3>
                 @if($retry)
                     <ul class="cm-dialog-errors" role="alert">
                         @foreach($errors->all() as $error)
@@ -77,7 +77,7 @@
                     @csrf
                     <input type="hidden" name="row_payment" value="{{ $obligation->id }}">
                     <input type="hidden" name="operation_key" value="{{ $retryPayment ? old('operation_key') : \Illuminate\Support\Str::uuid() }}">
-                    <h3 id="payment-title-{{ $obligation->id }}"><i class="ph ph-wallet" aria-hidden="true"></i> {{ $obligation->direction === 'payable' ? 'Pagar prestador' : 'Registrar recebimento' }} · {{ $obligation->number }} · Saldo R$ {{ number_format($obligation->balance, 2, ',', '.') }}</h3>
+                    <h3 id="payment-title-{{ $obligation->id }}"><i class="ph-duotone ph-wallet" aria-hidden="true"></i> {{ $obligation->direction === 'payable' ? 'Pagar prestador' : 'Registrar recebimento' }} · {{ $obligation->number }} · Saldo R$ {{ number_format($obligation->balance, 2, ',', '.') }}</h3>
                     @if($retryPayment)
                         <ul class="cm-dialog-errors" role="alert">
                             @foreach($errors->all() as $error)

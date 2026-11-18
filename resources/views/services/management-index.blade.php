@@ -235,7 +235,11 @@
     line-height: 1; text-decoration: none; cursor: pointer;
     transition: background-color .16s, border-color .16s, color .16s, transform .16s;
 }
-.cm-icon-action > i { display: grid; place-items: center; inline-size: 20px; block-size: 20px; font-size: 20px; line-height: 1; }
+.cm-icon-action > i { position: relative; display: inline-block; inline-size: 20px; block-size: 20px; font-size: 20px; font-style: normal; font-weight: 400; line-height: 1; }
+.cm-page :is(.cm-btn, .cm-plus, .cm-search-icon, .cm-filter-icon, .cm-list-mark, .cm-empty-icon) > i { position: relative; display: inline-block; flex: none; inline-size: 20px; block-size: 20px; font-size: 20px; font-style: normal; font-weight: 400; line-height: 1; }
+.cm-page .cm-plus > i, .cm-page .cm-filter-icon > i { inline-size: 16px; block-size: 16px; font-size: 16px; }
+.cm-period summary > i { font-size: 16px; transition: transform .15s; }
+.cm-period[open] summary > i { transform: rotate(180deg); }
 .cm-icon-action > span { display: none; }
 .cm-order .cm-icon-primary { color: var(--cm-brand); background: var(--cm-panel-alt); }
 .cm-order .cm-icon-danger { color: var(--cm-danger-fg); }
@@ -289,7 +293,8 @@
 .cm-list[data-order-view="cards"] .cm-table tbody > tr.cm-order .cm-col-actions { grid-column: 1 / -1; padding-top: .6rem !important; border-top: 1px solid var(--cm-line-soft) !important; }
 .cm-list[data-order-view="cards"] .cm-order-actions { justify-content: flex-start; gap: .35rem; padding: .3rem; background: var(--cm-panel-alt); border-radius: 12px; }
 .cm-list[data-order-view="cards"] .cm-order .cm-icon-action { inline-size: 56px; block-size: 50px; padding-inline: .2rem; align-content: center; gap: .22rem; }
-.cm-list[data-order-view="cards"] .cm-icon-action > span { display: block; font-size: .625rem; line-height: 1; font-weight: 700; white-space: nowrap; }
+.cm-list[data-order-view="cards"] .cm-icon-action > i { inline-size: 22px; block-size: 22px; font-size: 22px; }
+.cm-list[data-order-view="cards"] .cm-icon-action > span { display: block; font-family: var(--ui-font-sans, Inter, ui-sans-serif, system-ui, sans-serif); font-size: .625rem; line-height: 1.15; font-weight: 600; white-space: nowrap; }
 .cm-list[data-order-view="cards"] .cm-table tbody > tr.cm-order > .cm-col-actions { border-top: 1px solid var(--cm-line) !important; margin-top: .25rem; }
 .cm-list[data-order-view="cards"] .cm-mobile-label { display: block; margin-bottom: .22rem; color: var(--cm-subtle); font-size: .65rem; font-weight: 730; }
 .cm-list[data-order-view="cards"] .cm-number .cm-mobile-label { display: block; }
@@ -389,7 +394,7 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
             @endif
             @if($canCreate)
                 <a class="cm-btn cm-btn-primary" href="{{ route('services.management.create', $tenant->slug) }}">
-                    <span class="cm-plus" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+                    <span class="cm-plus" aria-hidden="true"><i class="ph-duotone ph-plus"></i></span>
                     Lançar serviço
                 </a>
             @endif
@@ -410,7 +415,7 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
         <label class="cm-field cm-search-field">
             <span class="cm-field-label">Buscar ordem ou pessoa</span>
             <span class="cm-control">
-                <span class="cm-search-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="7.2"/><path d="m16.2 16.2 4.3 4.3"/></svg></span>
+                <span class="cm-search-icon" aria-hidden="true"><i class="ph-duotone ph-magnifying-glass"></i></span>
                 <input type="search" name="q" value="{{ request('q') }}" placeholder="Beneficiário, serviço, número ou prestador" autocomplete="off">
             </span>
         </label>
@@ -423,7 +428,7 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                         <option value="{{ $key }}" @selected(request('status') === $key)>{{ $label }}</option>
                     @endforeach
                 </select>
-                <span class="cm-filter-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
+                <span class="cm-filter-icon" aria-hidden="true"><i class="ph-duotone ph-caret-down"></i></span>
             </span>
         </label>
         <div class="cm-filter-actions">
@@ -435,7 +440,7 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
         <details class="cm-period" @if($hasPeriodFilter) open @endif>
             <summary>
                 Filtrar por período
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                <i class="ph ph-caret-down" aria-hidden="true"></i>
                 @if($hasPeriodFilter)<span class="cm-period-note">Período aplicado</span>@endif
             </summary>
             <div class="cm-period-fields">
@@ -456,7 +461,7 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
     <section class="cm-list" data-order-list="management" data-compact-query="(max-width: 900px)" aria-labelledby="cm-history-title">
         <header class="cm-list-head">
             <div class="cm-list-head-title">
-                <span class="cm-list-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" stroke-linecap="round"/></svg></span>
+                <span class="cm-list-mark" aria-hidden="true"><i class="ph-duotone ph-list-checks"></i></span>
                 <div><h2 id="cm-history-title">Histórico de ordens</h2><p>Beneficiários e acompanhamento operacional</p></div>
             </div>
             @if($orders->count()) @include('services._order-view-switch') @endif
@@ -543,36 +548,36 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                             @endif
                             <td class="cm-col-actions">
                                 <div class="cm-order-actions" role="group" aria-label="Ações da ordem {{ $order->number }}">
-                                    <a class="cm-icon-action cm-icon-primary" href="{{ $orderUrl }}" aria-label="Abrir ordem" title="Abrir ordem"><i class="ph ph-eye" aria-hidden="true"></i><span aria-hidden="true">Abrir</span></a>
+                                    <a class="cm-icon-action cm-icon-primary" href="{{ $orderUrl }}" aria-label="Abrir ordem" title="Abrir ordem"><i class="ph-duotone ph-eye" aria-hidden="true"></i><span aria-hidden="true">Abrir</span></a>
                                     @if($canEditOrder)
-                                        <button class="cm-icon-action" type="button" data-order-dialog="details-{{ $order->id }}" aria-controls="details-{{ $order->id }}" aria-label="Editar detalhes da ordem" title="Editar detalhes"><i class="ph ph-pencil-simple" aria-hidden="true"></i><span aria-hidden="true">Editar</span></button>
+                                        <button class="cm-icon-action" type="button" data-order-dialog="details-{{ $order->id }}" aria-controls="details-{{ $order->id }}" aria-label="Editar detalhes da ordem" title="Editar detalhes"><i class="ph-duotone ph-note-pencil" aria-hidden="true"></i><span aria-hidden="true">Editar</span></button>
                                     @endif
                                     @if($canEditExecution)
-                                        <button class="cm-icon-action" type="button" data-order-dialog="execution-{{ $order->id }}" aria-controls="execution-{{ $order->id }}" aria-label="Editar execução" title="Editar execução"><i class="ph ph-timer" aria-hidden="true"></i><span aria-hidden="true">Execução</span></button>
+                                        <button class="cm-icon-action" type="button" data-order-dialog="execution-{{ $order->id }}" aria-controls="execution-{{ $order->id }}" aria-label="Editar execução" title="Editar execução"><i class="ph-duotone ph-gauge" aria-hidden="true"></i><span aria-hidden="true">Execução</span></button>
                                     @endif
                                     @if($canValidateOrder)
-                                        <button class="cm-icon-action" type="button" data-order-dialog="approve-{{ $order->id }}" aria-controls="approve-{{ $order->id }}" aria-label="Validar execução" title="Validar execução"><i class="ph ph-check-circle" aria-hidden="true"></i><span aria-hidden="true">Validar</span></button>
+                                        <button class="cm-icon-action" type="button" data-order-dialog="approve-{{ $order->id }}" aria-controls="approve-{{ $order->id }}" aria-label="Validar execução" title="Validar execução"><i class="ph-duotone ph-seal-check" aria-hidden="true"></i><span aria-hidden="true">Validar</span></button>
                                     @endif
                                     @if($accounts->isNotEmpty() && $order->execution?->isFrozen())
                                         @foreach($order->execution->obligations as $obligation)
                                             @continue(!in_array($obligation->status, ['open', 'partially_paid'], true) || !auth()->user()->checkPermissionTo($obligation->direction === 'payable' ? 'manage_service_payables' : 'manage_service_receivables'))
                                             @if($negotiated->contains($obligation->id))
                                                 @if($canManageAgreements)
-                                                    <a class="cm-icon-action" href="{{ route('services.management.agreements', $tenant->slug) }}" aria-label="Ver parcelas" title="Ver parcelas"><i class="ph ph-handshake" aria-hidden="true"></i><span aria-hidden="true">Parcelas</span></a>
+                                                    <a class="cm-icon-action" href="{{ route('services.management.agreements', $tenant->slug) }}" aria-label="Ver parcelas" title="Ver parcelas"><i class="ph-duotone ph-handshake" aria-hidden="true"></i><span aria-hidden="true">Parcelas</span></a>
                                                 @endif
                                                 @continue
                                             @endif
                                             @php
                                                 $paymentLabel = $obligation->direction === 'payable' ? 'Pagar prestador' : 'Registrar recebimento';
                                             @endphp
-                                            <button class="cm-icon-action" type="button" data-order-dialog="payment-{{ $obligation->id }}" aria-controls="payment-{{ $obligation->id }}" aria-label="{{ $paymentLabel }}" title="{{ $paymentLabel }}"><i class="ph {{ $obligation->direction === 'payable' ? 'ph-wallet' : 'ph-hand-coins' }}" aria-hidden="true"></i><span aria-hidden="true">{{ $obligation->direction === 'payable' ? 'Pagar' : 'Receber' }}</span></button>
+                                            <button class="cm-icon-action" type="button" data-order-dialog="payment-{{ $obligation->id }}" aria-controls="payment-{{ $obligation->id }}" aria-label="{{ $paymentLabel }}" title="{{ $paymentLabel }}"><i class="ph-duotone {{ $obligation->direction === 'payable' ? 'ph-wallet' : 'ph-hand-coins' }}" aria-hidden="true"></i><span aria-hidden="true">{{ $obligation->direction === 'payable' ? 'Pagar' : 'Receber' }}</span></button>
                                         @endforeach
                                     @endif
                                     @if($canExpense)
-                                        <a class="cm-icon-action" href="{{ route('services.management.expenses', ['tenant' => $tenant->slug, 'order' => $order->id]) }}" aria-label="Despesas da ordem" title="Despesas da ordem"><i class="ph ph-receipt" aria-hidden="true"></i><span aria-hidden="true">Despesas</span></a>
+                                        <a class="cm-icon-action" href="{{ route('services.management.expenses', ['tenant' => $tenant->slug, 'order' => $order->id]) }}" aria-label="Despesas da ordem" title="Despesas da ordem"><i class="ph-duotone ph-receipt" aria-hidden="true"></i><span aria-hidden="true">Despesas</span></a>
                                     @endif
                                     @if($canRemoveOrder)
-                                        <button class="cm-icon-action cm-icon-danger" type="button" data-remove-url="{{ route('services.management.remove', [$tenant->slug, $order]) }}" data-order="{{ $order->number }}" data-order-id="{{ $order->id }}" data-can-delete="{{ in_array($order->execution->status, ['draft', 'submitted'], true) ? '1' : '0' }}" aria-haspopup="dialog" aria-label="Anular ou excluir ordem" title="Anular ou excluir ordem"><i class="ph ph-prohibit" aria-hidden="true"></i><span aria-hidden="true">Anular</span></button>
+                                        <button class="cm-icon-action cm-icon-danger" type="button" data-remove-url="{{ route('services.management.remove', [$tenant->slug, $order]) }}" data-order="{{ $order->number }}" data-order-id="{{ $order->id }}" data-can-delete="{{ in_array($order->execution->status, ['draft', 'submitted'], true) ? '1' : '0' }}" aria-haspopup="dialog" aria-label="Anular ou excluir ordem" title="Anular ou excluir ordem"><i class="ph-duotone ph-prohibit" aria-hidden="true"></i><span aria-hidden="true">Anular</span></button>
                                     @endif
                                 </div>
                             </td>
@@ -581,7 +586,7 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                     @empty
                         <tr>
                             <td colspan="{{ $columnCount }}" class="cm-empty">
-                                <span class="cm-empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 9h6M9 13h6M9 17h4"/></svg></span>
+                                <span class="cm-empty-icon" aria-hidden="true"><i class="ph-duotone ph-clipboard-text"></i></span>
                                 <strong>Nenhuma ordem encontrada</strong>
                                 <p>{{ $hasFilters ? 'Experimente ajustar ou limpar os filtros.' : 'As ordens registradas aparecerão aqui.' }}</p>
                                 @if($hasFilters)
