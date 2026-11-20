@@ -391,6 +391,29 @@
 .info-dialog .dialog-body {max-height:min(60dvh,440px);overflow-y:auto;padding:17px;color:var(--dia-secondary);font-size:14px;line-height:1.65;white-space:pre-wrap}
 .info-dialog .dialog-foot {display:flex;justify-content:flex-end;padding:11px 13px;border-top:1px solid var(--dia-border);background:var(--dia-soft)}
 .info-dialog .dialog-foot .btn {min-height:40px;padding:9px 15px;border:1px solid var(--dia-border);border-radius:9px;background:var(--dia-surface);color:var(--dia-text);cursor:pointer;font:inherit;font-size:13px;font-weight:750}
+.project-workspace .receipts-table .action-col .btn,
+.info-dialog .dialog-foot .btn {
+    min-height:44px;
+    background:var(--sgc-accent);
+    border-color:var(--sgc-accent);
+    color:var(--sgc-on-accent);
+}
+.project-workspace .receipts-table .action-col .btn:hover,
+.info-dialog .dialog-foot .btn:hover { background:var(--sgc-accent-hover); }
+@media(max-width:640px) {
+    .info-dialog { width:100%;height:100%;padding:0;overflow:hidden; }
+    .info-dialog[open] { place-items:end stretch; }
+    .info-dialog .dialog-panel {
+        display:grid;
+        width:100%;
+        max-height:100%;
+        grid-template-rows:auto minmax(0,1fr) auto;
+        border-radius:1rem 1rem 0 0;
+    }
+    .info-dialog .dialog-body { min-height:0;max-height:none;overscroll-behavior:contain; }
+    .info-dialog .dialog-foot { padding-bottom:calc(11px + env(safe-area-inset-bottom)); }
+}
+
 
 /* Mobile: todos os campos continuam visíveis e legíveis */
 @media(max-width:1200px) {

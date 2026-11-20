@@ -89,42 +89,44 @@
 
 <style>
     .expenses-page,
-    .expense-dialog {
-        --ex-green: var(--ws-green, #219653);
-        --ex-green-soft: #edf8f2;
-        --ex-green-border: #cce8d7;
+    .expense-dialog,
+    .expense-picker-dialog,
+    .expense-date-dialog {
+        --ex-green: var(--ui-color-success-strong);
+        --ex-green-soft: var(--ui-color-success-soft);
+        --ex-green-border: var(--ui-color-success-border);
 
-        --ex-blue: var(--ws-blue, #3478d4);
-        --ex-blue-soft: #edf4ff;
-        --ex-blue-border: #cfe0f7;
+        --ex-blue: var(--ui-color-info-strong);
+        --ex-blue-soft: var(--ui-color-info-soft);
+        --ex-blue-border: var(--ui-color-info-border);
 
-        --ex-violet: var(--ws-purple, #8a4bd2);
-        --ex-violet-soft: #f5efff;
-        --ex-violet-border: #e1d2f4;
+        --ex-violet: var(--ui-color-violet-strong);
+        --ex-violet-soft: var(--ui-color-violet-soft);
+        --ex-violet-border: var(--ui-color-violet-border);
 
-        --ex-amber: var(--ws-amber, #c38418);
-        --ex-amber-soft: #fff7e8;
-        --ex-amber-border: #f0dcae;
+        --ex-amber: var(--ui-color-warning-strong);
+        --ex-amber-soft: var(--ui-color-warning-soft);
+        --ex-amber-border: var(--ui-color-warning-border);
 
-        --ex-red: var(--ws-red, #cf5050);
-        --ex-red-soft: #fff0f0;
-        --ex-red-border: #efcaca;
+        --ex-red: var(--ui-color-danger-strong);
+        --ex-red-soft: var(--ui-color-danger-soft);
+        --ex-red-border: var(--ui-color-danger-border);
 
-        --ex-cyan: #168eae;
-        --ex-cyan-soft: #ecf8fb;
-        --ex-cyan-border: #cae8ef;
+        --ex-cyan: var(--ui-color-cyan-strong);
+        --ex-cyan-soft: var(--ui-color-cyan-soft);
+        --ex-cyan-border: var(--ui-color-cyan-border);
 
-        --ex-text: #17211d;
-        --ex-text-2: #59655f;
-        --ex-muted: #89938e;
-        --ex-border: #dde5e0;
-        --ex-soft: #f7faf8;
+        --ex-text: var(--ui-color-text);
+        --ex-text-2: var(--ui-color-text-secondary);
+        --ex-muted: var(--ui-color-text-muted);
+        --ex-border: var(--ui-color-border);
+        --ex-soft: var(--ui-color-surface-soft);
     }
 
     .expenses-page {
         display: grid;
         grid-column: 1 / -1;
-        width: min(100%, 1180px);
+        width: 100%;
         min-width: 0;
         gap: .72rem;
         margin-inline: auto;
@@ -157,7 +159,7 @@
         padding: .76rem .84rem;
         border: 1px solid var(--ex-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .expenses-head-main {
@@ -186,8 +188,8 @@
     .expenses-head-copy small {
         display: block;
         color: var(--ex-muted);
-        font-size: .61rem;
-        font-weight: 750;
+        font-size: .75rem;
+        font-weight: 700;
         letter-spacing: .025em;
         text-transform: uppercase;
     }
@@ -196,32 +198,32 @@
         margin: .06rem 0 0;
         color: var(--ex-text);
         font-size: clamp(1.02rem, 2vw, 1.22rem);
-        font-weight: 860;
+        font-weight: 700;
         line-height: 1.15;
     }
 
     .expenses-head-copy p {
         margin: .12rem 0 0;
         color: var(--ex-muted);
-        font-size: .67rem;
+        font-size: .75rem;
         line-height: 1.35;
     }
 
     .expense-new {
         display: inline-flex;
-        min-height: 40px;
+        min-height: 44px;
         gap: .32rem;
         align-items: center;
         justify-content: center;
         padding: .44rem .68rem;
-        border: 1px solid var(--ex-green);
+        border: 1px solid var(--sgc-accent);
         border-radius: 8px;
-        background: var(--ex-green);
-        color: #fff;
+        background: var(--sgc-accent);
+        color: var(--sgc-on-accent);
         cursor: pointer;
         font: inherit;
-        font-size: .7rem;
-        font-weight: 810;
+        font-size: .75rem;
+        font-weight: 700;
         white-space: nowrap;
     }
 
@@ -251,7 +253,7 @@
         height: 34px;
         place-items: center;
         border-radius: 8px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--ex-red);
         font-size: .86rem;
     }
@@ -260,14 +262,14 @@
         display: block;
         color: var(--ex-red);
         font-size: .76rem;
-        font-weight: 820;
+        font-weight: 700;
     }
 
     .expense-errors ul {
         margin: .2rem 0 0;
         padding-left: 1rem;
         color: var(--ex-text-2);
-        font-size: .68rem;
+        font-size: .75rem;
         line-height: 1.45;
     }
 
@@ -280,7 +282,7 @@
         overflow: hidden;
         border: 1px solid var(--ex-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .expenses-list-head {
@@ -315,8 +317,8 @@
 
     .expenses-list-title strong {
         color: var(--ex-text);
-        font-size: .72rem;
-        font-weight: 820;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .expenses-total {
@@ -327,8 +329,8 @@
         border-radius: 7px;
         background: var(--ex-soft);
         color: var(--ex-muted);
-        font-size: .58rem;
-        font-weight: 720;
+        font-size: .75rem;
+        font-weight: 700;
         white-space: nowrap;
     }
 
@@ -353,8 +355,8 @@
         border-bottom: 1px solid var(--ex-border);
         background: var(--ex-soft);
         color: var(--ex-muted);
-        font-size: .53rem;
-        font-weight: 790;
+        font-size: .75rem;
+        font-weight: 700;
         letter-spacing: .03em;
         text-align: left;
         text-transform: uppercase;
@@ -386,7 +388,7 @@
         padding: .56rem .58rem;
         border-bottom: 1px solid var(--ex-border);
         color: var(--ex-text-2);
-        font-size: .66rem;
+        font-size: .75rem;
         vertical-align: middle;
     }
 
@@ -396,7 +398,7 @@
 
     @media (hover: hover) and (pointer: fine) {
         .expenses-table tbody tr:hover td {
-            background: #fbfdfc;
+            background: var(--ui-color-surface-raised);
         }
     }
 
@@ -415,13 +417,13 @@
         border-radius: 7px;
         background: var(--ex-blue-soft);
         color: var(--ex-blue);
-        font-size: .68rem;
+        font-size: .75rem;
     }
 
     .expense-date strong {
         color: var(--ex-text);
-        font-size: .64rem;
-        font-weight: 770;
+        font-size: .75rem;
+        font-weight: 700;
         font-variant-numeric: tabular-nums;
         white-space: nowrap;
     }
@@ -441,14 +443,14 @@
 
     .expense-main strong {
         color: var(--ex-text);
-        font-size: .69rem;
-        font-weight: 790;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .expense-main small {
         margin-top: .05rem;
         color: var(--ex-muted);
-        font-size: .56rem;
+        font-size: .75rem;
     }
 
     .expense-origin {
@@ -467,7 +469,7 @@
         border-radius: 7px;
         background: var(--ex-violet-soft);
         color: var(--ex-violet);
-        font-size: .68rem;
+        font-size: .75rem;
     }
 
     .expense-origin-copy {
@@ -485,14 +487,14 @@
 
     .expense-origin-copy small {
         color: var(--ex-muted);
-        font-size: .5rem;
+        font-size: .75rem;
     }
 
     .expense-origin-copy strong {
         margin-top: .02rem;
         color: var(--ex-text);
-        font-size: .62rem;
-        font-weight: 760;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .expense-values {
@@ -512,13 +514,13 @@
 
     .expense-value-line small {
         color: var(--ex-muted);
-        font-size: .52rem;
+        font-size: .75rem;
     }
 
     .expense-value-line strong {
         color: var(--ex-text);
-        font-size: .64rem;
-        font-weight: 790;
+        font-size: .75rem;
+        font-weight: 700;
         font-variant-numeric: tabular-nums;
     }
 
@@ -541,8 +543,8 @@
         border-radius: 7px;
         background: var(--soft);
         color: var(--tone);
-        font-size: .57rem;
-        font-weight: 800;
+        font-size: .75rem;
+        font-weight: 700;
         white-space: nowrap;
     }
 
@@ -597,13 +599,13 @@
     .expenses-empty strong {
         color: var(--ex-text);
         font-size: .78rem;
-        font-weight: 830;
+        font-weight: 700;
     }
 
     .expenses-empty p {
         margin: 0;
         color: var(--ex-muted);
-        font-size: .66rem;
+        font-size: .75rem;
         line-height: 1.45;
     }
 
@@ -673,14 +675,14 @@
 
         .expenses-mobile-main strong {
             color: var(--ex-text);
-            font-size: .72rem;
-            font-weight: 800;
+            font-size: .75rem;
+            font-weight: 700;
         }
 
         .expenses-mobile-main small {
             margin-top: .05rem;
             color: var(--ex-muted);
-            font-size: .57rem;
+            font-size: .75rem;
         }
 
         .expenses-mobile-meta {
@@ -695,20 +697,20 @@
             gap: .26rem;
             align-items: center;
             color: var(--ex-text-2);
-            font-size: .6rem;
+            font-size: .75rem;
         }
 
         .expenses-mobile-fact i {
             flex: 0 0 auto;
             color: var(--ex-muted);
-            font-size: .68rem;
+            font-size: .75rem;
         }
 
         .expenses-mobile-fact strong {
             min-width: 0;
             overflow: hidden;
             color: var(--ex-text);
-            font-weight: 760;
+            font-weight: 700;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
@@ -728,13 +730,13 @@
 
         .expenses-mobile-values small {
             color: var(--ex-muted);
-            font-size: .5rem;
+            font-size: .75rem;
         }
 
         .expenses-mobile-values strong {
             color: var(--ex-text);
-            font-size: .65rem;
-            font-weight: 790;
+            font-size: .75rem;
+            font-weight: 700;
             font-variant-numeric: tabular-nums;
         }
 
@@ -756,12 +758,12 @@
         overflow: hidden;
         border: 0;
         border-radius: 14px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--ex-text);
     }
 
     .expense-dialog::backdrop {
-        background: rgba(12, 24, 16, .58);
+        background: var(--ui-color-overlay);
     }
 
     .expense-dialog-layout {
@@ -809,15 +811,15 @@
 
     .expense-dialog-head-copy small {
         color: var(--ex-muted);
-        font-size: .59rem;
-        font-weight: 720;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .expense-dialog-head-copy strong {
         margin-top: .03rem;
         color: var(--ex-text);
         font-size: .86rem;
-        font-weight: 830;
+        font-weight: 700;
     }
 
     .expense-dialog-close {
@@ -871,8 +873,8 @@
 
     .expense-section-head strong {
         color: var(--ex-text);
-        font-size: .74rem;
-        font-weight: 810;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .expense-fields {
@@ -894,16 +896,16 @@
     .expense-attachment-input {
         width: 100%;
         padding: .72rem;
-        border: 1px dashed #b9c8bf;
+        border: 1px dashed var(--ui-color-border-strong);
         border-radius: 10px;
         background: #f7faf8;
         color: var(--ex-text);
-        font-size: .72rem;
+        font-size: .75rem;
     }
 
     .expense-attachment-help {
         color: var(--ex-muted);
-        font-size: .64rem;
+        font-size: .75rem;
         line-height: 1.45;
     }
 
@@ -921,9 +923,9 @@
         min-height: 62px;
         place-items: center;
         overflow: hidden;
-        border: 1px solid #dce6e0;
+        border: 1px solid var(--ui-color-border);
         border-radius: 9px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--ex-muted);
         text-decoration: none;
     }
@@ -944,7 +946,7 @@
         width: 100%;
         padding: .2rem;
         overflow: hidden;
-        font-size: .55rem;
+        font-size: .75rem;
         text-align: center;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -954,11 +956,11 @@
         display: grid;
         gap: .3rem;
         padding: .7rem .8rem;
-        border: 1px solid #fecaca;
+        border: 1px solid var(--ui-color-danger-border);
         border-radius: 9px;
-        background: #fff1f2;
-        color: #991b1b;
-        font-size: .7rem;
+        background: var(--ui-color-danger-soft);
+        color: var(--ui-color-danger-strong);
+        font-size: .75rem;
     }
 
     .expense-label {
@@ -966,18 +968,18 @@
         gap: .27rem;
         align-items: center;
         color: var(--ex-text);
-        font-size: .73rem;
-        font-weight: 750;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .expense-label i {
         color: var(--ex-muted);
-        font-size: .74rem;
+        font-size: .75rem;
     }
 
     .expense-label .optional {
         color: var(--ex-muted);
-        font-size: .6rem;
+        font-size: .75rem;
         font-weight: 650;
     }
 
@@ -991,18 +993,18 @@
         padding: .28rem .38rem .28rem .3rem;
         border: 1px solid transparent;
         border-radius: 9px;
-        background: #f3f6f4;
+        background: var(--ui-color-surface-soft);
     }
 
     .expense-input:focus-within {
         border-color: var(--ex-blue);
-        background: #fff;
+        background: var(--ui-color-surface);
         box-shadow: 0 0 0 3px var(--ex-blue-soft);
     }
 
     .expense-input.filled {
-        border-color: #e2e8e4;
-        background: #fff;
+        border-color: var(--ui-color-border);
+        background: var(--ui-color-surface);
     }
 
     .expense-input-icon {
@@ -1030,7 +1032,7 @@
     .expense-input textarea {
         width: 100%;
         min-width: 0;
-        min-height: 38px;
+        min-height: 44px;
         padding: .44rem .48rem;
         border: 0;
         outline: 0;
@@ -1076,7 +1078,7 @@
         padding: .3rem .4rem .3rem .3rem;
         border: 1px solid transparent;
         border-radius: 9px;
-        background: #f3f6f4;
+        background: var(--ui-color-surface-soft);
         color: var(--ex-text);
         cursor: pointer;
         font: inherit;
@@ -1100,8 +1102,8 @@
 
     .expense-select-trigger.filled,
     .expense-date-trigger.filled {
-        border-color: #e2e8e4;
-        background: #fff;
+        border-color: var(--ui-color-border);
+        background: var(--ui-color-surface);
     }
 
     .expense-select-trigger.invalid,
@@ -1137,7 +1139,7 @@
     .expense-trigger-value {
         color: var(--ex-text);
         font-size: .77rem;
-        font-weight: 740;
+        font-weight: 700;
     }
 
     .expense-trigger-value.placeholder {
@@ -1148,7 +1150,7 @@
     .expense-trigger-meta {
         margin-top: .03rem;
         color: var(--ex-muted);
-        font-size: .61rem;
+        font-size: .75rem;
     }
 
     .expense-trigger-caret {
@@ -1157,7 +1159,7 @@
         height: 26px;
         place-items: center;
         color: var(--ex-muted);
-        font-size: .7rem;
+        font-size: .75rem;
     }
 
     .expense-field-error {
@@ -1165,8 +1167,8 @@
         gap: .22rem;
         align-items: center;
         color: var(--ex-red);
-        font-size: .63rem;
-        font-weight: 720;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     /* Optional block */
@@ -1174,7 +1176,7 @@
         overflow: hidden;
         border: 1px solid var(--ex-border);
         border-radius: 9px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .expense-optional summary {
@@ -1185,8 +1187,8 @@
         padding: .5rem .6rem;
         color: var(--ex-text-2);
         cursor: pointer;
-        font-size: .7rem;
-        font-weight: 760;
+        font-size: .75rem;
+        font-weight: 700;
         list-style: none;
     }
 
@@ -1222,34 +1224,38 @@
         justify-content: flex-end;
         padding: .62rem .72rem;
         border-top: 1px solid var(--ex-border);
-        background: #fbfdfc;
+        background: var(--ui-color-surface-raised);
     }
 
     .expense-cancel,
     .expense-submit {
         display: inline-flex;
-        min-height: 39px;
-        gap: .28rem;
+        min-height: 44px;
+        gap: .375rem;
         align-items: center;
         justify-content: center;
-        padding: .4rem .62rem;
-        border-radius: 8px;
+        padding: .5rem .75rem;
+        border-radius: .625rem;
         cursor: pointer;
         font: inherit;
-        font-size: .71rem;
-        font-weight: 780;
+        font-size: .875rem;
+        font-weight: 700;
     }
 
     .expense-cancel {
         border: 1px solid var(--ex-border);
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--ex-text-2);
     }
 
     .expense-submit {
-        border: 1px solid var(--ex-green);
-        background: var(--ex-green);
-        color: #fff;
+        border: 1px solid var(--sgc-accent);
+        background: var(--sgc-accent);
+        color: var(--sgc-on-accent);
+    }
+
+    .expense-submit:hover:not(:disabled), .expense-new:hover {
+        background: var(--sgc-accent-hover);
     }
 
     .expense-submit[disabled] {
@@ -1281,34 +1287,15 @@
         overflow: hidden;
         border: 0;
         border-radius: 14px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--ex-text);
     }
 
     .expense-picker-dialog::backdrop,
     .expense-date-dialog::backdrop {
-        background: rgba(12, 24, 16, .58);
+        background: var(--ui-color-overlay);
     }
 
-    .expense-picker-dialog,
-    .expense-date-dialog {
-        --ex-green: var(--ws-green, #219653);
-        --ex-green-soft: #edf8f2;
-        --ex-green-border: #cce8d7;
-        --ex-blue: var(--ws-blue, #3478d4);
-        --ex-blue-soft: #edf4ff;
-        --ex-blue-border: #cfe0f7;
-        --ex-violet: var(--ws-purple, #8a4bd2);
-        --ex-violet-soft: #f5efff;
-        --ex-amber: var(--ws-amber, #c38418);
-        --ex-amber-soft: #fff7e8;
-        --ex-amber-border: #f0dcae;
-        --ex-text: #17211d;
-        --ex-text-2: #59655f;
-        --ex-muted: #89938e;
-        --ex-border: #dde5e0;
-        --ex-soft: #f7faf8;
-    }
 
     .expense-picker-layout {
         display: grid;
@@ -1328,7 +1315,7 @@
     .expense-picker-head strong {
         color: var(--ex-text);
         font-size: .84rem;
-        font-weight: 820;
+        font-weight: 700;
     }
 
     .expense-picker-close {
@@ -1371,7 +1358,7 @@
 
     .expense-picker-search input {
         min-width: 0;
-        min-height: 42px;
+        min-height: 44px;
         padding: .48rem .52rem;
         border: 0;
         outline: 0;
@@ -1442,13 +1429,13 @@
     .expense-picker-option-copy strong {
         color: var(--ex-text);
         font-size: .75rem;
-        font-weight: 770;
+        font-weight: 700;
     }
 
     .expense-picker-option-copy small {
         margin-top: .04rem;
         color: var(--ex-muted);
-        font-size: .62rem;
+        font-size: .75rem;
     }
 
     .expense-picker-check {
@@ -1459,7 +1446,7 @@
     .expense-picker-empty {
         padding: 1.2rem .5rem;
         color: var(--ex-muted);
-        font-size: .7rem;
+        font-size: .75rem;
         text-align: center;
     }
 
@@ -1493,7 +1480,7 @@
     .expense-calendar-month {
         color: var(--ex-text);
         font-size: .8rem;
-        font-weight: 800;
+        font-weight: 700;
         text-align: center;
     }
 
@@ -1510,13 +1497,13 @@
 
     .expense-calendar-week span {
         color: var(--ex-muted);
-        font-size: .6rem;
-        font-weight: 720;
+        font-size: .75rem;
+        font-weight: 700;
         text-align: center;
     }
 
     .expense-calendar-week span:first-child {
-        color: #a45b5b;
+        color: var(--ui-color-danger-strong);
     }
 
     .expense-calendar-day {
@@ -1530,34 +1517,34 @@
         color: var(--ex-text);
         cursor: pointer;
         font: inherit;
-        font-size: .72rem;
+        font-size: .75rem;
         font-weight: 700;
     }
 
     .expense-calendar-day.sunday:not(.selected) {
-        background: #fbf2f2;
-        color: #9f5454;
+        background: var(--ui-color-danger-soft);
+        color: var(--ui-color-danger-strong);
     }
 
     .expense-calendar-day.sunday.outside:not(.selected) {
         background: transparent;
-        color: #c59a9a;
+        color: var(--ui-color-danger-border);
     }
 
     .expense-calendar-day.today:not(.selected) {
         background: var(--ex-green-soft);
-        color: #1f754b;
+        color: var(--ui-color-success-strong);
         box-shadow: inset 0 0 0 1px var(--ex-green-border);
-        font-weight: 840;
+        font-weight: 700;
     }
 
     .expense-calendar-day.selected {
-        background: var(--ex-blue);
-        color: #fff;
+        background: var(--sgc-accent);
+        color: var(--sgc-on-accent);
     }
 
     .expense-calendar-day.outside:not(.selected):not(.sunday) {
-        color: #bcc4c0;
+        color: var(--ui-color-border-strong);
     }
 
     .expense-date-foot {
@@ -1569,21 +1556,22 @@
 
     .expense-today {
         display: inline-flex;
-        min-height: 38px;
+        min-height: 44px;
         align-items: center;
         justify-content: center;
         padding: .38rem .6rem;
         border: 1px solid var(--ex-green-border);
         border-radius: 8px;
         background: var(--ex-green-soft);
-        color: #1f754b;
+        color: var(--ui-color-success-strong);
         cursor: pointer;
         font: inherit;
-        font-size: .7rem;
-        font-weight: 760;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     @media (max-width: 620px) {
+        .expense-dialog input, .expense-dialog textarea, .expense-dialog select { font-size: 1rem; }
         .expenses-head {
             padding: .62rem .66rem;
         }
@@ -1657,6 +1645,43 @@
             max-height: calc(100dvh - 1rem);
         }
     }
+
+    .expenses-page {
+        gap: 1rem;
+        font-family: var(--ui-font-sans);
+        line-height: 1.45;
+    }
+    .expenses-head {
+        padding: clamp(1rem, 2.5vw, 1.5rem);
+        border-radius: 1rem;
+        border-color: var(--sgc-rail);
+        background: var(--sgc-rail);
+        color: var(--sgc-rail-text);
+    }
+    .expenses-head-icon {
+        background: var(--sgc-accent);
+        color: var(--sgc-on-accent);
+    }
+    .expenses-head-copy :is(h1, small, p) {
+        color: var(--sgc-rail-text);
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+    .expenses-head-copy h1 {
+        font-size: clamp(1.25rem, 2.5vw, 1.75rem);
+        letter-spacing: -.025em;
+    }
+    .expenses-head-copy p { font-size: .875rem; }
+    .expenses-page :is(a, button):focus-visible {
+        outline: 2px solid var(--sgc-accent);
+        outline-offset: 3px;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .expenses-page *, .expense-dialog * {
+            animation: none !important;
+            transition: none !important;
+        }
+    }
 </style>
 
 <main class="expenses-page">
@@ -1666,7 +1691,7 @@
                 class="expenses-head-icon"
                 aria-hidden="true"
             >
-                <i class="ph-fill ph-receipt-x"></i>
+                <i class="ph-duotone ph-receipt-x"></i>
             </span>
 
             <div class="expenses-head-copy">
@@ -1681,7 +1706,7 @@
             id="open-expense-form"
             type="button"
         >
-            <i class="ph-fill ph-plus-circle"></i>
+            <i class="ph-duotone ph-plus-circle"></i>
             <span>Nova despesa</span>
         </button>
     </header>
@@ -1719,7 +1744,7 @@
                 class="expense-errors-icon"
                 aria-hidden="true"
             >
-                <i class="ph-fill ph-warning-circle"></i>
+                <i class="ph-duotone ph-warning-circle"></i>
             </span>
 
             <div>
@@ -1741,7 +1766,7 @@
                     class="expenses-list-title-icon"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-list-checks"></i>
+                    <i class="ph-duotone ph-list-checks"></i>
                 </span>
 
                 <strong>Despesas registradas</strong>
@@ -1764,7 +1789,7 @@
                         class="expenses-empty-icon"
                         aria-hidden="true"
                     >
-                        <i class="ph-fill ph-receipt"></i>
+                        <i class="ph-duotone ph-receipt"></i>
                     </span>
 
                     <strong>Nenhuma despesa</strong>
@@ -1778,7 +1803,7 @@
                         type="button"
                         data-open-expense
                     >
-                        <i class="ph-fill ph-plus-circle"></i>
+                        <i class="ph-duotone ph-plus-circle"></i>
                         <span>Nova despesa</span>
                     </button>
                 </div>
@@ -1818,7 +1843,7 @@
                                             class="expense-date-icon"
                                             aria-hidden="true"
                                         >
-                                            <i class="ph-fill ph-calendar-blank"></i>
+                                            <i class="ph-duotone ph-calendar-blank"></i>
                                         </span>
 
                                         <strong>
@@ -1858,7 +1883,7 @@
                                                                 loading="lazy"
                                                             >
                                                         @else
-                                                            <i class="ph-fill ph-file-pdf" aria-hidden="true"></i>
+                                                            <i class="ph-duotone ph-file-pdf" aria-hidden="true"></i>
                                                         @endif
                                                     </a>
                                                 @endforeach
@@ -1875,7 +1900,7 @@
                                         >
                                             <i
                                                 class="
-                                                    ph-fill
+                                                    ph-duotone
                                                     {{
                                                         $expense->expenseable
                                                             ? 'ph-clipboard-text'
@@ -1942,7 +1967,7 @@
                                     >
                                         <i
                                             class="
-                                                ph-fill
+                                                ph-duotone
                                                 {{ $status['icon'] }}
                                             "
                                             aria-hidden="true"
@@ -1990,7 +2015,7 @@
                             >
                                 <i
                                     class="
-                                        ph-fill
+                                        ph-duotone
                                         {{ $status['icon'] }}
                                     "
                                 ></i>
@@ -2002,7 +2027,7 @@
                         <div class="expenses-mobile-meta">
                             @if($expense->document_number ?? null)
                                 <span class="expenses-mobile-fact">
-                                    <i class="ph-fill ph-file-text"></i>
+                                    <i class="ph-duotone ph-file-text"></i>
 
                                     <strong>
                                         {{ $expense->document_number }}
@@ -2011,7 +2036,7 @@
                             @endif
 
                             <span class="expenses-mobile-fact">
-                                <i class="ph-fill ph-clipboard-text"></i>
+                                <i class="ph-duotone ph-clipboard-text"></i>
 
                                 <strong>
                                     {{ $origin }}
@@ -2036,7 +2061,7 @@
                                                 loading="lazy"
                                             >
                                         @else
-                                            <i class="ph-fill ph-file-pdf" aria-hidden="true"></i>
+                                            <i class="ph-duotone ph-file-pdf" aria-hidden="true"></i>
                                         @endif
                                     </a>
                                 @endforeach
@@ -2098,7 +2123,7 @@
                     class="expense-dialog-head-icon"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-receipt-x"></i>
+                    <i class="ph-duotone ph-receipt-x"></i>
                 </span>
 
                 <span class="expense-dialog-head-copy">
@@ -2113,7 +2138,7 @@
                 data-close-dialog="expense-form-dialog"
                 aria-label="Fechar"
             >
-                <i class="ph-fill ph-x"></i>
+                <i class="ph-duotone ph-x"></i>
             </button>
         </header>
 
@@ -2132,14 +2157,14 @@
 
                 <section class="expense-section">
                     <div class="expense-section-head">
-                        <i class="ph-fill ph-receipt"></i>
+                        <i class="ph-duotone ph-receipt"></i>
                         <strong>Despesa</strong>
                     </div>
 
                     <div class="expense-fields">
                         <label class="expense-field full">
                             <span class="expense-label">
-                                <i class="ph-fill ph-text-aa"></i>
+                                <i class="ph-duotone ph-text-aa"></i>
                                 Descrição
                             </span>
 
@@ -2148,7 +2173,7 @@
                                     class="expense-input-icon"
                                     aria-hidden="true"
                                 >
-                                    <i class="ph-fill ph-receipt"></i>
+                                    <i class="ph-duotone ph-receipt"></i>
                                 </span>
 
                                 <input
@@ -2163,7 +2188,7 @@
 
                         <label class="expense-field">
                             <span class="expense-label">
-                                <i class="ph-fill ph-currency-circle-dollar"></i>
+                                <i class="ph-duotone ph-currency-circle-dollar"></i>
                                 Valor
                             </span>
 
@@ -2190,7 +2215,7 @@
 
                         <div class="expense-field">
                             <span class="expense-label">
-                                <i class="ph-fill ph-calendar-blank"></i>
+                                <i class="ph-duotone ph-calendar-blank"></i>
                                 Data
                             </span>
 
@@ -2213,7 +2238,7 @@
                                     class="expense-trigger-icon"
                                     aria-hidden="true"
                                 >
-                                    <i class="ph-fill ph-calendar-blank"></i>
+                                    <i class="ph-duotone ph-calendar-blank"></i>
                                 </span>
 
                                 <span class="expense-trigger-copy">
@@ -2226,14 +2251,14 @@
                                     class="expense-trigger-caret"
                                     aria-hidden="true"
                                 >
-                                    <i class="ph-fill ph-caret-down"></i>
+                                    <i class="ph-duotone ph-caret-down"></i>
                                 </span>
                             </button>
                         </div>
 
                         <div class="expense-field">
                             <span class="expense-label">
-                                <i class="ph-fill ph-calendar-check"></i>
+                                <i class="ph-duotone ph-calendar-check"></i>
                                 Vencimento
                             </span>
 
@@ -2256,7 +2281,7 @@
                                     class="expense-trigger-icon"
                                     aria-hidden="true"
                                 >
-                                    <i class="ph-fill ph-calendar-check"></i>
+                                    <i class="ph-duotone ph-calendar-check"></i>
                                 </span>
 
                                 <span class="expense-trigger-copy">
@@ -2269,7 +2294,7 @@
                                     class="expense-trigger-caret"
                                     aria-hidden="true"
                                 >
-                                    <i class="ph-fill ph-caret-down"></i>
+                                    <i class="ph-duotone ph-caret-down"></i>
                                 </span>
                             </button>
                         </div>
@@ -2289,16 +2314,16 @@
                     }}
                 >
                     <summary>
-                        <i class="ph-fill ph-link"></i>
+                        <i class="ph-duotone ph-link"></i>
                         Vínculos e detalhes
-                        <i class="ph-fill ph-caret-down caret"></i>
+                        <i class="ph-duotone ph-caret-down caret"></i>
                     </summary>
 
                     <div class="expense-optional-body">
                         <div class="expense-fields">
                             <label class="expense-field full">
                                 <span class="expense-label">
-                                    <i class="ph-fill ph-clipboard-text"></i>
+                                    <i class="ph-duotone ph-clipboard-text"></i>
                                     Ordem de serviço
                                     <span class="optional">opcional</span>
                                 </span>
@@ -2348,7 +2373,7 @@
 
                             <label class="expense-field full">
                                 <span class="expense-label">
-                                    <i class="ph-fill ph-tree-structure"></i>
+                                    <i class="ph-duotone ph-tree-structure"></i>
                                     Plano de contas
                                     <span class="optional">opcional</span>
                                 </span>
@@ -2384,7 +2409,7 @@
 
                             <label class="expense-field full">
                                 <span class="expense-label">
-                                    <i class="ph-fill ph-file-text"></i>
+                                    <i class="ph-duotone ph-file-text"></i>
                                     Nº do documento
                                     <span class="optional">opcional</span>
                                 </span>
@@ -2394,7 +2419,7 @@
                                         class="expense-input-icon"
                                         aria-hidden="true"
                                     >
-                                        <i class="ph-fill ph-file-text"></i>
+                                        <i class="ph-duotone ph-file-text"></i>
                                     </span>
 
                                     <input
@@ -2408,7 +2433,7 @@
 
                             <label class="expense-field full">
                                 <span class="expense-label">
-                                    <i class="ph-fill ph-paperclip"></i>
+                                    <i class="ph-duotone ph-paperclip"></i>
                                     Comprovantes
                                     <span class="optional">opcional</span>
                                 </span>
@@ -2435,7 +2460,7 @@
 
                             <label class="expense-field full">
                                 <span class="expense-label">
-                                    <i class="ph-fill ph-note-pencil"></i>
+                                    <i class="ph-duotone ph-note-pencil"></i>
                                     Observações
                                     <span class="optional">opcional</span>
                                 </span>
@@ -2445,7 +2470,7 @@
                                         class="expense-input-icon"
                                         aria-hidden="true"
                                     >
-                                        <i class="ph-fill ph-note-pencil"></i>
+                                        <i class="ph-duotone ph-note-pencil"></i>
                                     </span>
 
                                     <textarea
@@ -2476,7 +2501,7 @@
                 type="submit"
                 form="expense-form"
             >
-                <i class="ph-fill ph-check-circle"></i>
+                <i class="ph-duotone ph-check-circle"></i>
                 Registrar despesa
             </button>
         </footer>
@@ -2500,13 +2525,13 @@
                 data-close-dialog="expense-picker-dialog"
                 aria-label="Fechar"
             >
-                <i class="ph-fill ph-x"></i>
+                <i class="ph-duotone ph-x"></i>
             </button>
         </header>
 
         <div class="expense-picker-body">
             <label class="expense-picker-search">
-                <i class="ph-fill ph-magnifying-glass"></i>
+                <i class="ph-duotone ph-magnifying-glass"></i>
 
                 <input
                     id="expense-picker-search"
@@ -2543,7 +2568,7 @@
                 data-close-dialog="expense-date-dialog"
                 aria-label="Fechar"
             >
-                <i class="ph-fill ph-x"></i>
+                <i class="ph-duotone ph-x"></i>
             </button>
         </header>
 
@@ -2554,7 +2579,7 @@
                     type="button"
                     aria-label="Mês anterior"
                 >
-                    <i class="ph-fill ph-caret-left"></i>
+                    <i class="ph-duotone ph-caret-left"></i>
                 </button>
 
                 <strong
@@ -2567,7 +2592,7 @@
                     type="button"
                     aria-label="Próximo mês"
                 >
-                    <i class="ph-fill ph-caret-right"></i>
+                    <i class="ph-duotone ph-caret-right"></i>
                 </button>
             </div>
 
@@ -2683,7 +2708,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 card.appendChild(image);
             } else {
                 const icon = document.createElement('i');
-                icon.className = 'ph-fill ph-file-pdf';
+                icon.className = 'ph-duotone ph-file-pdf';
                 icon.setAttribute('aria-hidden', 'true');
                 card.appendChild(icon);
             }
@@ -2751,7 +2776,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const box = document.createElement('div');
         box.className = 'expense-submit-errors';
         box.setAttribute('role', 'alert');
-        box.innerHTML = messages.map(message => `<span><i class="ph-fill ph-warning-circle"></i> ${escapeHtml(message)}</span>`).join('');
+        box.innerHTML = messages.map(message => `<span><i class="ph-duotone ph-warning-circle"></i> ${escapeHtml(message)}</span>`).join('');
         form.prepend(box);
         box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     };
@@ -3109,7 +3134,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             button.innerHTML = `
                 <span class="expense-picker-option-icon">
-                    <i class="ph-fill ${escapeHtml(icon)}"></i>
+                    <i class="ph-duotone ${escapeHtml(icon)}"></i>
                 </span>
 
                 <span class="expense-picker-option-copy">
@@ -3124,7 +3149,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span class="expense-picker-check">
                     ${
                         option.selected
-                            ? '<i class="ph-fill ph-check-circle"></i>'
+                            ? '<i class="ph-duotone ph-check-circle"></i>'
                             : ''
                     }
                 </span>
@@ -3204,7 +3229,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         trigger.innerHTML = `
             <span class="expense-trigger-icon">
-                <i class="ph-fill ${escapeHtml(icon)}"></i>
+                <i class="ph-duotone ${escapeHtml(icon)}"></i>
             </span>
 
             <span class="expense-trigger-copy">
@@ -3216,7 +3241,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </span>
 
             <span class="expense-trigger-caret">
-                <i class="ph-fill ph-caret-down"></i>
+                <i class="ph-duotone ph-caret-down"></i>
             </span>
         `;
 
@@ -3600,7 +3625,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'expense-field-error';
 
         error.innerHTML = `
-            <i class="ph-fill ph-warning-circle"></i>
+            <i class="ph-duotone ph-warning-circle"></i>
             ${escapeHtml(message)}
         `;
 
@@ -3660,7 +3685,7 @@ document.addEventListener('DOMContentLoaded', () => {
             );
 
             submitButton.innerHTML = `
-                <i class="ph-fill ph-spinner-gap"></i>
+                <i class="ph-duotone ph-spinner-gap"></i>
                 Registrando…
             `;
 
@@ -3691,7 +3716,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 submitButton.disabled = false;
                 submitButton.classList.remove('loading');
                 submitButton.innerHTML = `
-                    <i class="ph-fill ph-check-circle"></i>
+                    <i class="ph-duotone ph-check-circle"></i>
                     Registrar despesa
                 `;
             }

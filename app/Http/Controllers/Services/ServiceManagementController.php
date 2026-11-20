@@ -539,7 +539,7 @@ class ServiceManagementController extends Controller
             ])->download('conferencia-servicos.pdf');
         }
         return app(TemplatedPdfService::class)->generateSystemPdf('pdf.service-accountability', compact('summary', 'tenant') + ['suppress_internal_footer' => true], [
-            'title' => 'Prestação de contas de serviços',
+            'title' => 'Prestação de contas de serviços', 'paper' => 'a4', 'orientation' => 'landscape', 'prefer_runtime_layout' => true,
         ])->download('prestacao-servicos.pdf');
     }
 

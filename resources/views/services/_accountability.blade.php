@@ -53,7 +53,14 @@
     @if($show('orders'))
     @if(!$pdfMode)<details open><summary>Serviços realizados e valores em aberto</summary>@else<div class="section-title">Ordens e saldos</div>@endif
     <div class="accountability-scroll"><table class="{{ $pdfMode ? 'data-table' : 'accountability-table' }}"><thead><tr><th>OS</th><th>Data</th><th>Serviço</th>@if($column('beneficiary'))<th>Beneficiário</th>@endif @if($column('provider'))<th>Prestador</th>@endif @if($column('quantity'))<th>Quantidade</th>@endif <th>Cobrança</th><th>Recebido</th>@if($column('balances'))<th>Saldo</th>@endif <th>Total do prestador</th><th>Pago</th>@if($column('balances'))<th>Saldo</th>@endif </tr></thead><tbody>
-    @forelse($details as $row)<tr><td>@if($canOpenOrder && isset($row['order_id']))<a href="{{ route('services.management.show', [$tenantSlug, $row['order_id']]) }}" class="underline font-semibold">{{ $row['number'] }}</a>@else{{ $row['number'] }}@endif</td><td>{{ $row['date'] }}<br>{{ $row['status'] ?? '' }}</td><td>{{ $row['service'] }}</td>@if($column('beneficiary'))<td>{{ $row['beneficiary'] }}</td>@endif @if($column('provider'))<td>{{ $row['provider'] }}</td>@endif @if($column('quantity'))<td>{{ $row['quantity'] }} {{ $row['unit'] }}</td>@endif @foreach(['service_value','received','receivable_balance','provider_due','provider_paid','provider_balance'] as $key) @continue(!$column('balances') && $show('orders') && isset($row['number']) && str_ends_with($key, '_balance')) <td>{{ $money($row[$key]) }}</td>@endforeach</tr>@empty<tr><td colspan="12">Nenhuma ordem no período.</td></tr>@endforelse
+    @php($lastMonth = null)
+    @php($orderColumns = 7 + (int) $column('beneficiary') + (int) $column('provider') + (int) $column('quantity') + 2 * (int) $column('balances'))
+    @forelse($details as $row)
+        @if(isset($row['month']) && $lastMonth !== $row['month'])
+            <tr><th colspan="{{ $orderColumns }}" scope="rowgroup">{{ \Carbon\Carbon::parse($row['month'].'-01')->locale('pt_BR')->isoFormat('MMMM [de] YYYY') }}</th></tr>
+            @php($lastMonth = $row['month'])
+        @endif
+        <tr><td>@if($canOpenOrder && isset($row['order_id']))<a href="{{ route('services.management.show', [$tenantSlug, $row['order_id']]) }}" class="underline font-semibold">{{ $row['number'] }}</a>@else{{ $row['number'] }}@endif</td><td>{{ $row['date'] }}</td><td>{{ $row['service'] }}</td>@if($column('beneficiary'))<td>{{ $row['beneficiary'] }}</td>@endif @if($column('provider'))<td>{{ $row['provider'] }}</td>@endif @if($column('quantity'))<td>@if(filled($row['quantity'] ?? null)){{ $row['quantity'] }} {{ $row['unit'] }}@endif</td>@endif @foreach(['service_value','received','receivable_balance','provider_due','provider_paid','provider_balance'] as $key) @continue(!$column('balances') && $show('orders') && isset($row['number']) && str_ends_with($key, '_balance')) <td>{{ $money($row[$key]) }}</td>@endforeach</tr>@empty<tr><td colspan="{{ $orderColumns }}">Nenhuma ordem no período.</td></tr>@endforelse
     </tbody></table></div>@if(!$pdfMode)</details>@endif
 
     @endif

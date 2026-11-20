@@ -412,24 +412,28 @@
         display: inline-flex;
         width: max-content;
         max-width: 100%;
-        min-height: 32px;
+        min-height: 44px;
         align-items: center;
         gap: .3rem;
         margin-top: .42rem;
         padding: .34rem .52rem;
-        border: 1px solid color-mix(in srgb, #2563eb 28%, var(--color-border));
+        border: 1px solid var(--sgc-accent);
         border-radius: 8px;
-        background: #eff6ff;
-        color: #1d4ed8;
-        font-size: .69rem;
-        font-weight: 790;
+        background: var(--sgc-accent);
+        color: var(--sgc-on-accent);
+        font-size: .8125rem;
+        font-weight: 700;
         text-decoration: none;
     }
 
-    .ledger-receipt-link:hover,
+    .ledger-receipt-link:hover {
+        background: var(--sgc-accent-hover);
+        color: var(--sgc-on-accent);
+    }
+
     .ledger-receipt-link:focus-visible {
-        border-color: #2563eb;
-        outline: none;
+        outline: 2px solid var(--ui-color-primary);
+        outline-offset: 3px;
     }
 
     .ledger-data {
@@ -546,7 +550,7 @@
 
     .ledger-filter-button {
         display: inline-flex;
-        min-height: 42px;
+        min-height: 44px;
         align-items: center;
         justify-content: center;
         gap: .32rem;
@@ -563,20 +567,16 @@
     }
 
     .ledger-filter-button.primary {
-        border-color: #16a34a;
-        background:
-            linear-gradient(
-                135deg,
-                #22c55e,
-                #16a34a
-            );
-        color: #fff;
+        border-color: var(--sgc-accent);
+        background: var(--sgc-accent);
+        color: var(--sgc-on-accent);
     }
 
-    .ledger-filter-button:hover,
+    .ledger-filter-button.primary:hover { background: var(--sgc-accent-hover); }
+
     .ledger-filter-button:focus-visible {
-        outline: none;
-        transform: translateY(-1px);
+        outline: 2px solid var(--ui-color-primary);
+        outline-offset: 2px;
     }
 
     .ledger-pagination {
@@ -828,6 +828,8 @@
             border-radius: 9px !important;
             font-size: .72rem !important;
         }
+
+    }
 
     @media (max-width: 390px) {
         .ledger-row {

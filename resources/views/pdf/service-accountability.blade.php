@@ -1,10 +1,13 @@
 @extends('pdf.partials.header')
 @section('extra-styles')
+    body { padding-left: 0; padding-right: 0; }
     .service-summary { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 8px; }
     .service-summary td { padding: 5px 8px; border: 1px solid #cfd3d6; background: #f3f6f4; vertical-align: top; }
     .service-summary strong { display: block; margin-top: 2px; }
     .accountability .data-table thead { display: table-header-group; }
     .accountability .data-table tr { page-break-inside: avoid; }
+    .accountability table.data-table thead th,
+    .accountability table.data-table tbody td { overflow: visible; text-overflow: clip; word-wrap: break-word; }
 @endsection
 @section('content')
     @php

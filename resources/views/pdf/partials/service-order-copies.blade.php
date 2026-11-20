@@ -16,7 +16,7 @@
             </table>
         </div>
         <div class="section-title">Serviço realizado</div>
-        <table class="data-table"><thead><tr><th>Descrição</th><th class="text-right">Quantidade</th>@if($variables['financial_visible'] ?? false)<th class="text-right">Valor do serviço</th>@endif</tr></thead><tbody><tr><td>{{ $read('service_name') }}</td><td class="text-right">{{ $read('quantity') }} {{ $read('unit') }}</td>@if($variables['financial_visible'] ?? false)<td class="text-right">{{ $read('total_receber') }}</td>@endif</tr></tbody></table>
+        <table class="data-table"><thead><tr><th>Descrição</th><th class="text-right">Quantidade</th>@if($variables['financial_visible'] ?? false)<th class="text-right">Valor do serviço</th>@endif</tr></thead><tbody><tr><td>{{ $read('service_name') }}</td><td class="text-right">@if($read('quantity') !== ''){{ $read('quantity') }} {{ $read('unit') }}@endif</td>@if($variables['financial_visible'] ?? false)<td class="text-right">{{ $read('total_receber') }}</td>@endif</tr></tbody></table>
         <div class="section-title">Medições e dados registrados</div>
         {!! $variables['campos_execucao'] ?? '' !!}
         @if($variables['meter_enabled'] ?? false)

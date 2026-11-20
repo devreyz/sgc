@@ -84,7 +84,9 @@ class ServiceReportService
         $details = $details->filter(fn ($row) =>
             (empty($selection['statuses']) || in_array($row['status'], $selection['statuses'], true))
             && ! in_array($row['order_id'], $selection['exclude'] ?? []));
-        if (($selection['sort'] ?? null) === 'status') $details = $details->sortBy('status');
+        if (($selection['sort'] ?? null) === 'status') {
+            $details = $details->sortBy([['month', 'asc'], ['status', 'asc']]);
+        }
         $executions = $executions->whereIn('id', $details->pluck('execution_id'));
         $totals = $this->totals($details);
         $periodPayments = ServicePaymentAllocation::query()->where('tenant_id', $tenantId)

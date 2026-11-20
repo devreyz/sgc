@@ -90,8 +90,8 @@
         --pr-slate-soft: #f1f5f3;
 
         --pr-text: var(--ui-color-text);
-        --pr-secondary: #59655f;
-        --pr-muted-text: #89938e;
+        --pr-secondary: var(--ui-color-text-secondary);
+        --pr-muted-text: var(--ui-color-text-muted);
         --pr-border: var(--ui-color-border);
         --pr-border-strong: var(--ui-color-border-strong);
         --pr-surface: var(--ui-color-surface);
@@ -303,9 +303,20 @@
     }
 
     .pr-btn.primary {
-        --button-tone: #fff;
-        --button-bg: var(--ui-color-canvas);
-        --button-border: var(--ui-color-border);
+        --button-tone: var(--sgc-on-accent);
+        --button-bg: var(--sgc-accent);
+        --button-border: var(--sgc-accent);
+    }
+
+    .pr-btn.primary:hover:not(:disabled) {
+        --button-bg: var(--sgc-accent-hover);
+    }
+
+    .pr-btn[hidden] { display: none; }
+
+    .pr-btn:focus-visible:not(:disabled) {
+        outline: 2px solid var(--ui-color-primary);
+        outline-offset: 2px;
     }
 
     .pr-btn.danger {
@@ -888,7 +899,7 @@
         display: grid;
         place-items: stretch end;
         padding: 0;
-        background: rgba(10, 22, 14, .46);
+        background: var(--ui-color-overlay);
     }
 
     .pr-overlay[hidden] {
@@ -897,9 +908,9 @@
 
     .pr-sheet {
         display: flex;
-        width: min(720px, 100dvw);
-        height: 100dvh;
-        max-height: 100dvh;
+        width: min(48rem, 100%);
+        height: 100%;
+        max-height: 100%;
         min-width: 0;
         flex-direction: column;
         overflow: hidden;
@@ -1551,13 +1562,21 @@
 
         .pr-sheet {
             width: 100%;
-            height: min(96dvh, 920px);
-            max-height: 96dvh;
+            height: 100%;
+            max-height: 100%;
             align-self: end;
             border-top: 1px solid var(--pr-border);
             border-left: 0;
-            border-radius: 14px 14px 0 0;
+            border-radius: 0;
             animation-name: pr-sheet-mobile-enter;
+        }
+
+        .pr-sheet-head {
+            padding-top: calc(.72rem + env(safe-area-inset-top));
+        }
+
+        .pr-sheet-body {
+            overflow-x: hidden;
         }
     }
 
@@ -1689,7 +1708,7 @@
         .pr-modal-actions {
             display: grid;
             width: 100%;
-            grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
         }
 
         .pr-modal-actions .pr-btn {
@@ -2235,6 +2254,10 @@
 (() => {
     const root = document.getElementById('producerReceipts');
     if (!root) return;
+
+    // Keep the fixed panel outside the page grid and its animation container.
+    const overlay = document.getElementById('pr-modal');
+    if (overlay) document.body.append(overlay);
 
     const tenant = root.dataset.tenant;
     const project = Number(root.dataset.project);

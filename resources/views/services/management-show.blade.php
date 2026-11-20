@@ -203,41 +203,41 @@
 <style>
     .dossier-page,
     .dossier-dialog {
-        --ds-green: var(--ws-green, #219653);
-        --ds-green-soft: #edf8f2;
-        --ds-green-border: #cce8d7;
+        --ds-green: var(--ui-color-success-strong);
+        --ds-green-soft: var(--ui-color-success-soft);
+        --ds-green-border: var(--ui-color-success-border);
 
-        --ds-blue: var(--ws-blue, #3478d4);
-        --ds-blue-soft: #edf4ff;
-        --ds-blue-border: #cfe0f7;
+        --ds-blue: var(--ui-color-info-strong);
+        --ds-blue-soft: var(--ui-color-info-soft);
+        --ds-blue-border: var(--ui-color-info-border);
 
-        --ds-violet: var(--ws-purple, #8a4bd2);
-        --ds-violet-soft: #f5efff;
-        --ds-violet-border: #e1d2f4;
+        --ds-violet: var(--ui-color-violet-strong);
+        --ds-violet-soft: var(--ui-color-violet-soft);
+        --ds-violet-border: var(--ui-color-violet-border);
 
-        --ds-amber: var(--ws-amber, #c38418);
-        --ds-amber-soft: #fff7e8;
-        --ds-amber-border: #f0dcae;
+        --ds-amber: var(--ui-color-warning-strong);
+        --ds-amber-soft: var(--ui-color-warning-soft);
+        --ds-amber-border: var(--ui-color-warning-border);
 
-        --ds-red: var(--ws-red, #cf5050);
-        --ds-red-soft: #fff0f0;
-        --ds-red-border: #efcaca;
+        --ds-red: var(--ui-color-danger-strong);
+        --ds-red-soft: var(--ui-color-danger-soft);
+        --ds-red-border: var(--ui-color-danger-border);
 
-        --ds-cyan: #168eae;
-        --ds-cyan-soft: #ecf8fb;
-        --ds-cyan-border: #cae8ef;
+        --ds-cyan: var(--ui-color-cyan-strong);
+        --ds-cyan-soft: var(--ui-color-cyan-soft);
+        --ds-cyan-border: var(--ui-color-cyan-border);
 
-        --ds-text: #17211d;
-        --ds-text-2: #59655f;
-        --ds-muted: #89938e;
-        --ds-border: #dde5e0;
-        --ds-soft: #f7faf8;
+        --ds-text: var(--ui-color-text);
+        --ds-text-2: var(--ui-color-text-secondary);
+        --ds-muted: var(--ui-color-text-muted);
+        --ds-border: var(--ui-color-border);
+        --ds-soft: var(--ui-color-surface-soft);
     }
 
     .dossier-page {
         display: grid;
         grid-column: 1 / -1;
-        width: min(100%, 1240px);
+        width: 100%;
         min-width: 0;
         gap: .72rem;
         margin-inline: auto;
@@ -268,7 +268,7 @@
         padding: .76rem .84rem;
         border: 1px solid var(--ds-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .ds-head-top {
@@ -305,8 +305,8 @@
     .ds-head-copy small {
         display: block;
         color: var(--ds-muted);
-        font-size: .61rem;
-        font-weight: 750;
+        font-size: .75rem;
+        font-weight: 700;
         letter-spacing: .025em;
         text-transform: uppercase;
     }
@@ -316,7 +316,7 @@
         overflow: hidden;
         color: var(--ds-text);
         font-size: clamp(1.02rem, 2vw, 1.22rem);
-        font-weight: 860;
+        font-weight: 700;
         line-height: 1.15;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -326,16 +326,16 @@
         margin: .12rem 0 0;
         overflow: hidden;
         color: var(--ds-muted);
-        font-size: .66rem;
+        font-size: .75rem;
         line-height: 1.35;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
 
     .ds-status {
-        --tone: #64748b;
-        --soft: #f2f5f7;
-        --border: #dfe5e9;
+        --tone: var(--ui-color-neutral-strong);
+        --soft: var(--ui-color-neutral-soft);
+        --border: var(--ui-color-neutral-border);
 
         display: inline-flex;
         width: max-content;
@@ -347,8 +347,8 @@
         border-radius: 7px;
         background: var(--soft);
         color: var(--tone);
-        font-size: .6rem;
-        font-weight: 800;
+        font-size: .75rem;
+        font-weight: 700;
         white-space: nowrap;
     }
 
@@ -410,9 +410,9 @@
         height: 30px;
         place-items: center;
         border-radius: 7px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--ds-text-2);
-        font-size: .7rem;
+        font-size: .75rem;
     }
 
     .ds-fact-copy {
@@ -425,20 +425,21 @@
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        white-space: normal;
+        overflow-wrap: anywhere;
     }
 
     .ds-fact-copy small {
         color: var(--ds-muted);
-        font-size: .5rem;
+        font-size: .75rem;
         font-weight: 700;
     }
 
     .ds-fact-copy strong {
         margin-top: .02rem;
         color: var(--ds-text);
-        font-size: .62rem;
-        font-weight: 760;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     /* =========================================================
@@ -459,14 +460,14 @@
 
     .ds-review-actions p {
         margin: 0 auto 0 0;
-        color: #815c1a;
-        font-size: .65rem;
-        font-weight: 720;
+        color: var(--ui-color-warning-strong);
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .ds-button {
         display: inline-flex;
-        min-height: 38px;
+        min-height: 44px;
         gap: .28rem;
         align-items: center;
         justify-content: center;
@@ -474,20 +475,24 @@
         border-radius: 8px;
         cursor: pointer;
         font: inherit;
-        font-size: .68rem;
-        font-weight: 790;
+        font-size: .75rem;
+        font-weight: 700;
         white-space: nowrap;
     }
 
     .ds-button.primary {
-        border: 1px solid var(--ds-green);
-        background: var(--ds-green);
-        color: #fff;
+        border: 1px solid var(--sgc-accent);
+        background: var(--sgc-accent);
+        color: var(--sgc-on-accent);
+    }
+
+    .ds-button.primary:hover, .ds-form-submit:hover {
+        background: var(--sgc-accent-hover);
     }
 
     .ds-button.secondary {
         border: 1px solid var(--ds-border);
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--ds-text-2);
     }
 
@@ -518,7 +523,7 @@
         overflow: hidden;
         border: 1px solid var(--ds-border);
         border-radius: 12px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .ds-section-head {
@@ -586,14 +591,14 @@
 
     .ds-section-title-copy strong {
         color: var(--ds-text);
-        font-size: .74rem;
-        font-weight: 820;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .ds-section-title-copy span {
         margin-top: .03rem;
         color: var(--ds-muted);
-        font-size: .56rem;
+        font-size: .75rem;
         line-height: 1.35;
     }
 
@@ -605,8 +610,8 @@
         border-radius: 7px;
         background: var(--soft);
         color: var(--tone);
-        font-size: .57rem;
-        font-weight: 760;
+        font-size: .75rem;
+        font-weight: 700;
         white-space: nowrap;
     }
 
@@ -647,8 +652,8 @@
     .ds-value dt {
         margin: 0;
         color: var(--ds-muted);
-        font-size: .57rem;
-        font-weight: 730;
+        font-size: .75rem;
+        font-weight: 700;
         line-height: 1.4;
     }
 
@@ -657,7 +662,7 @@
         margin: 0;
         overflow-wrap: anywhere;
         color: var(--ds-text);
-        font-size: .64rem;
+        font-size: .75rem;
         font-weight: 690;
         line-height: 1.45;
     }
@@ -667,7 +672,7 @@
         min-height: 94px;
         place-items: center;
         color: var(--ds-muted);
-        font-size: .65rem;
+        font-size: .75rem;
         text-align: center;
     }
 
@@ -712,8 +717,8 @@
         gap: .35rem;
         align-items: center;
         color: var(--tone);
-        font-size: .67rem;
-        font-weight: 820;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .ds-fin-overview-title i {
@@ -726,7 +731,7 @@
         overflow: hidden;
         border: 1px solid var(--border);
         border-radius: 8px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .ds-fin-overview-value {
@@ -742,15 +747,15 @@
 
     .ds-fin-overview-value small {
         color: var(--ds-muted);
-        font-size: .49rem;
+        font-size: .75rem;
         font-weight: 690;
     }
 
     .ds-fin-overview-value strong {
         overflow: hidden;
         color: var(--ds-text);
-        font-size: .67rem;
-        font-weight: 820;
+        font-size: .75rem;
+        font-weight: 700;
         font-variant-numeric: tabular-nums;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -780,7 +785,7 @@
         overflow: hidden;
         border: 1px solid var(--ds-border);
         border-radius: 10px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .ds-obligation.is-payable {
@@ -815,7 +820,7 @@
 
     .ds-obligation[open] > summary {
         border-bottom: 1px solid var(--ds-border);
-        background: #fbfdfc;
+        background: var(--ui-color-surface-raised);
     }
 
     .ds-obligation-icon {
@@ -844,15 +849,15 @@
 
     .ds-obligation-main strong {
         color: var(--ds-text);
-        font-size: .68rem;
-        font-weight: 800;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .ds-obligation-main small {
         margin-top: .03rem;
         color: var(--tone);
-        font-size: .54rem;
-        font-weight: 710;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .ds-obligation-values {
@@ -862,7 +867,7 @@
         overflow: hidden;
         border: 1px solid var(--ds-border);
         border-radius: 8px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .ds-money {
@@ -878,14 +883,14 @@
 
     .ds-money small {
         color: var(--ds-muted);
-        font-size: .48rem;
+        font-size: .75rem;
     }
 
     .ds-money strong {
         overflow: hidden;
         color: var(--ds-text);
-        font-size: .64rem;
-        font-weight: 810;
+        font-size: .75rem;
+        font-weight: 700;
         font-variant-numeric: tabular-nums;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -905,7 +910,7 @@
         height: 28px;
         place-items: center;
         color: var(--ds-muted);
-        font-size: .72rem;
+        font-size: .75rem;
         transition: transform .15s ease;
     }
 
@@ -940,13 +945,13 @@
         gap: .32rem;
         align-items: center;
         color: var(--ds-text);
-        font-size: .66rem;
-        font-weight: 790;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .ds-fin-box-head i {
         color: var(--ds-muted);
-        font-size: .72rem;
+        font-size: .75rem;
     }
 
     .ds-fin-box-head {
@@ -955,8 +960,8 @@
 
     .ds-fin-box-balance {
         color: var(--ds-amber);
-        font-size: .55rem;
-        font-weight: 780;
+        font-size: .75rem;
+        font-weight: 700;
         font-variant-numeric: tabular-nums;
         white-space: nowrap;
     }
@@ -983,22 +988,22 @@
 
     .ds-label {
         color: var(--ds-muted);
-        font-size: .55rem;
-        font-weight: 710;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .ds-control {
         width: 100%;
         min-width: 0;
-        min-height: 39px;
+        min-height: 44px;
         padding: .42rem .5rem;
         border: 1px solid transparent;
         border-radius: 8px;
         outline: 0;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--ds-text);
         font: inherit;
-        font-size: .67rem;
+        font-size: .75rem;
     }
 
     .ds-control:focus {
@@ -1017,19 +1022,19 @@
 
     .ds-form-submit {
         display: inline-flex;
-        min-height: 37px;
+        min-height: 44px;
         gap: .25rem;
         align-items: center;
         justify-content: center;
         padding: .36rem .52rem;
-        border: 1px solid var(--ds-green);
+        border: 1px solid var(--sgc-accent);
         border-radius: 8px;
-        background: var(--ds-green);
-        color: #fff;
+        background: var(--sgc-accent);
+        color: var(--sgc-on-accent);
         cursor: pointer;
         font: inherit;
-        font-size: .64rem;
-        font-weight: 780;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .ds-form-submit.adjust {
@@ -1052,8 +1057,8 @@
         gap: .3rem;
         align-items: center;
         color: var(--ds-text);
-        font-size: .65rem;
-        font-weight: 790;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .ds-allocation {
@@ -1065,7 +1070,7 @@
         padding: .42rem .48rem;
         border: 1px solid var(--ds-border);
         border-radius: 8px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .ds-allocation-icon {
@@ -1076,7 +1081,7 @@
         border-radius: 7px;
         background: var(--ds-green-soft);
         color: var(--ds-green);
-        font-size: .7rem;
+        font-size: .75rem;
     }
 
     .ds-allocation-copy {
@@ -1091,14 +1096,14 @@
 
     .ds-allocation-copy strong {
         color: var(--ds-text);
-        font-size: .62rem;
-        font-weight: 790;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .ds-allocation-copy small {
         margin-top: .02rem;
         color: var(--ds-muted);
-        font-size: .53rem;
+        font-size: .75rem;
     }
 
     .ds-reverse {
@@ -1116,8 +1121,8 @@
         background: var(--ds-red-soft);
         color: var(--ds-red);
         cursor: pointer;
-        font-size: .57rem;
-        font-weight: 760;
+        font-size: .75rem;
+        font-weight: 700;
         list-style: none;
     }
 
@@ -1133,11 +1138,11 @@
     }
 
     .ds-reverse-form .ds-control {
-        min-height: 34px;
+        min-height: 44px;
     }
 
     .ds-reverse-form button {
-        min-height: 34px;
+        min-height: 44px;
     }
 
     /* =========================================================
@@ -1159,7 +1164,7 @@
         overflow: hidden;
         border: 1px solid var(--ds-border);
         border-radius: 10px;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .ds-evidence-preview {
@@ -1173,7 +1178,7 @@
         overflow: hidden;
         border: 0;
         border-bottom: 1px solid var(--ds-border);
-        background: #eef2ef;
+        background: var(--ui-color-surface-muted);
         color: var(--ds-text-2);
         cursor: zoom-in;
     }
@@ -1198,8 +1203,8 @@
         border-radius: 7px;
         background: rgba(23, 33, 29, .78);
         color: #fff;
-        font-size: .54rem;
-        font-weight: 760;
+        font-size: .75rem;
+        font-weight: 700;
         pointer-events: none;
     }
 
@@ -1219,8 +1224,8 @@
         max-width: 88%;
         overflow: hidden;
         color: var(--ds-text-2);
-        font-size: .63rem;
-        font-weight: 750;
+        font-size: .75rem;
+        font-weight: 700;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
@@ -1248,14 +1253,14 @@
 
     .ds-evidence-card-copy strong {
         color: var(--ds-text);
-        font-size: .64rem;
-        font-weight: 790;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .ds-evidence-card-copy small {
         margin-top: .03rem;
         color: var(--ds-muted);
-        font-size: .52rem;
+        font-size: .75rem;
     }
 
     .ds-evidence-download {
@@ -1321,7 +1326,7 @@
     .ds-file-viewer-back,
     .ds-file-viewer-open {
         display: inline-flex;
-        min-height: 38px;
+        min-height: 44px;
         gap: .28rem;
         align-items: center;
         justify-content: center;
@@ -1332,8 +1337,8 @@
         color: #fff;
         cursor: pointer;
         font: inherit;
-        font-size: .62rem;
-        font-weight: 760;
+        font-size: .75rem;
+        font-weight: 700;
         text-decoration: none;
     }
 
@@ -1341,8 +1346,8 @@
         min-width: 0;
         overflow: hidden;
         color: #fff;
-        font-size: .68rem;
-        font-weight: 760;
+        font-size: .75rem;
+        font-weight: 700;
         text-align: center;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -1373,7 +1378,7 @@
         height: 100%;
         min-height: calc(100dvh - 82px);
         border: 0;
-        background: #fff;
+        background: var(--ui-color-surface);
     }
 
     .ds-file-viewer-image[hidden],
@@ -1397,7 +1402,7 @@
     }
 
     .ds-file-viewer-fallback strong {
-        font-size: .72rem;
+        font-size: .75rem;
     }
 
     /* =========================================================
@@ -1408,6 +1413,22 @@
         display: flex;
         gap: .45rem;
         flex-wrap: wrap;
+    }
+
+    .ds-doc-actions .ds-button {
+        border: 1px solid var(--ds-border);
+        background: var(--ui-color-surface);
+        color: var(--ds-text);
+    }
+
+    .ds-doc-actions .ds-button.primary {
+        border-color: var(--sgc-accent);
+        background: var(--sgc-accent);
+        color: var(--sgc-on-accent);
+    }
+
+    .ds-doc-actions .ds-button.primary:hover {
+        background: var(--sgc-accent-hover);
     }
 
     /* =========================================================
@@ -1423,12 +1444,18 @@
         overflow: hidden;
         border: 0;
         border-radius: 14px;
-        background: #fff;
+        background: var(--ui-color-surface);
         color: var(--ds-text);
     }
 
     .dossier-dialog::backdrop {
-        background: rgba(12, 24, 16, .58);
+        background: var(--ui-color-overlay);
+    }
+
+    #order-details.dossier-dialog {
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 1rem;
     }
 
     .ds-dialog-layout {
@@ -1476,15 +1503,15 @@
 
     .ds-dialog-head-copy small {
         color: var(--ds-muted);
-        font-size: .57rem;
-        font-weight: 710;
+        font-size: .75rem;
+        font-weight: 700;
     }
 
     .ds-dialog-head-copy strong {
         margin-top: .03rem;
         color: var(--ds-text);
         font-size: .84rem;
-        font-weight: 820;
+        font-weight: 700;
     }
 
     .ds-dialog-close {
@@ -1524,7 +1551,7 @@
         justify-content: flex-end;
         padding: .62rem .72rem;
         border-top: 1px solid var(--ds-border);
-        background: #fbfdfc;
+        background: var(--ui-color-surface-raised);
     }
 
     /* =========================================================
@@ -1694,6 +1721,43 @@
             max-height: calc(100dvh - 1rem);
         }
     }
+
+    .dossier-page {
+        gap: 1rem;
+        font-family: var(--ui-font-sans);
+        line-height: 1.45;
+    }
+    .ds-head {
+        padding: clamp(1rem, 2.5vw, 1.5rem);
+        border-radius: 1rem;
+        border-color: var(--sgc-rail);
+        background: var(--sgc-rail);
+        color: var(--sgc-rail-text);
+    }
+    .ds-head-icon {
+        background: var(--sgc-accent);
+        color: var(--sgc-on-accent);
+    }
+    .ds-head-copy :is(h1, small, p) {
+        color: var(--sgc-rail-text);
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+    .ds-head-copy h1 {
+        font-size: clamp(1.25rem, 2.5vw, 1.75rem);
+        letter-spacing: -.025em;
+    }
+    .ds-head-copy p { font-size: .875rem; }
+    .dossier-page :is(a, button):focus-visible {
+        outline: 2px solid var(--sgc-accent);
+        outline-offset: 3px;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .dossier-page *, .dossier-dialog * {
+            animation: none !important;
+            transition: none !important;
+        }
+    }
 </style>
 
 <main class="dossier-page">
@@ -1716,7 +1780,7 @@
                     class="ds-head-icon"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-briefcase"></i>
+                    <i class="ph-duotone ph-briefcase"></i>
                 </span>
 
                 <div class="ds-head-copy">
@@ -1727,7 +1791,7 @@
                     <h1>{{ $serviceName }}</h1>
 
                     <p>
-                        Dossiê de execução e financeiro.
+                        Execução, pagamentos e documentos.
                     </p>
                 </div>
             </div>
@@ -1740,7 +1804,7 @@
             >
                 <i
                     class="
-                        ph-fill
+                        ph-duotone
                         {{ $statusMeta['icon'] }}
                     "
                     aria-hidden="true"
@@ -1751,7 +1815,7 @@
         </div>
 
         @if(auth()->user()?->checkPermissionTo('operate_all_service_orders_portal') && in_array($execution?->status, ['draft', 'in_progress', 'rejected'], true))
-            <p><a href="{{ route('services.management.execute', [$tenantSlug, $order]) }}" class="btn btn-primary"><i class="ph-fill ph-pencil-simple-line"></i> Preencher ou concluir esta ordem</a></p>
+            <p><a href="{{ route('services.management.execute', [$tenantSlug, $order]) }}" class="btn btn-primary"><i class="ph-duotone ph-pencil-simple-line"></i> Preencher ou concluir esta ordem</a></p>
         @endif
 
         <div class="ds-doc-actions" style="margin:.6rem 0">
@@ -1759,29 +1823,29 @@
                 <button type="button" class="ds-button secondary" data-open-dialog="order-details">Editar detalhes</button>
             @endif
             @if(auth()->user()->checkPermissionTo('manage_service_expenses'))
-                <a class="btn" href="{{ route('services.management.expenses', ['tenant' => $tenantSlug, 'order' => $order->id]) }}">Despesas da ordem</a>
+                <a class="ds-button" href="{{ route('services.management.expenses', ['tenant' => $tenantSlug, 'order' => $order->id]) }}">Despesas da ordem</a>
             @endif
             @if($execution?->isFrozen() && auth()->user()->checkPermissionTo('view_service_financials'))
                 <form method="post" action="{{ route('services.management.documents.generate', [$tenantSlug, $order]) }}" target="_blank" data-sgc-pdf-form="Nota interna">
                     @csrf
                     <input type="hidden" name="type" value="note">
-                    <button class="btn btn-primary">Emitir nota interna</button>
+                    <button class="ds-button primary">Emitir nota interna</button>
                     <small data-sgc-pdf-error role="alert"></small>
                 </form>
                 @foreach($notes ?? [] as $note)
-                    <a class="btn" target="_blank" rel="noopener" data-sgc-pdf title="Nota interna" href="{{ route('services.management.documents.download', [$tenantSlug, $note, 'inline' => 1]) }}">Nota de {{ $note->created_at?->format('d/m/Y H:i') }}</a>
+                    <a class="ds-button" target="_blank" rel="noopener" data-sgc-pdf title="Nota interna" href="{{ route('services.management.documents.download', [$tenantSlug, $note, 'inline' => 1]) }}">Nota de {{ $note->created_at?->format('d/m/Y H:i') }}</a>
                 @endforeach
             @endif
             @foreach((auth()->user()->checkPermissionTo('view_service_financials') ? ['order' => 'Imprimir OS', 'execution' => 'Comprovante de execução'] : ['order' => 'Imprimir OS']) as $documentType => $documentLabel)
                 <form method="post" action="{{ route('services.management.documents.generate', [$tenantSlug, $order]) }}" target="_blank" data-sgc-pdf-form="{{ $documentLabel }}">
                     @csrf
                     <input type="hidden" name="type" value="{{ $documentType }}">
-                    <button class="ds-button blue" type="submit"><i class="ph-fill ph-printer"></i>{{ $documentLabel }}</button>
+                    <button class="ds-button {{ $documentType === 'order' ? 'primary' : 'secondary' }}" type="submit"><i class="ph-duotone ph-printer" aria-hidden="true"></i>{{ $documentLabel }}</button>
                     <small data-sgc-pdf-error role="alert"></small>
                 </form>
             @endforeach
             @if($order->execution?->obligations?->where('direction', 'receivable')->isNotEmpty())
-                <a class="ds-button" href="{{ route('services.management.agreements', ['tenant' => $tenantSlug]) }}"><i class="ph-fill ph-handshake"></i>Negociar cobrança</a>
+                <a class="ds-button" href="{{ route('services.management.agreements', ['tenant' => $tenantSlug]) }}"><i class="ph-duotone ph-handshake"></i>Negociar cobrança</a>
             @endif
         </div>
 
@@ -1793,7 +1857,7 @@
                     class="ds-fact-icon"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-user-circle"></i>
+                    <i class="ph-duotone ph-user-circle"></i>
                 </span>
 
                 <span class="ds-fact-copy">
@@ -1808,7 +1872,7 @@
                     class="ds-fact-icon"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-user-gear"></i>
+                    <i class="ph-duotone ph-user-gear"></i>
                 </span>
 
                 <span class="ds-fact-copy">
@@ -1822,7 +1886,7 @@
                     class="ds-fact-icon"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-calendar-check"></i>
+                    <i class="ph-duotone ph-calendar-check"></i>
                 </span>
 
                 <span class="ds-fact-copy">
@@ -1843,7 +1907,7 @@
                     class="ds-fact-icon"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-map-pin"></i>
+                    <i class="ph-duotone ph-map-pin"></i>
                 </span>
 
                 <span class="ds-fact-copy">
@@ -1883,7 +1947,7 @@
                     class="ds-button primary"
                     type="submit"
                 >
-                    <i class="ph-fill ph-check-circle"></i>
+                    <i class="ph-duotone ph-check-circle"></i>
                     Aprovar execução
                 </button>
             </form>
@@ -1893,7 +1957,7 @@
                 type="button"
                 data-open-dialog="correction-dialog"
             >
-                <i class="ph-fill ph-warning-circle"></i>
+                <i class="ph-duotone ph-warning-circle"></i>
                 Solicitar correção
             </button>
         </section>
@@ -1906,7 +1970,7 @@
                     class="ds-section-title-icon"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-clipboard-text"></i>
+                    <i class="ph-duotone ph-clipboard-text"></i>
                 </span>
 
                 <span class="ds-section-title-copy">
@@ -1953,7 +2017,7 @@
                     class="ds-section-title-icon"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-wallet"></i>
+                    <i class="ph-duotone ph-wallet"></i>
                 </span>
 
                 <span class="ds-section-title-copy">
@@ -1969,7 +2033,7 @@
                         type="button"
                         data-open-dialog="resource-dialog"
                     >
-                        <i class="ph-fill ph-plus-circle"></i>
+                        <i class="ph-duotone ph-plus-circle"></i>
                         Recurso
                     </button>
                 @endif
@@ -1995,7 +2059,7 @@
                     @if($payableObligations->isNotEmpty())
                         <section class="ds-fin-overview-item">
                             <div class="ds-fin-overview-title">
-                                <i class="ph-fill ph-arrow-circle-up-right"></i>
+                                <i class="ph-duotone ph-arrow-circle-up-right"></i>
                                 A pagar ao prestador
                             </div>
 
@@ -2042,7 +2106,7 @@
                     @if($receivableObligations->isNotEmpty())
                         <section class="ds-fin-overview-item receivable">
                             <div class="ds-fin-overview-title">
-                                <i class="ph-fill ph-arrow-circle-down-left"></i>
+                                <i class="ph-duotone ph-arrow-circle-down-left"></i>
                                 A receber do cliente
                             </div>
 
@@ -2112,7 +2176,7 @@
                                 >
                                     <i
                                         class="
-                                            ph-fill
+                                            ph-duotone
                                             {{ $direction['icon'] }}
                                         "
                                     ></i>
@@ -2177,7 +2241,7 @@
                                     class="ds-obligation-caret"
                                     aria-hidden="true"
                                 >
-                                    <i class="ph-fill ph-caret-down"></i>
+                                    <i class="ph-duotone ph-caret-down"></i>
                                 </span>
                             </summary>
 
@@ -2185,7 +2249,7 @@
                                 @if($verificationIdentity)
                                     <p style="margin:0 0 .65rem">
                                         <a class="ds-button blue" href="{{ route('financial-documents.show', $verificationIdentity->public_id) }}" target="_blank" rel="noopener">
-                                            <i class="ph-fill ph-qr-code"></i>
+                                            <i class="ph-duotone ph-qr-code"></i>
                                             Abrir comprovante, QR e fluxo seguro
                                         </a>
                                     </p>
@@ -2195,7 +2259,7 @@
                                     <section class="ds-fin-box {{ $direction['class'] }}">
                                         <div class="ds-fin-box-head">
                                             <span>
-                                                <i class="ph-fill ph-money"></i>
+                                                <i class="ph-duotone ph-money"></i>
 
                                                 Registrar
                                                 {{ $direction['action'] }}
@@ -2324,7 +2388,7 @@
                                                         class="ds-form-submit"
                                                         type="submit"
                                                     >
-                                                        <i class="ph-fill ph-check-circle"></i>
+                                                        <i class="ph-duotone ph-check-circle"></i>
 
                                                         Registrar
                                                         {{ $direction['action'] }}
@@ -2333,7 +2397,7 @@
                                             </form>
                                         @else
                                             <span class="ds-status is-validated">
-                                                <i class="ph-fill ph-check-circle"></i>
+                                                <i class="ph-duotone ph-check-circle"></i>
                                                 Quitada
                                             </span>
                                         @endif
@@ -2342,7 +2406,7 @@
                                     @include('services._provider-rate-editor')
                                     <section class="ds-fin-box">
                                         <div class="ds-fin-box-head">
-                                            <i class="ph-fill ph-sliders-horizontal"></i>
+                                            <i class="ph-duotone ph-sliders-horizontal"></i>
                                             Ajuste manual
                                         </div>
 
@@ -2409,7 +2473,7 @@
                                                     class="ds-form-submit adjust"
                                                     type="submit"
                                                 >
-                                                    <i class="ph-fill ph-plus-minus"></i>
+                                                    <i class="ph-duotone ph-plus-minus"></i>
                                                     Registrar ajuste
                                                 </button>
                                             </div>
@@ -2420,7 +2484,7 @@
                                 @if($obligation->allocations->isNotEmpty())
                                     <div class="ds-allocations">
                                         <div class="ds-allocations-title">
-                                            <i class="ph-fill ph-clock-counter-clockwise"></i>
+                                            <i class="ph-duotone ph-clock-counter-clockwise"></i>
                                             Movimentações
                                         </div>
 
@@ -2430,7 +2494,7 @@
                                                     class="ds-allocation-icon"
                                                     aria-hidden="true"
                                                 >
-                                                    <i class="ph-fill ph-money"></i>
+                                                    <i class="ph-duotone ph-money"></i>
                                                 </span>
 
                                                 <span class="ds-allocation-copy">
@@ -2471,7 +2535,7 @@
                                                 )
                                                     <details class="ds-reverse">
                                                         <summary>
-                                                            <i class="ph-fill ph-arrow-counter-clockwise"></i>
+                                                            <i class="ph-duotone ph-arrow-counter-clockwise"></i>
                                                             Estornar
                                                         </summary>
 
@@ -2530,7 +2594,7 @@
                     class="ds-section-title-icon"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-paperclip"></i>
+                    <i class="ph-duotone ph-paperclip"></i>
                 </span>
 
                 <span class="ds-section-title-copy">
@@ -2623,14 +2687,14 @@
                                         class="ds-evidence-preview-overlay"
                                         aria-hidden="true"
                                     >
-                                        <i class="ph-fill ph-arrows-out"></i>
+                                        <i class="ph-duotone ph-arrows-out"></i>
                                         Ampliar
                                     </span>
                                 @else
                                     <span class="ds-evidence-file">
                                         <i
                                             class="
-                                                ph-fill
+                                                ph-duotone
                                                 {{
                                                     $evidenceIsPdf
                                                         ? 'ph-file-pdf'
@@ -2669,7 +2733,7 @@
                                     aria-label="Baixar {{ $evidenceName }}"
                                     title="Baixar"
                                 >
-                                    <i class="ph-fill ph-download-simple"></i>
+                                    <i class="ph-duotone ph-download-simple"></i>
                                 </a>
                             </footer>
                         </article>
@@ -2686,7 +2750,7 @@
                     class="ds-section-title-icon"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-file-pdf"></i>
+                    <i class="ph-duotone ph-file-pdf"></i>
                 </span>
 
                 <span class="ds-section-title-copy">
@@ -2727,7 +2791,7 @@
                             class="ds-button blue"
                             type="submit"
                         >
-                            <i class="ph-fill ph-file-arrow-down"></i>
+                            <i class="ph-duotone ph-file-arrow-down"></i>
                             {{ $label }}
                         </button>
                         <small data-sgc-pdf-error role="alert"></small>
@@ -2748,7 +2812,7 @@
                 type="button"
                 data-file-viewer-close
             >
-                <i class="ph-fill ph-arrow-left"></i>
+                <i class="ph-duotone ph-arrow-left"></i>
                 Voltar
             </button>
 
@@ -2766,7 +2830,7 @@
                 target="_blank"
                 rel="noopener"
             >
-                <i class="ph-fill ph-arrow-square-out"></i>
+                <i class="ph-duotone ph-arrow-square-out"></i>
                 Abrir
             </a>
         </header>
@@ -2793,7 +2857,7 @@
                 id="ds-file-viewer-fallback"
                 hidden
             >
-                <i class="ph-fill ph-file"></i>
+                <i class="ph-duotone ph-file"></i>
 
                 <strong>
                     Este arquivo não possui prévia incorporada.
@@ -2806,7 +2870,7 @@
                     target="_blank"
                     rel="noopener"
                 >
-                    <i class="ph-fill ph-arrow-square-out"></i>
+                    <i class="ph-duotone ph-arrow-square-out"></i>
                     Abrir arquivo
                 </a>
             </div>
@@ -2832,7 +2896,7 @@
                             color:var(--ds-red);
                         "
                     >
-                        <i class="ph-fill ph-warning-circle"></i>
+                        <i class="ph-duotone ph-warning-circle"></i>
                     </span>
 
                     <span class="ds-dialog-head-copy">
@@ -2847,7 +2911,7 @@
                     data-close-dialog="correction-dialog"
                     aria-label="Fechar"
                 >
-                    <i class="ph-fill ph-x"></i>
+                    <i class="ph-duotone ph-x"></i>
                 </button>
             </header>
 
@@ -2903,7 +2967,7 @@
                     type="submit"
                     form="correction-form"
                 >
-                    <i class="ph-fill ph-paper-plane-tilt"></i>
+                    <i class="ph-duotone ph-paper-plane-tilt"></i>
                     Solicitar correção
                 </button>
             </footer>
@@ -2924,7 +2988,7 @@
                         class="ds-dialog-head-icon"
                         aria-hidden="true"
                     >
-                        <i class="ph-fill ph-package"></i>
+                        <i class="ph-duotone ph-package"></i>
                     </span>
 
                     <span class="ds-dialog-head-copy">
@@ -2939,7 +3003,7 @@
                     data-close-dialog="resource-dialog"
                     aria-label="Fechar"
                 >
-                    <i class="ph-fill ph-x"></i>
+                    <i class="ph-duotone ph-x"></i>
                 </button>
             </header>
 
@@ -3126,7 +3190,7 @@
                     type="submit"
                     form="resource-form"
                 >
-                    <i class="ph-fill ph-check-circle"></i>
+                    <i class="ph-duotone ph-check-circle"></i>
                     Registrar recurso
                 </button>
             </footer>
