@@ -683,6 +683,55 @@ class ServiceProviderCompensationTest extends TestCase
         $this->assertSame(600.0, (float) $result->obligations()->where('direction', 'payable')->value('principal_amount'));
     }
 
+    public function test_review_shows_net_meter_quantity_pauses_and_missing_fields_before_approval(): void
+    {
+        [$execution] = $this->execution(1, 150, 30);
+        $execution->forceFill([
+            'status' => 'draft',
+            'quantity' => null,
+            'catalog_snapshot' => [
+                'review_mode' => 'manual',
+                'execution_config' => ['quantity_mode' => 'meter_difference', 'meter_start_field' => 'meter_start', 'meter_end_field' => 'meter_end'],
+                'fields' => [
+                    ['key' => 'meter_start', 'label' => 'Horímetro na saída', 'unit' => 'h', 'type' => 'meter', 'phase' => 'start', 'visible_to_provider' => true],
+                    ['key' => 'meter_end', 'label' => 'Horímetro na chegada', 'unit' => 'h', 'type' => 'meter', 'phase' => 'finish', 'visible_to_provider' => true],
+                    ['key' => 'fuel_used', 'label' => 'Combustível utilizado', 'unit' => 'L', 'type' => 'number', 'phase' => 'finish', 'visible_to_provider' => true],
+                    ['key' => 'internal_note', 'label' => 'Observação interna', 'type' => 'text', 'phase' => 'finish', 'visible_to_provider' => false],
+                ],
+            ],
+        ])->saveQuietly();
+        $actor = new User;
+        $actor->id = 1;
+        $actor->exists = true;
+        $workflow = app(ServiceExecutionWorkflow::class);
+        $workflow->start($execution, ['meter_start' => 1000], (string) Str::uuid(), $actor);
+        $submitted = $workflow->submit($execution->fresh(), [
+            'meter_end' => 1017.4,
+            'meter_pauses_meter_start' => json_encode([['stop' => 1005.6, 'resume' => 1010], ['stop' => 1012, 'resume' => 1014]]),
+            'internal_note' => 'Informação do gestor',
+        ], (string) Str::uuid(), $actor);
+        $preview = app(ServiceCompositionCalculator::class)->calculate($submitted, false);
+
+        $this->assertSame('submitted', $submitted->status);
+        $this->assertSame(11.0, (float) $submitted->quantity);
+        $this->assertSame(1650.0, $preview['receivable_total']);
+        $this->assertSame(330.0, $preview['payable_total']);
+        $html = view('services._execution-review', ['execution' => $submitted, 'financialPreview' => $preview])->render();
+        foreach (['Horas trabalhadas', '11 h', '6,4 h de pausa', 'Horímetro na saída', 'Horímetro na chegada',
+            'Pausa 2', 'Quantidade da cobrança', 'Quantidade da remuneração', 'Combustível utilizado', 'Não informado'] as $text) {
+            $this->assertStringContainsString($text, $html);
+        }
+        foreach (['fuel_used', 'meter_start', 'Observação interna', 'Informação do gestor'] as $text) {
+            $this->assertStringNotContainsString($text, $html);
+        }
+        $manager = view('services._execution-review', ['execution' => $submitted, 'operator' => true])->render();
+        $this->assertStringContainsString('Observação interna', $manager);
+
+        $approved = $workflow->approve($submitted, (string) Str::uuid(), $actor);
+        $this->assertSame(1650.0, (float) $approved->obligations()->where('direction', 'receivable')->value('principal_amount'));
+        $this->assertSame(330.0, (float) $approved->obligations()->where('direction', 'payable')->value('principal_amount'));
+    }
+
     public function test_customer_hours_and_provider_days_use_independent_quantities(): void
     {
         [$execution,, $version] = $this->execution(3, 150, 300);
@@ -929,6 +978,55 @@ class ServiceProviderCompensationTest extends TestCase
         $this->prepareRateAdjustment($obligation);
         $this->expectException(ValidationException::class);
         app(\App\Services\Services\ServiceObligationAdjustmentService::class)->changeProviderRate($obligation, 350, 800, 'Correção da tarifa', (string) Str::uuid(), $actor);
+    }
+
+    public function test_resource_reimbursement_on_validated_order_updates_balance_once(): void
+    {
+        [$obligation, $account, $actor] = $this->payable();
+        $this->prepareRateAdjustment($obligation);
+        app(ServicePaymentService::class)->record($obligation, 900, 'pix', '2026-09-09', $account->id, (string) Str::uuid(), $actor);
+        $authorized = \Mockery::mock(User::class)->makePartial();
+        $authorized->id = $actor->id;
+        $authorized->shouldReceive('checkPermissionTo')->with('manage_service_payables')->once()->andReturn(true);
+        $service = app(\App\Services\Services\ServiceResourceService::class);
+        $data = ['resource_key'=>'diesel', 'description'=>'Diesel do trator', 'provided_by'=>'provider', 'effect'=>'reimburse_provider', 'quantity'=>10, 'unit_price'=>6];
+        $key = (string) Str::uuid();
+
+        $resource = $service->add($obligation->execution, $data, $key, $authorized);
+        $retry = $service->add($obligation->execution, $data, $key, $authorized);
+
+        $this->assertSame($resource->id, $retry->id);
+        $this->assertSame('900.00', $obligation->fresh()->principal_amount);
+        $this->assertSame(900.0, $obligation->fresh()->paid_amount);
+        $this->assertSame(60.0, $obligation->fresh()->balance);
+        $this->assertSame('partially_paid', $obligation->fresh()->status);
+        $this->assertSame(1, $obligation->adjustments()->count());
+        $this->assertSame($resource->id, $obligation->adjustments()->first()->metadata['resource_id']);
+    }
+
+    public function test_validated_resource_discount_below_paid_amount_rolls_back_resource(): void
+    {
+        [$payable, $account, $payer] = $this->payable();
+        $execution = $payable->execution;
+        $obligation = $this->receivableObligation($execution, 'OB-TEST', 100);
+        $this->prepareRateAdjustment($obligation);
+        app(ServicePaymentService::class)->record($obligation, 80, 'pix', '2026-09-09', $account->id, (string) Str::uuid(), $payer);
+        $actor = \Mockery::mock(User::class)->makePartial();
+        $actor->id = 1;
+        $actor->shouldReceive('checkPermissionTo')->with('manage_service_receivables')->once()->andReturn(true);
+
+        try {
+            app(\App\Services\Services\ServiceResourceService::class)->add($execution, [
+                'resource_key'=>'diesel', 'description'=>'Diesel fornecido', 'provided_by'=>'customer',
+                'effect'=>'deduct_from_receivable', 'amount'=>30,
+            ], (string) Str::uuid(), $actor);
+            $this->fail('Um desconto acima do saldo não deveria ser registrado.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('amount', $exception->errors());
+        }
+        $this->assertSame(0, $execution->resources()->count());
+        $this->assertSame(0, $obligation->adjustments()->count());
+        $this->assertSame(100.0, $obligation->fresh()->total_amount);
     }
 
     public function test_catalog_financial_edit_preserves_operational_options_and_accepts_rate_without_unit(): void

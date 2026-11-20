@@ -497,6 +497,13 @@
 .service-execution .svc-review-layout {display:grid;grid-template-columns:minmax(0,1fr) auto;gap:15px;align-items:end}
 .service-execution .svc-review-table-wrap {min-width:0;overflow:hidden;border:1px solid var(--svc-border);border-radius:8px}
 .service-execution .svc-review-result {color:var(--svc-info);font-weight:820}
+.service-execution .svc-review-layout {grid-template-columns:minmax(0,1fr)}
+.service-execution .svc-review-measurements {display:grid;gap:.65rem;min-width:0}
+.service-execution .svc-review-quantity,
+.service-execution .svc-review-direction {display:grid;gap:.25rem;padding:.75rem 1rem;border:1px solid var(--svc-border);border-radius:10px;background:var(--svc-soft);color:var(--svc-text)}
+.service-execution .svc-review-quantity strong {font-size:1.35rem}
+.service-execution .svc-review-measurements small {color:var(--svc-text-2);font-size:.8125rem}
+.service-execution .svc-review-measurements [role=alert] {color:var(--ui-color-danger-strong)}
 .service-execution .svc-review-action {display:flex;justify-content:flex-end}
 .service-execution .svc-count {display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border:1px solid var(--svc-border);border-radius:7px;background:var(--svc-soft);color:var(--svc-text-2);font-size:11px;font-weight:800}
 
@@ -2083,105 +2090,7 @@
 
             <div class="svc-review-body">
                 <div class="svc-review-layout">
-                    <div class="svc-review-table-wrap">
-                        <table
-                            class="svc-review-table"
-                            aria-label="Cálculos da execução"
-                        >
-                            <tbody>
-                                @foreach(
-                                    [
-                                        'customer' => 'Cobrança',
-                                        'provider' => 'Remuneração',
-                                    ]
-                                    as $direction => $label
-                                )
-                                    @php
-                                        $calculation = data_get(
-                                            $execution->derived_values,
-                                            "calculation.$direction",
-                                            []
-                                        );
-                                    @endphp
-
-                                    @if(
-                                        data_get($calculation, 'mode') ===
-                                        'meter_difference'
-                                    )
-                                        <tr>
-                                            <th>
-                                                {{ $label }}
-                                            </th>
-
-                                            <td>
-                                                <span
-                                                    class="svc-review-result"
-                                                >
-                                                    {{ data_get(
-                                                        $calculation,
-                                                        'meter_end_value'
-                                                    ) }}
-                                                    −
-                                                    {{ data_get(
-                                                        $calculation,
-                                                        'meter_start_value'
-                                                    ) }}
-                                                    @foreach(json_decode(data_get($execution->values, 'meter_pauses_'.data_get($calculation, 'meter_start_field'), '[]'), true) ?? [] as $pause)
-                                                        − ({{ $pause['resume'] }} − {{ $pause['stop'] }})
-                                                    @endforeach
-                                                    =
-                                                    {{ data_get(
-                                                        $calculation,
-                                                        'result'
-                                                    ) }}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    @elseif(
-                                        data_get($calculation, 'mode') ===
-                                        'field'
-                                    )
-                                        <tr>
-                                            <th>
-                                                {{ $label }}
-                                            </th>
-
-                                            <td>
-                                                <span
-                                                    class="svc-review-result"
-                                                >
-                                                    {{ data_get(
-                                                        $calculation,
-                                                        'result'
-                                                    ) }}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    @endif
-                                @endforeach
-
-                                @if(
-                                    !data_get(
-                                        $execution->derived_values,
-                                        'calculation.customer'
-                                    )
-                                    && !data_get(
-                                        $execution->derived_values,
-                                        'calculation.provider'
-                                    )
-                                )
-                                    <tr>
-                                        <th>Cálculos</th>
-
-                                        <td>
-                                            Nenhum cálculo derivado
-                                            disponível.
-                                        </td>
-                                    </tr>
-                                @endif
-                            </tbody>
-                        </table>
-                    </div>
+                    @include('services._execution-review')
 
                     @if($canApprove)
                         <div class="svc-review-action">

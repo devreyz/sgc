@@ -37,6 +37,17 @@ body {
     object-fit: contain;
 }
 
+.hdr-org, .org-header-left,
+.hdr-right, .org-header-right {
+    vertical-align: top !important;
+    word-wrap: break-word;
+}
+
+.hdr-right, .org-header-right {
+    padding-left: 16px !important;
+    white-space: normal !important;
+}
+
 .hdr-org .name, .hdr-org .org-name, .pdf-header-info .org-name,
 .org-name, .header-org-name {
     color: {{ $pdfThemePrimary }} !important;

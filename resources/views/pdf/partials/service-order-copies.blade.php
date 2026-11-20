@@ -1,21 +1,34 @@
-@php($read = fn ($key) => filled($variables[$key] ?? null) ? $variables[$key] : '')
-@foreach(['Via do beneficiário', 'Via da associação • Prestação de contas'] as $copyLabel)
-    <div style="{{ $loop->first ? '' : 'page-break-before:always;' }}">
-        <p style="font-weight:bold;font-size:12px">{{ $read('organization_name') }}</p>
-        @if(filled($variables['organization_document'] ?? null))<p>CNPJ: {{ $variables['organization_document'] }}</p>@endif
-        <div class="section-title">ORDEM DE SERVIÇO · {{ $read('order_number') }}</div>
-        <p style="text-align:right;font-weight:bold;margin-bottom:12px">{{ $copyLabel }}</p>
+@php
+    $read = static function ($key) use ($variables) {
+        $value = $variables[$key] ?? '';
+        return in_array(trim((string) $value), ['-', '–', '—'], true) ? '' : $value;
+    };
+    $copies = ['beneficiary' => 'Via do beneficiário'];
+    if (! ($variables['beneficiary_only'] ?? false)) {
+        $copies['association'] = 'Via da associação · Prestação de contas';
+    }
+@endphp
+@foreach($copies as $copy => $copyLabel)
+    <div class="service-order-copy{{ $loop->first ? '' : ' service-order-copy-next' }}">
+        <p class="service-order-copy-label">@unless($loop->first){{ $read('order_number') }} · @endunless{{ $copyLabel }}</p>
         <div class="info-box">
-            <p style="font-size:14px;font-weight:bold;margin-bottom:8px">Beneficiário: {{ $read('beneficiary_name') }}</p>
-            <table style="width:100%">
-                <tr><td class="label">Serviço</td><td colspan="3">{{ $read('service_name') }}</td></tr>
-                <tr><td class="label">Prestador</td><td colspan="3">{{ $read('provider_name') }}</td></tr>
-                <tr><td class="label">Local</td><td colspan="3">{{ $read('location') }}</td></tr>
-                <tr><td class="label">Execução</td><td>{{ $read('execution_date') }}</td><td class="label">Término</td><td>{{ $read('end_time') }}</td></tr>
-                <tr><td class="label">Início</td><td>{{ $read('start_time') }}</td>@if(in_array($variables['status'] ?? '', ['Quitado','Concluído'], true))<td>Situação</td><td>{{ $read('status') }}</td>@else<td colspan="2"></td>@endif</tr>
+            <p style="font-size:12px;font-weight:bold;margin-bottom:4px">Beneficiário: {{ $read('beneficiary_name') }}</p>
+            <table>
+                <tr><td class="label">Prestador</td><td>{{ $read('provider_name') }}</td></tr>
+                <tr><td class="label">Local</td><td>{{ $read('location') }}</td></tr>
             </table>
         </div>
         <div class="section-title">Serviço realizado</div>
+        <table class="data-table">
+            <thead><tr>
+                <th>Data da execução</th><th>Início</th><th>Término</th>
+                @if(in_array($variables['status'] ?? '', ['Quitado', 'Concluído'], true))<th>Situação</th>@endif
+            </tr></thead>
+            <tbody><tr>
+                <td>{{ $read('execution_date') }}</td><td>{{ $read('start_time') }}</td><td>{{ $read('end_time') }}</td>
+                @if(in_array($variables['status'] ?? '', ['Quitado', 'Concluído'], true))<td>{{ $read('status') }}</td>@endif
+            </tr></tbody>
+        </table>
         <table class="data-table"><thead><tr><th>Descrição</th><th class="text-right">Quantidade</th>@if($variables['financial_visible'] ?? false)<th class="text-right">Valor do serviço</th>@endif</tr></thead><tbody><tr><td>{{ $read('service_name') }}</td><td class="text-right">@if($read('quantity') !== ''){{ $read('quantity') }} {{ $read('unit') }}@endif</td>@if($variables['financial_visible'] ?? false)<td class="text-right">{{ $read('total_receber') }}</td>@endif</tr></tbody></table>
         <div class="section-title">Medições e dados registrados</div>
         {!! $variables['campos_execucao'] ?? '' !!}
@@ -34,12 +47,14 @@
             <tr><td colspan="2">Observação / comprovante: ______________________________________________________________</td></tr>
         </tbody></table>
         <p style="font-size:8px;color:#64748b">O preenchimento manual deve ser lançado no sistema para atualizar o saldo. Esta OS não substitui comprovante de pagamento.</p>
-        @if($loop->last && ($variables['financial_visible'] ?? false))
+        @if($copy === 'association' && ($variables['financial_visible'] ?? false))
             <div class="section-title">Pagamento do prestador · Controle da associação</div>
             <p>Total do prestador: <strong>{{ $read('total_pagar') }}</strong></p>
             <table class="data-table"><tbody><tr><td>Valor pago: R$ __________________</td><td>Data: ____ / ____ / ________</td></tr><tr><td>Forma: □ Pix □ Dinheiro □ Transferência □ Outra</td><td>Recebido por: ________________________</td></tr></tbody></table>
         @endif
-        <table style="width:100%;margin-top:28px;text-align:center"><tr><td style="width:50%">________________________________<br>Beneficiário · Ciência do serviço</td><td>________________________________<br>Prestador / Associação</td></tr></table>
-        <p style="margin-top:12px;font-size:8px;color:#64748b">Documento de controle interno · Sem valor fiscal</p>
+        <div class="service-order-signatures">
+            <table style="width:100%;text-align:center"><tr><td style="width:50%">________________________________<br>Beneficiário · Ciência do serviço</td><td>________________________________<br>Prestador / Associação</td></tr></table>
+            <p style="margin-top:5px;font-size:8px;color:#64748b">Documento de controle interno · Sem valor fiscal</p>
+        </div>
     </div>
 @endforeach

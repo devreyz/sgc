@@ -354,13 +354,13 @@ HTML;
 
         $generationHtml = $suppressGenerationTimestamp ? '' : '<div style="font-size:8px;color:#9ca3af;">Gerado em: '.$this->today().'</div>';
         return <<<HTML
-<div class="pdf-header-custom" style="display:table;width:100%;border-bottom:2px solid {$primaryColor};padding-bottom:7px;">
-    <div style="display:table-cell;width:58px;vertical-align:middle;">{$logoHtml}</div>
-    <div style="display:table-cell;width:58%;vertical-align:middle;">
+<div class="pdf-header-custom" style="display:table;table-layout:fixed;width:100%;border-bottom:2px solid {$primaryColor};padding-bottom:7px;">
+    <div style="display:table-cell;width:66px;padding-right:8px;vertical-align:top;">{$logoHtml}</div>
+    <div style="display:table-cell;vertical-align:top;word-wrap:break-word;">
         <div style="font-size:14px;font-weight:bold;color:#1f2937;">{$orgName}</div>
         <div style="font-size:8px;color:#6b7280;">{$orgCnpj}</div>
     </div>
-    <div style="display:table-cell;width:34%;text-align:right;vertical-align:middle;">
+    <div style="display:table-cell;width:34%;padding-left:16px;text-align:right;vertical-align:top;word-wrap:break-word;">
         <div style="font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;">{$docTitle}</div>
         {$generationHtml}
     </div>

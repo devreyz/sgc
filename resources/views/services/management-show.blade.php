@@ -18,6 +18,8 @@
     );
 
     $execution = $order->execution;
+    $canManageResources = $execution && $execution->status !== 'cancelled' && $order->operational_status !== 'cancelled'
+        && auth()->user()->checkPermissionTo('manage_service_resources');
 
     $serviceName =
         $order->service?->name
@@ -82,10 +84,6 @@
         ],
     };
 
-    $executionValues = collect(
-        $execution?->values ?? []
-    );
-
     $obligations = collect(
         $execution?->obligations ?? []
     );
@@ -102,26 +100,6 @@
         $execution
         ? ($execution->isFrozen() || $execution->status === 'cancelled')
         : true;
-
-    $formatExecutionValue = static function ($value): string {
-        if (is_bool($value)) {
-            return $value ? 'Sim' : 'Não';
-        }
-
-        if ($value === null || $value === '') {
-            return '—';
-        }
-
-        if (is_array($value)) {
-            return json_encode(
-                $value,
-                JSON_UNESCAPED_UNICODE
-                | JSON_UNESCAPED_SLASHES
-            );
-        }
-
-        return (string) $value;
-    };
 
     $normalizeObligationDirection = static function ($direction): string {
         if (is_object($direction)) {
@@ -1431,6 +1409,33 @@
         background: var(--sgc-accent-hover);
     }
 
+    .ds-quick-finance {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: .5rem;
+        padding: .75rem;
+        border: 1px solid var(--ds-border);
+        border-radius: .75rem;
+        background: var(--ds-soft);
+    }
+    .ds-quick-finance h3, .ds-quick-dialog h3 { font-size: .9375rem; font-weight: 700; }
+    .dossier-dialog.ds-quick-dialog { overflow-y: auto; overscroll-behavior: contain; }
+    .ds-quick-dialog > form > button[type=submit] { justify-self: start; }
+    .ds-quick-dialog [hidden] { display: none !important; }
+    .ds-resource-history { margin-bottom: .75rem; }
+    .ds-resource-record {
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: .35rem .75rem;
+        padding: .5rem 0;
+        border-bottom: 1px solid var(--ds-border);
+        overflow-wrap: anywhere;
+    }
+    .ds-resource-record p { color: var(--ds-text-2); font-size: .8125rem; }
+
     /* =========================================================
        DIALOGS
        ========================================================= */
@@ -1758,6 +1763,23 @@
             transition: none !important;
         }
     }
+
+    .dossier-page .svc-review-measurements { display:grid; gap:.65rem; min-width:0; }
+    .dossier-page :is(.svc-review-quantity, .svc-review-direction) {
+        display:grid; gap:.25rem; padding:.75rem 1rem; border:1px solid var(--ds-border);
+        border-radius:.75rem; background:var(--ds-soft); color:var(--ds-text);
+    }
+    .dossier-page .svc-review-quantity strong { font-size:1.25rem; }
+    .dossier-page .svc-review-measurements small { color:var(--ds-text-2); }
+    .dossier-page .svc-review-measurements [role=alert] { color:var(--ui-color-danger-strong); }
+    .dossier-page .svc-review-table-wrap { border:1px solid var(--ds-border); border-radius:.75rem; overflow:hidden; }
+    .dossier-page .svc-review-table { width:100%; border-collapse:collapse; }
+    .dossier-page .svc-review-table :is(th, td) {
+        text-align:left; vertical-align:top; padding:.55rem .7rem; border-bottom:1px solid var(--ds-border);
+        overflow-wrap:anywhere;
+    }
+    .dossier-page .svc-review-table th { width:42%; color:var(--ds-text-2); background:var(--ds-soft); }
+    .dossier-page .svc-review-table tr:last-child :is(th, td) { border-bottom:0; }
 </style>
 
 <main class="dossier-page">
@@ -1844,6 +1866,13 @@
                     <small data-sgc-pdf-error role="alert"></small>
                 </form>
             @endforeach
+            <form method="post" action="{{ route('services.management.documents.generate', [$tenantSlug, $order]) }}" target="_blank" data-sgc-pdf-form="Via do beneficiário">
+                @csrf
+                <input type="hidden" name="type" value="order">
+                <input type="hidden" name="copy" value="beneficiary">
+                <button class="ds-button secondary" type="submit"><i class="ph-duotone ph-share-network" aria-hidden="true"></i>Via do beneficiário</button>
+                <small data-sgc-pdf-error role="alert"></small>
+            </form>
             @if($order->execution?->obligations?->where('direction', 'receivable')->isNotEmpty())
                 <a class="ds-button" href="{{ route('services.management.agreements', ['tenant' => $tenantSlug]) }}"><i class="ph-duotone ph-handshake"></i>Negociar cobrança</a>
             @endif
@@ -1979,33 +2008,16 @@
                 </span>
             </div>
 
-            <span class="ds-section-meta">
-                {{ $executionValues->count() }}
-                {{ $executionValues->count() === 1
-                    ? 'campo'
-                    : 'campos' }}
-            </span>
         </header>
-
         <div class="ds-section-body">
-            @if($executionValues->isEmpty())
-                <div class="ds-empty-inline">
-                    Nenhum dado de execução registrado.
-                </div>
+            @if($execution)
+                @include('services._execution-review', [
+                    'operator' => true,
+                    'financialPreview' => $execution->management_preview ?? null,
+                    'showFinancialQuantities' => auth()->user()->checkPermissionTo('view_service_financials'),
+                ])
             @else
-                <dl class="ds-values">
-                    @foreach($executionValues as $key => $value)
-                        <div class="ds-value">
-                            <dt>
-                                {{ \Illuminate\Support\Str::headline($key) }}
-                            </dt>
-
-                            <dd>
-                                {{ $formatExecutionValue($value) }}
-                            </dd>
-                        </div>
-                    @endforeach
-                </dl>
+                <div class="ds-empty-inline">Nenhum dado de execução registrado.</div>
             @endif
         </div>
     </section>
@@ -2027,14 +2039,14 @@
             </div>
 
             <div style="display:flex;gap:.4rem;align-items:center">
-                @if(!$executionFrozen)
+                @if($canManageResources)
                     <button
                         class="ds-button violet"
                         type="button"
                         data-open-dialog="resource-dialog"
                     >
                         <i class="ph-duotone ph-plus-circle"></i>
-                        Recurso
+                        Adicionar recurso
                     </button>
                 @endif
 
@@ -2050,6 +2062,9 @@
         </header>
 
         <div class="ds-section-body">
+            @if($canManageResources || ($execution && auth()->user()->checkPermissionTo('view_service_financials')))
+                @include('services._financial-resource-history')
+            @endif
             @if(!$hasComposition)
                 <div class="ds-empty-inline">
                     Nenhuma obrigação financeira gerada.
@@ -2163,6 +2178,11 @@
                                 ->ensure($obligation, auth()->user());
                         @endphp
 
+                        @if($obligation->status !== 'cancelled' && $order->operational_status !== 'cancelled'
+                            && auth()->user()->checkPermissionTo($obligation->direction === 'payable' ? 'manage_service_payables' : 'manage_service_receivables'))
+                            @include('services._financial-actions')
+                        @endif
+
                         <details
                             class="
                                 ds-obligation
@@ -2246,6 +2266,24 @@
                             </summary>
 
                             <div class="ds-obligation-body">
+                                @if($obligation->adjustments->isNotEmpty())
+                                    <section class="ds-fin-box">
+                                        <h3 class="ds-fin-box-head">Histórico de alterações</h3>
+                                        @foreach($obligation->adjustments as $change)
+                                            <div class="ds-resource-record">
+                                                <div>
+                                                    <strong>{{ match (data_get($change->metadata, 'kind')) {
+                                                        'provider_rate' => 'Alteração de tarifa',
+                                                        'resource' => 'Recurso',
+                                                        default => $change->type === 'decrease' ? 'Desconto' : 'Acréscimo',
+                                                    } }}</strong>
+                                                    <p>{{ $change->reason }} · {{ $change->created_at?->format('d/m/Y') }}</p>
+                                                </div>
+                                                <strong>{{ (float) $change->amount < 0 ? '−' : '+' }} R$ {{ number_format(abs((float) $change->amount), 2, ',', '.') }}</strong>
+                                            </div>
+                                        @endforeach
+                                    </section>
+                                @endif
                                 @if($verificationIdentity)
                                     <p style="margin:0 0 .65rem">
                                         <a class="ds-button blue" href="{{ route('financial-documents.show', $verificationIdentity->public_id) }}" target="_blank" rel="noopener">
@@ -2403,82 +2441,6 @@
                                         @endif
                                     </section>
 
-                                    @include('services._provider-rate-editor')
-                                    <section class="ds-fin-box">
-                                        <div class="ds-fin-box-head">
-                                            <i class="ph-duotone ph-sliders-horizontal"></i>
-                                            Ajuste manual
-                                        </div>
-
-                                        <form
-                                            method="post"
-                                            action="{{ route(
-                                                'services.management.adjustments.store',
-                                                [
-                                                    $tenantSlug,
-                                                    $obligation,
-                                                ]
-                                            ) }}"
-                                            class="ds-form-grid"
-                                        >
-                                            @csrf
-
-                                            <input
-                                                type="hidden"
-                                                name="operation_key"
-                                                value="{{ \Illuminate\Support\Str::uuid() }}"
-                                            >
-
-                                            <label class="ds-field">
-                                                <span class="ds-label">Tipo de ajuste</span>
-                                                <select class="ds-control" name="effect" required>
-                                                    <option value="decrease">Desconto — reduz o saldo</option>
-                                                    <option value="increase">Acréscimo — aumenta o saldo</option>
-                                                </select>
-                                            </label>
-
-                                            <label class="ds-field">
-                                                <span class="ds-label">
-                                                    Valor do ajuste
-                                                </span>
-
-                                                <input
-                                                    class="ds-control"
-                                                    type="number"
-                                                    name="amount"
-                                                    step="0.01"
-                                                    min="0.01"
-                                                    required
-                                                    inputmode="decimal"
-                                                    placeholder="0,00"
-                                                >
-                                            </label>
-
-                                            <label class="ds-field">
-                                                <span class="ds-label">
-                                                    Motivo
-                                                </span>
-
-                                                <input
-                                                    class="ds-control"
-                                                    name="reason"
-                                                    minlength="5"
-                                                    required
-                                                    placeholder="Motivo"
-                                                >
-                                            </label>
-
-                                            <div class="ds-field full">
-                                                <button
-                                                    class="ds-form-submit adjust"
-                                                    type="submit"
-                                                >
-                                                    <i class="ph-duotone ph-plus-minus"></i>
-                                                    Registrar ajuste
-                                                </button>
-                                            </div>
-                                        </form>
-                                    </section>
                                 </div>
 
                                 @if($obligation->allocations->isNotEmpty())
@@ -2975,227 +2937,8 @@
     </dialog>
 @endif
 
-@if(!$executionFrozen)
-    <dialog
-        class="dossier-dialog"
-        id="resource-dialog"
-        aria-label="Registrar recurso"
-    >
-        <div class="ds-dialog-layout">
-            <header class="ds-dialog-head">
-                <div class="ds-dialog-head-main">
-                    <span
-                        class="ds-dialog-head-icon"
-                        aria-hidden="true"
-                    >
-                        <i class="ph-duotone ph-package"></i>
-                    </span>
-
-                    <span class="ds-dialog-head-copy">
-                        <small>Financeiro</small>
-                        <strong>Registrar recurso</strong>
-                    </span>
-                </div>
-
-                <button
-                    class="ds-dialog-close"
-                    type="button"
-                    data-close-dialog="resource-dialog"
-                    aria-label="Fechar"
-                >
-                    <i class="ph-duotone ph-x"></i>
-                </button>
-            </header>
-
-            <div class="ds-dialog-body">
-                <form
-                    id="resource-form"
-                    class="ds-dialog-form"
-                    method="post"
-                    action="{{ route(
-                        'services.management.resources.store',
-                        [
-                            $tenantSlug,
-                            $order,
-                        ]
-                    ) }}"
-                >
-                    @csrf
-
-                    <input
-                        type="hidden"
-                        name="operation_key"
-                        value="{{ \Illuminate\Support\Str::uuid() }}"
-                    >
-
-                    <div class="ds-dialog-grid">
-                        <label class="ds-field">
-                            <span class="ds-label">
-                                Código do recurso
-                            </span>
-
-                            <input
-                                class="ds-control"
-                                name="resource_key"
-                                required
-                                placeholder="Código"
-                            >
-                        </label>
-
-                        <label class="ds-field">
-                            <span class="ds-label">
-                                Descrição
-                            </span>
-
-                            <input
-                                class="ds-control"
-                                name="description"
-                                required
-                                placeholder="Descrição"
-                            >
-                        </label>
-
-                        <label class="ds-field">
-                            <span class="ds-label">
-                                Fornecido por
-                            </span>
-
-                            <select
-                                class="ds-control"
-                                name="provided_by"
-                            >
-                                <option value="organization">
-                                    Organização
-                                </option>
-
-                                <option value="provider">
-                                    Prestador
-                                </option>
-
-                                <option value="customer">
-                                    Cliente
-                                </option>
-
-                                <option value="third_party">
-                                    Terceiro
-                                </option>
-                            </select>
-                        </label>
-
-                        <label class="ds-field">
-                            <span class="ds-label">
-                                Efeito
-                            </span>
-
-                            <select
-                                class="ds-control"
-                                name="effect"
-                            >
-                                <option value="information_only">
-                                    Somente informativo
-                                </option>
-
-                                <option value="deduct_from_receivable">
-                                    Descontar do cliente
-                                </option>
-
-                                <option value="add_to_receivable">
-                                    Acrescentar ao cliente
-                                </option>
-
-                                <option value="reimburse_provider">
-                                    Reembolsar prestador
-                                </option>
-
-                                <option value="create_association_expense">
-                                    Gerar despesa da organização
-                                </option>
-                            </select>
-                        </label>
-
-                        <label class="ds-field">
-                            <span class="ds-label">
-                                Quantidade
-                            </span>
-
-                            <input
-                                class="ds-control"
-                                type="number"
-                                name="quantity"
-                                step="0.0001"
-                                min="0"
-                                inputmode="decimal"
-                                placeholder="0"
-                            >
-                        </label>
-
-                        <label class="ds-field">
-                            <span class="ds-label">
-                                Unidade
-                            </span>
-
-                            <input
-                                class="ds-control"
-                                name="unit"
-                                placeholder="Unidade"
-                            >
-                        </label>
-
-                        <label class="ds-field">
-                            <span class="ds-label">
-                                Preço unitário
-                            </span>
-
-                            <input
-                                class="ds-control"
-                                type="number"
-                                name="unit_price"
-                                step="0.0001"
-                                min="0"
-                                inputmode="decimal"
-                                placeholder="0,00"
-                            >
-                        </label>
-
-                        <label class="ds-field">
-                            <span class="ds-label">
-                                Valor total
-                            </span>
-
-                            <input
-                                class="ds-control"
-                                type="number"
-                                name="amount"
-                                step="0.01"
-                                min="0"
-                                inputmode="decimal"
-                                placeholder="0,00"
-                            >
-                        </label>
-                    </div>
-                </form>
-            </div>
-
-            <footer class="ds-dialog-foot">
-                <button
-                    class="ds-button secondary"
-                    type="button"
-                    data-close-dialog="resource-dialog"
-                >
-                    Cancelar
-                </button>
-
-                <button
-                    class="ds-button primary"
-                    type="submit"
-                    form="resource-form"
-                >
-                    <i class="ph-duotone ph-check-circle"></i>
-                    Registrar recurso
-                </button>
-            </footer>
-        </div>
-    </dialog>
+@if($canManageResources)
+    @include('services._financial-resource')
 @endif
 
 @if(\App\Services\Services\ServiceOrderDetails::editable($order) && auth()->user()->checkPermissionTo('edit_service_order'))
@@ -3206,6 +2949,43 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const money = value => value.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+    const syncAdjustment = form => {
+        const decrease = form.elements.effect.value === 'decrease';
+        const label = decrease ? 'Desconto' : 'Acréscimo';
+        const amount = Number(form.elements.amount.value);
+        const total = Number(form.dataset.total) + (decrease ? -amount : amount);
+        const paid = Number(form.dataset.paid);
+        const belowPaid = Math.round(total * 100) < Math.round(paid * 100);
+        form.closest('dialog').querySelector('[data-adjust-title]').textContent = label;
+        form.querySelector('[data-adjust-submit]').textContent = 'Registrar ' + label.toLowerCase();
+        form.elements.amount.setCustomValidity(belowPaid ? 'O novo total ficaria abaixo do valor já pago.' : '');
+        form.querySelector('[data-adjust-preview]').textContent = belowPaid
+            ? 'O novo total ficaria abaixo de ' + money(paid) + ', que já foi pago.'
+            : 'Total: ' + money(total) + ' · Saldo: ' + money(Math.max(0, total - paid));
+    };
+    document.querySelectorAll('[data-obligation-adjustment]').forEach(form => {
+        form.elements.amount.addEventListener('input', () => syncAdjustment(form));
+        syncAdjustment(form);
+    });
+
+    const resource = document.getElementById('resource-form');
+    if (resource) {
+        const details = resource.querySelector('[data-resource-details]');
+        const fields = resource.querySelector('[data-resource-detail-fields]');
+        const updateFields = () => {
+            fields.hidden = !details.checked;
+            fields.querySelectorAll('input').forEach(input => { input.disabled = fields.hidden; });
+        };
+        details.addEventListener('change', updateFields);
+        updateFields();
+        resource.querySelectorAll('[data-resource-preset]').forEach(button => {
+            button.addEventListener('click', () => {
+                resource.elements.description.value = button.dataset.resourcePreset;
+                resource.elements.description.focus();
+                resource.elements.description.select();
+            });
+        });
+    }
     document.querySelectorAll('[data-provider-rate-form]').forEach(form => {
         form.elements.provider_rate.addEventListener('input', () => {
             const rate = Number(form.elements.provider_rate.value);
@@ -3299,14 +3079,20 @@ document.addEventListener('DOMContentLoaded', () => {
             button.addEventListener(
                 'click',
                 () => {
-                    openDialog(
-                        document.getElementById(
-                            button.dataset.openDialog
-                        )
-                    );
+                    const dialog = document.getElementById(button.dataset.openDialog);
+                    const form = dialog?.querySelector('[data-obligation-adjustment]');
+                    if (form && button.dataset.adjustEffect) {
+                        form.reset();
+                        form.elements.effect.value = button.dataset.adjustEffect;
+                        syncAdjustment(form);
+                    }
+                    openDialog(dialog);
+                    form?.elements.amount.focus();
                 }
             );
         });
+
+    openDialog(document.querySelector('[data-finance-reopen]'));
 
     document
         .querySelectorAll(

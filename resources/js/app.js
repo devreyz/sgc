@@ -219,8 +219,6 @@ function closeWebPdfViewer() {
     const viewer = document.getElementById('sgc-web-pdf-viewer');
     if (viewer) {
         viewer.hidden = true;
-        const frame = viewer.querySelector('[data-sgc-pdf-frame]');
-        if (frame) frame.removeAttribute('src');
         const pages = viewer.querySelector('[data-sgc-pdf-pages]');
         if (pages) pages.replaceChildren();
     }
@@ -252,8 +250,7 @@ function ensureWebPdfViewer() {
                 <button type="button" data-sgc-pdf-close>Fechar</button>
             </nav>
         </header>
-        <iframe title="Conteúdo do PDF" data-sgc-pdf-frame referrerpolicy="no-referrer"></iframe>
-        <div class="sgc-pdf-pages" data-sgc-pdf-pages hidden aria-label="Páginas do PDF"></div>
+        <div class="sgc-pdf-pages" data-sgc-pdf-pages aria-label="Páginas do PDF"></div>
     `;
     const style = document.createElement('style');
     style.textContent = `
@@ -262,9 +259,16 @@ function ensureWebPdfViewer() {
         .sgc-pdf-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:var(--ui-color-surface,#fff);border-bottom:1px solid var(--ui-color-border,#dce6df);box-shadow:0 5px 20px rgba(15,35,24,.1)}
         .sgc-pdf-heading{display:grid;min-width:0}.sgc-pdf-heading span{font-size:11px;color:#718078}.sgc-pdf-heading strong{white-space:normal;overflow-wrap:anywhere;font-size:15px}
         .sgc-pdf-toolbar nav{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none}.sgc-pdf-toolbar button{min-height:38px;padding:7px 12px;border:1px solid #b9cec1;border-radius:10px;background:var(--ui-color-surface,#fff);color:var(--ui-color-text,#173d32);font:700 12px/1 system-ui;white-space:nowrap}.sgc-pdf-toolbar button[data-sgc-pdf-close]{background:#173d32;color:#fff;border-color:#173d32}
-        #sgc-web-pdf-viewer iframe{width:100%;height:100%;border:0;background:#e7ece9}
         .sgc-pdf-pages{min-height:0;overflow:auto;padding:12px;background:var(--ui-color-canvas-deep,#dfe7e2);text-align:center;overscroll-behavior:contain}.sgc-pdf-pages[hidden]{display:none}.sgc-pdf-pages canvas{display:block;max-width:100%;height:auto;margin:0 auto 12px;background:#fff;box-shadow:0 2px 10px rgba(15,35,24,.16)}.sgc-pdf-pages>p{padding:24px;color:#53675c;font:600 13px system-ui}
         @media(max-width:720px){.sgc-pdf-toolbar{align-items:stretch;flex-direction:column}.sgc-pdf-toolbar nav{width:100%}.sgc-pdf-toolbar button{flex:1}.sgc-pdf-heading span{display:none}}
+        @media print {
+            html:has(#sgc-web-pdf-viewer:not([hidden])) { overflow:visible !important; }
+            body:has(> #sgc-web-pdf-viewer:not([hidden])) > :not(#sgc-web-pdf-viewer) { display:none !important; }
+            #sgc-web-pdf-viewer:not([hidden]), #sgc-web-pdf-viewer .sgc-pdf-pages { display:block;position:static;overflow:visible;padding:0;background:#fff; }
+            #sgc-web-pdf-viewer .sgc-pdf-toolbar { display:none; }
+            #sgc-web-pdf-viewer canvas { width:auto;margin:0 auto;box-shadow:none;break-inside:avoid; }
+            #sgc-web-pdf-viewer canvas:not(:last-child) { break-after:page; }
+        }
     `;
     document.head.appendChild(style);
     document.body.appendChild(viewer);
@@ -278,13 +282,7 @@ function ensureWebPdfViewer() {
     viewer.querySelector('[data-sgc-pdf-share]').addEventListener('click', () => {
         if (webPdfState) window.SgcDocuments.sharePdf(webPdfState.blob, webPdfState.fileName, webPdfState.title);
     });
-    viewer.querySelector('[data-sgc-pdf-print]').addEventListener('click', () => {
-        const frame = viewer.querySelector('[data-sgc-pdf-frame]');
-        const pages = viewer.querySelector('[data-sgc-pdf-pages]');
-        if (pages && !pages.hidden) { window.print(); return; }
-        try { frame.contentWindow.focus(); frame.contentWindow.print(); }
-        catch (_) { window.open(webPdfState?.url, '_blank', 'noopener,noreferrer'); }
-    });
+    viewer.querySelector('[data-sgc-pdf-print]').addEventListener('click', () => window.print());
     return viewer;
 }
 
@@ -295,21 +293,12 @@ function openInBrowser(blob, fileName, title) {
     webPdfState = { blob, fileName, title, url };
     viewer.hidden = false;
     viewer.querySelector('[data-sgc-pdf-title]').textContent = title;
-    // Parâmetros de leitor (#toolbar/#view) fazem alguns WebViews e PWAs
-    // exibirem uma página vazia. O blob puro preserva o visualizador nativo
-    // do navegador e o botão acima oferece uma saída explícita.
-    const frame = viewer.querySelector('[data-sgc-pdf-frame]');
     const pages = viewer.querySelector('[data-sgc-pdf-pages]');
-    if (isInstalledPwa() || isMobileBrowser()) {
-        frame.hidden = true;
-        pages.hidden = false;
-        renderPdfPages(blob, pages, webPdfState);
-    } else {
-        pages.hidden = true;
-        frame.hidden = false;
-        frame.src = url;
-    }
-    viewer.hidden = false;
+    const print = viewer.querySelector('[data-sgc-pdf-print]');
+    print.disabled = true;
+    renderPdfPages(blob, pages, webPdfState).then(rendered => {
+        if (webPdfState?.url === url) print.disabled = !rendered;
+    });
     document.documentElement.style.overflow = 'hidden';
     hideNavigationLoading();
 }
@@ -319,7 +308,9 @@ async function renderPdfPages(blob, host, state) {
     try {
         const pdfjsLib = await loadPdfJs();
         if (state !== webPdfState) return;
-        state.loadingTask = pdfjsLib.getDocument({data: new Uint8Array(await blob.arrayBuffer())});
+        const data = new Uint8Array(await blob.arrayBuffer());
+        if (state !== webPdfState) return;
+        state.loadingTask = pdfjsLib.getDocument({data});
         const pdf = await state.loadingTask.promise;
         if (state !== webPdfState) return;
         host.replaceChildren();
@@ -327,6 +318,7 @@ async function renderPdfPages(blob, host, state) {
         for (let number = 1; number <= pdf.numPages; number += 1) {
             if (state !== webPdfState) return;
             const page = await pdf.getPage(number);
+            if (state !== webPdfState) return;
             const initial = page.getViewport({scale:1});
             const viewport = page.getViewport({scale:Math.min(2.2, availableWidth / initial.width)});
             const canvas = document.createElement('canvas');
@@ -334,10 +326,11 @@ async function renderPdfPages(blob, host, state) {
             canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
             canvas.setAttribute('aria-label', `Página ${number} de ${pdf.numPages}`);
             host.appendChild(canvas);
-            state.renderTask = page.render({canvasContext:context, viewport});
+            state.renderTask = page.render({canvas, canvasContext:context, viewport});
             await state.renderTask.promise;
             page.cleanup();
         }
+        return true;
     } catch (error) {
         if (state !== webPdfState) return;
         console.warn('SGC PDF rendering failed', error);
@@ -522,8 +515,6 @@ installLivewirePdfDownloadBridge();
 document.addEventListener('submit', async (event) => {
     const form = event.target;
     if (event.defaultPrevented || !(form instanceof HTMLFormElement) || !form.matches('[data-sgc-pdf-form]')) return;
-    if (!isNativeAndroid() && !isInstalledPwa() && !isMobileBrowser()) return;
-
     const action = new URL(form.action, window.location.href);
     if (action.origin !== window.location.origin) return;
     event.preventDefault();
@@ -592,9 +583,8 @@ document.addEventListener('click', async (event) => {
         || /\/(?:pdf|print|preview|reprint|billing-sheet)(?:[/?]|$)/i.test(href.pathname)
         || (/\/download(?:[/?]|$)/i.test(href.pathname) && /pdf|comprovante|recibo|imprimir|visualizar/i.test(hint));
     if (href.origin !== window.location.origin || !looksLikePdf) return;
-    // No navegador tradicional preserva a resposta inline e o nome fornecido
-    // pelo próprio servidor. Android e PWA usam o visualizador unificado.
-    if (!isNativeAndroid() && !isInstalledPwa() && !isMobileBrowser()) return;
+    if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    if (!link.matches('[data-sgc-pdf]') && !isNativeAndroid() && !isInstalledPwa() && !isMobileBrowser()) return;
 
     event.preventDefault();
     link.dataset.sgcPdfHandled = 'true';

@@ -53,6 +53,10 @@ export default defineConfig({
                 "resources/js/document-quick-verification.js": "resources/js/document-quick-verification.js",
             },
             output: {
+                // Serve the module worker with the usual JavaScript MIME type.
+                assetFileNames: asset => asset.names.includes("pdf.worker.min.mjs")
+                    ? "assets/pdf.worker-[hash].js"
+                    : "assets/[name]-[hash][extname]",
                 manualChunks: (id) => {
                     if (id.includes("node_modules/pdfjs-dist")) {
                         return "pdf-viewer";

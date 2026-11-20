@@ -53,14 +53,16 @@
         .pdf-header {
             display: table;
             width: 100%;
+            table-layout: fixed;
             margin-bottom: 16px;
             border-bottom: 3px solid {{ $primaryColor }};
             padding-bottom: 12px;
         }
         .pdf-header-logo {
             display: table-cell;
-            width: 70px;
-            vertical-align: middle;
+            width: 66px;
+            padding-right: 10px;
+            vertical-align: top;
         }
         .pdf-header-logo img {
             max-width: 60px;
@@ -68,8 +70,8 @@
         }
         .pdf-header-info {
             display: table-cell;
-            vertical-align: middle;
-            padding-left: 12px;
+            vertical-align: top;
+            word-wrap: break-word;
         }
         .pdf-header-info .org-name {
             font-size: 16px;
@@ -88,8 +90,11 @@
         }
         .pdf-header-title-cell {
             display: table-cell;
+            width: 34%;
+            padding-left: 16px;
             text-align: right;
-            vertical-align: middle;
+            vertical-align: top;
+            word-wrap: break-word;
         }
         .pdf-header-title-cell .doc-title {
             font-size: 13px;

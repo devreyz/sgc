@@ -445,12 +445,14 @@ class ServiceManagementController extends Controller
     {
         $this->allow($request, 'manage_service_resources');
         $execution = $this->order($tenant, $order)->execution;
-        $data = $request->validate(['operation_key' => 'required|uuid', 'resource_key' => 'required|string|max:80', 'description' => 'required|string|max:191', 'provided_by' => 'required|in:organization,provider,customer,third_party', 'effect' => 'required|in:information_only,deduct_from_receivable,add_to_receivable,reimburse_provider,create_association_expense', 'quantity' => 'nullable|numeric|min:0', 'unit' => 'nullable|string|max:30', 'unit_price' => 'nullable|numeric|min:0', 'amount' => 'nullable|numeric|min:0']);
+        abort_unless($execution, 404);
+        $data = $request->validate(['operation_key' => 'required|uuid', 'resource_key' => 'nullable|string|max:80', 'description' => 'required|string|max:191', 'provided_by' => 'required|in:organization,provider,customer,third_party', 'effect' => 'required|in:information_only,deduct_from_receivable,add_to_receivable,reimburse_provider,create_association_expense', 'quantity' => 'nullable|numeric|min:0', 'unit' => 'nullable|string|max:30', 'unit_price' => 'nullable|numeric|min:0', 'amount' => 'nullable|numeric|min:0']);
         $operationKey = $data['operation_key'];
         unset($data['operation_key']);
+        $data['resource_key'] ??= 'manual-'.substr($operationKey, 0, 8);
         $resources->add($execution, $data, $operationKey, $request->user());
 
-        return back()->with('success', 'Recurso registrado e incorporado à futura composição financeira.');
+        return back()->with('success', 'Recurso registrado na ordem.');
     }
 
     public function updateBeneficiary(Request $request, Tenant $tenant, int $order): RedirectResponse
@@ -493,13 +495,13 @@ class ServiceManagementController extends Controller
         $data = $request->validate([
             'operation_key' => 'required|uuid',
             'effect' => 'required|in:increase,decrease',
-            'amount' => 'required|numeric|min:0.01',
+            'amount' => 'required|numeric|decimal:0,2|min:0.01|max:999999999999.99',
             'reason' => 'required|string|min:5|max:500',
         ]);
         $amount = abs((float) $data['amount']) * ($data['effect'] === 'decrease' ? -1 : 1);
         $adjustments->add($record, $data['effect'], $amount, $data['reason'], $data['operation_key'], $request->user());
 
-        return back()->with('success', 'Ajuste auditável registrado.');
+        return back()->with('success', $data['effect'] === 'decrease' ? 'Desconto registrado.' : 'Acréscimo registrado.');
     }
 
     public function reports(Request $request, Tenant $tenant, ServiceReportService $reports): View
@@ -631,7 +633,12 @@ class ServiceManagementController extends Controller
     {
         $this->allow($request, 'view_service_management');
         $order = $this->order($tenant, $order);
-        $type = $request->validate(['type' => 'required|in:order,execution,note'])['type'];
+        $data = $request->validate([
+            'type' => 'required|in:order,execution,note',
+            'copy' => 'nullable|in:beneficiary|prohibited_unless:type,order',
+        ]);
+        $type = $data['type'];
+        $beneficiaryOnly = ($data['copy'] ?? null) === 'beneficiary';
         if ($type !== 'order') {
             $this->allow($request, 'view_service_financials');
         }
@@ -658,7 +665,12 @@ class ServiceManagementController extends Controller
         if (! $request->user()->checkPermissionTo('view_service_financials')) {
             $variables = array_replace($variables, array_fill_keys(['composicao_receber', 'composicao_pagar', 'total_receber', 'total_pagar'], '—'));
         }
-        $document = $documents->generate($subject, $type === 'order' ? 'service_order' : 'service_execution', $type === 'order' ? 'Ordem '.$order->number : 'Execução '.$order->number, $variables, $request->user());
+        $variables['beneficiary_only'] = $beneficiaryOnly;
+        $title = $type === 'order' ? 'Ordem '.$order->number : 'Execução '.$order->number;
+        if ($beneficiaryOnly) {
+            $title .= ' · Via do beneficiário';
+        }
+        $document = $documents->generate($subject, $type === 'order' ? 'service_order' : 'service_execution', $title, $variables, $request->user());
 
         return redirect()->route('services.management.documents.download', [$tenant->slug, $document, 'inline' => 1]);
     }
@@ -748,9 +760,12 @@ class ServiceManagementController extends Controller
             } elseif (is_array($value)) {
                 $value = implode(', ', $value);
             }
-            $value = filled($value) ? (string) $value : '—';
+            $value = filled($value) ? (string) $value : '';
+            if (in_array(trim($value), ['-', '–', '—'], true)) {
+                $value = '';
+            }
             $variables['campo.'.$key] = $value;
-            $fieldRows .= '<tr><td>'.e($field['label'] ?? $key).'</td><td>'.e($value).'</td><td>'.e($field['unit'] ?? '').'</td></tr>';
+            $fieldRows .= '<tr><td>'.e($field['label'] ?? $key).'</td><td>'.e($value).'</td><td>'.e($value === '' ? '' : ($field['unit'] ?? '')).'</td></tr>';
         }
 
         [$meterStart] = \App\Services\Services\ServiceCalculationRules::meterPair((array) $execution->catalog_snapshot);

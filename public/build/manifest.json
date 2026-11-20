@@ -1,10 +1,10 @@
 {
-  "_pdf-viewer-Pfg4kLaO.js": {
-    "file": "assets/pdf-viewer-Pfg4kLaO.js",
+  "_pdf-viewer-D_X_Izuv.js": {
+    "file": "assets/pdf-viewer-D_X_Izuv.js",
     "name": "pdf-viewer",
     "isDynamicEntry": true,
     "assets": [
-      "assets/pdf.worker.min-Dr1KORA9.mjs"
+      "assets/pdf.worker-Dr1KORA9.js"
     ]
   },
   "_qr-scanner-core-CTBFOQOA.js": {
@@ -16,7 +16,7 @@
     "name": "vendor"
   },
   "node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs": {
-    "file": "assets/pdf.worker.min-Dr1KORA9.mjs",
+    "file": "assets/pdf.worker-Dr1KORA9.js",
     "src": "node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs"
   },
   "resources/css/accounting-portal.css": {
@@ -77,16 +77,16 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/resources/js/app.js-D35Wh_jg.js",
+    "file": "assets/resources/js/app.js-DqQCL7OO.js",
     "name": "resources/js/app.js",
     "src": "resources/js/app.js",
     "isEntry": true,
     "imports": [
       "_vendor-D5gOtv1u.js",
-      "_pdf-viewer-Pfg4kLaO.js"
+      "_pdf-viewer-D_X_Izuv.js"
     ],
     "dynamicImports": [
-      "_pdf-viewer-Pfg4kLaO.js"
+      "_pdf-viewer-D_X_Izuv.js"
     ]
   },
   "resources/js/document-quick-verification.js": {
