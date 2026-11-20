@@ -109,6 +109,8 @@ class ServiceManagementController extends Controller
                 && in_array($field['phase'] ?? null, ['start', 'execution', 'finish'], true)
                 && ! in_array($field['type'] ?? null, ['image', 'file', 'signature'], true))
             ->pluck('key')->all();
+        [$meterStart, $meterEnd] = \App\Services\Services\ServiceCalculationRules::meterPair((array) $execution->catalog_snapshot);
+        if ($meterStart && in_array($meterEnd, $fields, true)) $fields[] = 'meter_pauses_'.$meterStart;
         $values = array_intersect_key($data['values'] ?? [], array_flip($fields));
         $result = $workflow->updateFromTable($execution, $values, $data['execution_date'] ?? null, (int) $data['lock_version'],
             $data['intent'] === 'submit' ? $data['operation_key'] : null, $request->user(),
@@ -751,7 +753,7 @@ class ServiceManagementController extends Controller
             $fieldRows .= '<tr><td>'.e($field['label'] ?? $key).'</td><td>'.e($value).'</td><td>'.e($field['unit'] ?? '').'</td></tr>';
         }
 
-        $meterStart = data_get($execution->catalog_snapshot, 'execution_config.meter_start_field');
+        [$meterStart] = \App\Services\Services\ServiceCalculationRules::meterPair((array) $execution->catalog_snapshot);
         $pauseRows = [];
         if ($meterStart) {
             $saved = json_decode((string) data_get($execution->values, 'meter_pauses_'.$meterStart, '[]'), true);

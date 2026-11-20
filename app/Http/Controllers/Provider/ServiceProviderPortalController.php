@@ -368,9 +368,9 @@ class ServiceProviderPortalController extends Controller
                 && ($operator ? ($field['visible_to_management'] ?? true) : (($field['visible_to_provider'] ?? false) && ($field['editable_by_provider'] ?? false))))
             ->pluck('key')->all();
 
-        $config = data_get($order->execution->catalog_snapshot, 'execution_config', []);
-        if (in_array($config['meter_end_field'] ?? null, $keys, true)) {
-            $keys[] = 'meter_pauses_'.$config['meter_start_field'];
+        [$meterStart, $meterEnd] = \App\Services\Services\ServiceCalculationRules::meterPair((array) $order->execution->catalog_snapshot);
+        if ($meterStart && in_array($meterEnd, $keys, true)) {
+            $keys[] = 'meter_pauses_'.$meterStart;
         }
 
         return array_intersect_key($values, array_flip($keys));

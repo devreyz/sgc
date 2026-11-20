@@ -227,15 +227,7 @@
         ]
     );
 
-    $meterStartField = data_get(
-        $execution->catalog_snapshot,
-        'execution_config.meter_start_field'
-    );
-
-    $meterEndField = data_get(
-        $execution->catalog_snapshot,
-        'execution_config.meter_end_field'
-    );
+    [$meterStartField, $meterEndField] = \App\Services\Services\ServiceCalculationRules::meterPair((array) $execution->catalog_snapshot);
 
     $executionUnit = (string) ($execution->unit ?? '');
 

@@ -1,5 +1,6 @@
 @php
     $execution = $order->execution;
+    [$meterStartField, $meterEndField] = \App\Services\Services\ServiceCalculationRules::meterPair((array) $execution?->catalog_snapshot);
     $retry = (int) old('row_order') === (int) $order->id && $errors->any();
 @endphp
 @if($canEdit && \App\Services\Services\ServiceOrderDetails::editable($order))
@@ -52,6 +53,9 @@
                                 'fieldPrefix' => 'values',
                                 'fieldValue' => ($retry ? old('values.'.$definition['key']) : null) ?? data_get($execution->values, $definition['key'], $definition['default_value'] ?? ''),
                             ])
+                            @if($meterStartField && $definition['key'] === $meterEndField)
+                                @include('services._meter-pauses', ['restoreOld' => $retry])
+                            @endif
                         @endif
                     @endforeach
                 </div>

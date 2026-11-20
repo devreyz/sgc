@@ -46,6 +46,25 @@ class ServiceCalculationRules
         return (float) $value;
     }
 
+    public static function meterPair(array $snapshot): array
+    {
+        $config = $snapshot['execution_config'] ?? [];
+        if (filled($config['quantity_mode'] ?? null) && $config['quantity_mode'] !== 'meter_difference') {
+            return [null, null];
+        }
+        if (filled($config['meter_start_field'] ?? null) && filled($config['meter_end_field'] ?? null)) {
+            return [$config['meter_start_field'], $config['meter_end_field']];
+        }
+        if (($config['quantity_mode'] ?? null) === 'meter_difference' || filled($config['quantity_field'] ?? null)) {
+            return [null, null];
+        }
+        $meters = collect($snapshot['fields'] ?? [])->where('type', 'meter');
+        $start = $meters->first(fn ($field) => in_array($field['phase'] ?? '', ['order', 'start'], true))['key'] ?? null;
+        $end = $meters->first(fn ($field) => in_array($field['phase'] ?? '', ['execution', 'finish', 'review'], true))['key'] ?? null;
+
+        return $start && $end && $start !== $end ? [$start, $end] : [null, null];
+    }
+
     public function quantity(array $config, string $direction, array $values, float $fallback): float
     {
         $key = $config[$direction.'_quantity_field'] ?? null;
@@ -64,21 +83,13 @@ class ServiceCalculationRules
         // Compatibilidade segura para versões antigas: dois campos de medidor
         // claramente definidos formam uma diferença, nunca o valor final bruto.
         if (! $mode) {
-            if (filled($config['meter_start_field'] ?? null) && filled($config['meter_end_field'] ?? null)) {
+            [$start, $end] = self::meterPair(['execution_config' => $config, 'fields' => $fields]);
+            if ($start && $end) {
+                $config['meter_start_field'] = $start;
+                $config['meter_end_field'] = $end;
                 $mode = 'meter_difference';
-            } elseif (filled($config['quantity_field'] ?? null)) {
-                $mode = 'field';
             } else {
-                $meters = collect($fields)->where('type', 'meter');
-                $start = $meters->first(fn (array $field) => in_array($field['phase'] ?? null, ['order', 'start'], true));
-                $end = $meters->first(fn (array $field) => in_array($field['phase'] ?? null, ['execution', 'finish', 'review'], true));
-                if ($start && $end && $start['key'] !== $end['key']) {
-                    $config['meter_start_field'] = $start['key'];
-                    $config['meter_end_field'] = $end['key'];
-                    $mode = 'meter_difference';
-                } else {
-                    $mode = 'legacy_quantity';
-                }
+                $mode = filled($config['quantity_field'] ?? null) ? 'field' : 'legacy_quantity';
             }
         }
 
