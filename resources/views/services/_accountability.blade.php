@@ -7,7 +7,7 @@
     $paymentRows = $details->flatMap(fn ($row) => collect($row['payments'])->map(fn ($payment) => ['os' => $row['number']] + $payment));
     $resourceRows = $details->flatMap(fn ($row) => collect($row['resources'])->map(fn ($resource) => ['os' => $row['number']] + $resource));
     $cashNet = ($summary['cash_received_period'] ?? 0) - ($summary['cash_paid_period'] ?? 0) - ($summary['service_expense_paid'] ?? 0);
-    $money = fn ($value) => 'R$ '.number_format((float) $value, 2, ',', '.');
+    $money = fn ($value) => $value === null ? '' : 'R$ '.number_format((float) $value, 2, ',', '.');
 @endphp
 @unless($pdfMode)
 <style>
@@ -53,7 +53,7 @@
     @if($show('orders'))
     @if(!$pdfMode)<details open><summary>Serviços realizados e valores em aberto</summary>@else<div class="section-title">Ordens e saldos</div>@endif
     <div class="accountability-scroll"><table class="{{ $pdfMode ? 'data-table' : 'accountability-table' }}"><thead><tr><th>OS</th><th>Data</th><th>Serviço</th>@if($column('beneficiary'))<th>Beneficiário</th>@endif @if($column('provider'))<th>Prestador</th>@endif @if($column('quantity'))<th>Quantidade</th>@endif <th>Cobrança</th><th>Recebido</th>@if($column('balances'))<th>Saldo</th>@endif <th>Total do prestador</th><th>Pago</th>@if($column('balances'))<th>Saldo</th>@endif </tr></thead><tbody>
-    @forelse($details as $row)<tr><td>@if($canOpenOrder && isset($row['order_id']))<a href="{{ route('services.management.show', [$tenantSlug, $row['order_id']]) }}" class="underline font-semibold">{{ $row['number'] }}</a>@else{{ $row['number'] }}@endif</td><td>{{ $row['date'] }}</td><td>{{ $row['service'] }}</td>@if($column('beneficiary'))<td>{{ $row['beneficiary'] }}</td>@endif @if($column('provider'))<td>{{ $row['provider'] }}</td>@endif @if($column('quantity'))<td>{{ $row['quantity'] }} {{ $row['unit'] }}</td>@endif @foreach(['service_value','received','receivable_balance','provider_due','provider_paid','provider_balance'] as $key) @continue(!$column('balances') && $show('orders') && isset($row['number']) && str_ends_with($key, '_balance')) <td>{{ $money($row[$key]) }}</td>@endforeach</tr>@empty<tr><td colspan="12">Nenhuma execução validada.</td></tr>@endforelse
+    @forelse($details as $row)<tr><td>@if($canOpenOrder && isset($row['order_id']))<a href="{{ route('services.management.show', [$tenantSlug, $row['order_id']]) }}" class="underline font-semibold">{{ $row['number'] }}</a>@else{{ $row['number'] }}@endif</td><td>{{ $row['date'] }}<br>{{ $row['status'] ?? '' }}</td><td>{{ $row['service'] }}</td>@if($column('beneficiary'))<td>{{ $row['beneficiary'] }}</td>@endif @if($column('provider'))<td>{{ $row['provider'] }}</td>@endif @if($column('quantity'))<td>{{ $row['quantity'] }} {{ $row['unit'] }}</td>@endif @foreach(['service_value','received','receivable_balance','provider_due','provider_paid','provider_balance'] as $key) @continue(!$column('balances') && $show('orders') && isset($row['number']) && str_ends_with($key, '_balance')) <td>{{ $money($row[$key]) }}</td>@endforeach</tr>@empty<tr><td colspan="12">Nenhuma ordem no período.</td></tr>@endforelse
     </tbody></table></div>@if(!$pdfMode)</details>@endif
 
     @endif

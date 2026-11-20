@@ -66,17 +66,7 @@
     </div>
     @endif
 
-    {{-- Status --}}
-    <div style="text-align: right; margin-bottom: 8px;">
-        <span class="badge {{ match($order->status?->value ?? $order->status) {
-            'completed' => 'badge-success',
-            'in_progress' => 'badge-info',
-            'cancelled' => 'badge-danger',
-            default => 'badge-warning',
-        } }}" style="font-size: 10px; padding: 3px 10px;">
-            {{ $order->status instanceof \App\Enums\ServiceOrderStatus ? $order->status->getLabel() : ucfirst(str_replace('_', ' ', $order->status ?? 'N/A')) }}
-        </span>
-    </div>
+
 
     {{-- Dados Principais --}}
     <div class="section-title">Dados da Ordem</div>
@@ -107,7 +97,7 @@
         <tr>
             <td class="label">Nome</td>
             <td class="value" colspan="3">
-                {{ $order->associate ? ($order->associate->display_name ?? $order->associate->property_name ?? "{$associateTerm} #{$order->associate_id}") : 'Avulso' }}
+                {{ $order->associate ? ($order->associate->display_name ?? $order->associate->property_name ?? "{$associateTerm} #{$order->associate_id}") : data_get($order->beneficiary_snapshot, 'name', '') }}
             </td>
         </tr>
         @if($order->associate)
@@ -132,14 +122,13 @@
     </table>
 
     {{-- Medidores --}}
-    @if($order->horimeter_start || $order->horimeter_end || $order->odometer_start || $order->odometer_end || $order->fuel_used)
     <div class="section-title">Medidores</div>
     <table class="info">
         <tr>
             <td class="label">Horímetro Inicial</td>
-            <td class="value">{{ $order->horimeter_start ? number_format($order->horimeter_start, 1, ',', '.') : '—' }}</td>
+            <td class="value">{{ $order->horimeter_start !== null ? number_format($order->horimeter_start, 1, ',', '.') : '—' }}</td>
             <td class="label">Horímetro Final</td>
-            <td class="value">{{ $order->horimeter_end ? number_format($order->horimeter_end, 1, ',', '.') : '—' }}</td>
+            <td class="value">{{ $order->horimeter_end !== null ? number_format($order->horimeter_end, 1, ',', '.') : '—' }}</td>
         </tr>
         <tr>
             <td class="label">Odômetro Inicial</td>
@@ -149,18 +138,15 @@
         </tr>
         <tr>
             <td class="label">Combustível</td>
-            <td class="value">{{ $order->fuel_used ? number_format($order->fuel_used, 1, ',', '.') . ' L' : '—' }}</td>
+            <td class="value">{{ $order->fuel_used !== null ? number_format($order->fuel_used, 1, ',', '.') . ' L' : '—' }}</td>
             <td class="label">Distância</td>
-            <td class="value">{{ $order->distance_km ? number_format($order->distance_km, 1, ',', '.') . ' km' : '—' }}</td>
+            <td class="value">{{ $order->distance_km !== null ? number_format($order->distance_km, 1, ',', '.') . ' km' : '—' }}</td>
         </tr>
     </table>
-    @endif
 
     {{-- Descrição do Trabalho --}}
-    @if($order->work_description)
     <div class="section-title">Descrição do Serviço</div>
     <div class="description-box">{{ $order->work_description }}</div>
-    @endif
 
     {{-- Itens / Adições --}}
     @if($order->additions && $order->additions->count() > 0)
@@ -195,15 +181,15 @@
         <table>
             <tr>
                 <td class="label">Quantidade</td>
-                <td class="value">{{ $order->actual_quantity ? number_format($order->actual_quantity, 2, ',', '.') . ' ' . ($order->unit ?? '') : ($order->quantity ? number_format($order->quantity, 2, ',', '.') . ' ' . ($order->unit ?? '') : '—') }}</td>
+                <td class="value">{{ $order->actual_quantity !== null ? number_format($order->actual_quantity, 2, ',', '.') . ' ' . ($order->unit ?? '') : ($order->quantity !== null ? number_format($order->quantity, 2, ',', '.') . ' ' . ($order->unit ?? '') : '—') }}</td>
             </tr>
             <tr>
                 <td class="label">Preço Unitário</td>
-                <td class="value">R$ {{ number_format($order->unit_price ?? 0, 2, ',', '.') }}</td>
+                <td class="value">R$ {{ $order->unit_price === null ? '' : number_format($order->unit_price, 2, ',', '.') }}</td>
             </tr>
             <tr>
                 <td class="label">Subtotal</td>
-                <td class="value">R$ {{ number_format($order->total_price ?? 0, 2, ',', '.') }}</td>
+                <td class="value">R$ {{ $order->total_price === null ? '' : number_format($order->total_price, 2, ',', '.') }}</td>
             </tr>
             @if($order->discount > 0)
             <tr>
@@ -213,16 +199,14 @@
             @endif
             <tr class="total-final">
                 <td class="label" style="font-size: 12px;">TOTAL</td>
-                <td class="value" style="font-size: 12px; color: #2d3748;">R$ {{ number_format($order->final_price ?? 0, 2, ',', '.') }}</td>
+                <td class="value" style="font-size: 12px; color: #2d3748;">R$ {{ $order->final_price === null ? '' : number_format($order->final_price, 2, ',', '.') }}</td>
             </tr>
         </table>
     </div>
 
     {{-- Observações --}}
-    @if($order->notes)
     <div class="section-title">Observações</div>
     <div class="notes-box">{{ $order->notes }}</div>
-    @endif
 
     {{-- Assinaturas --}}
     <div class="signatures">

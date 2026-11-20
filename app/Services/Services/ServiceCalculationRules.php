@@ -159,7 +159,23 @@ class ServiceCalculationRules
             throw ValidationException::withMessages([$endKey => 'A medição final não pode ser menor que a inicial.']);
         }
 
-        return $end - $start;
+        $pauses = json_decode((string) ($values['meter_pauses_'.$startKey] ?? '[]'), true);
+        if (! is_array($pauses) || ! array_is_list($pauses)) {
+            throw ValidationException::withMessages(['meter_pauses' => 'Informe as leituras de pausa e retorno.']);
+        }
+        $previous = $start;
+        $worked = 0.0;
+        foreach ($pauses as $pause) {
+            $stop = $this->number($pause['stop'] ?? null, 'meter_pauses');
+            $resume = $this->number($pause['resume'] ?? null, 'meter_pauses');
+            if ($stop < $previous || $resume < $stop || $resume > $end) {
+                throw ValidationException::withMessages(['meter_pauses' => 'As pausas devem seguir a ordem das leituras, entre o início e o fim.']);
+            }
+            $worked += $stop - $previous;
+            $previous = $resume;
+        }
+
+        return $worked + ($end - $previous);
     }
 
     public function adjustments(array $rules, array $values, array $bases, float $quantity): array

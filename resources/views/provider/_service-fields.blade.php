@@ -403,3 +403,48 @@
         )
     </div>
 @endforeach
+
+@if(filled($meterStartField ?? null) && $phaseFields->contains(fn ($field) => $field['key'] === $meterEndField))
+    <fieldset data-meter-pauses>
+        <legend>Pausas de serviço</legend>
+        <input type="hidden" name="values[meter_pauses_{{ $meterStartField }}]" value="{{ old('values.meter_pauses_'.$meterStartField, data_get($execution->values, 'meter_pauses_'.$meterStartField, '[]')) }}">
+        <div data-pause-list></div>
+        <template><div><label>Leitura na pausa <input type="number" min="0" step="any" required></label>
+            <label>Leitura no retorno <input type="number" min="0" step="any" required></label>
+            <button type="button" data-remove>Remover pausa</button></div></template>
+        <button type="button" data-add>Adicionar pausa</button>
+    </fieldset>
+    <script>
+    (() => {
+        const box = document.currentScript.previousElementSibling;
+        const list = box.querySelector('[data-pause-list]');
+        const stored = box.querySelector('input[type=hidden]');
+        function sync() {
+            stored.value = JSON.stringify(Array.from(list.children, row => {
+                const [stop, resume] = row.querySelectorAll('input');
+                return {stop: stop.value, resume: resume.value};
+            }));
+            stored.dispatchEvent(new Event('input', {bubbles:true}));
+        }
+        function add(pause = {}) {
+            const row = box.querySelector('template').content.firstElementChild.cloneNode(true);
+            const [stop, resume] = row.querySelectorAll('input');
+            stop.value = pause.stop ?? '';
+            resume.value = pause.resume ?? '';
+            row.querySelector('[data-remove]').onclick = () => { row.remove(); sync(); };
+            list.append(row);
+        }
+        function restore() {
+            list.replaceChildren();
+            try {
+                const pauses = JSON.parse(stored.value || '[]');
+                if (Array.isArray(pauses)) pauses.forEach(add);
+            } catch { stored.value = '[]'; }
+        }
+        stored.addEventListener('restore-pauses', restore);
+        restore();
+        list.addEventListener('input', sync);
+        box.querySelector('[data-add]').onclick = () => { add(); sync(); };
+    })();
+    </script>
+@endif

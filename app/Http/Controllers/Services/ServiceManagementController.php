@@ -503,8 +503,8 @@ class ServiceManagementController extends Controller
     public function reports(Request $request, Tenant $tenant, ServiceReportService $reports): View
     {
         $this->allow($request, 'view_service_reports');
-        $data = $request->validate(['from' => 'nullable|date', 'to' => 'nullable|date|after_or_equal:from', 'provider_id' => 'nullable|integer', 'service_id' => 'nullable|integer', 'asset_id' => 'nullable|integer']);
-        $summary = $reports->summary($tenant->id, Carbon::parse($data['from'] ?? now()->startOfMonth()), Carbon::parse($data['to'] ?? now()->endOfMonth()), $data['provider_id'] ?? null, $data['service_id'] ?? null, $data['asset_id'] ?? null);
+        $data = $request->validate(['from' => 'nullable|date', 'to' => 'nullable|date|after_or_equal:from', 'provider_id' => 'nullable|integer', 'service_id' => 'nullable|integer', 'asset_id' => 'nullable|integer', 'statuses' => 'nullable|array', 'statuses.*' => 'string|max:80', 'exclude' => 'nullable|array', 'exclude.*' => 'integer', 'sort' => 'nullable|in:date,status']);
+        $summary = $reports->summary($tenant->id, Carbon::parse($data['from'] ?? now()->startOfMonth()), Carbon::parse($data['to'] ?? now()->endOfMonth()), $data['provider_id'] ?? null, $data['service_id'] ?? null, $data['asset_id'] ?? null, $data);
 
         $providers = ServiceProvider::query()->where('tenant_id', $tenant->id)->orderBy('name')->get(['id', 'name']);
         $services = Service::query()->where('tenant_id', $tenant->id)->orderBy('name')->get(['id', 'name']);
@@ -527,8 +527,8 @@ class ServiceManagementController extends Controller
     public function generateReport(Request $request, Tenant $tenant, ServiceReportService $reports)
     {
         $this->allow($request, 'view_service_reports');
-        $data = $request->validate(['from' => 'required|date', 'to' => 'required|date|after_or_equal:from', 'provider_id' => 'nullable|integer', 'service_id' => 'nullable|integer', 'asset_id' => 'nullable|integer']);
-        $summary = $reports->summary($tenant->id, Carbon::parse($data['from']), Carbon::parse($data['to']), $data['provider_id'] ?? null, $data['service_id'] ?? null, $data['asset_id'] ?? null);
+        $data = $request->validate(['from' => 'required|date', 'to' => 'required|date|after_or_equal:from', 'provider_id' => 'nullable|integer', 'service_id' => 'nullable|integer', 'asset_id' => 'nullable|integer', 'statuses' => 'nullable|array', 'statuses.*' => 'string|max:80', 'exclude' => 'nullable|array', 'exclude.*' => 'integer', 'sort' => 'nullable|in:date,status']);
+        $summary = $reports->summary($tenant->id, Carbon::parse($data['from']), Carbon::parse($data['to']), $data['provider_id'] ?? null, $data['service_id'] ?? null, $data['asset_id'] ?? null, $data);
 
         $request->validate(['report_type' => 'nullable|in:accountability,conference']);
         if ($request->input('report_type') === 'conference') {
@@ -728,7 +728,7 @@ class ServiceManagementController extends Controller
         $documentTotal = static function (string $direction) use ($execution, $preview, $documentLines): string {
             $obligations = $execution->obligations->where('direction', $direction);
             $total = $execution->isFrozen() ? ($obligations->isNotEmpty() ? $obligations->sum('total_amount') : $documentLines->where('direction', $direction)->sum('amount')) : ($preview[$direction.'_total'] ?? null);
-            return $total === null ? 'A calcular' : 'R$ '.number_format((float) $total, 2, ',', '.');
+            return $total === null ? '' : 'R$ '.number_format((float) $total, 2, ',', '.');
         };
         $variables = [];
         $fieldRows = '';
@@ -739,7 +739,6 @@ class ServiceManagementController extends Controller
             }
             $key = (string) ($field['key'] ?? '');
             $value = data_get($execution->values, $key);
-            if (blank($value) && ! ($field['required'] ?? false)) continue;
             if (in_array($field['type'] ?? null, ['file', 'image', 'signature'], true)) {
                 continue;
             } elseif (is_bool($value)) {
@@ -752,6 +751,12 @@ class ServiceManagementController extends Controller
             $fieldRows .= '<tr><td>'.e($field['label'] ?? $key).'</td><td>'.e($value).'</td><td>'.e($field['unit'] ?? '').'</td></tr>';
         }
 
+        $meterStart = data_get($execution->catalog_snapshot, 'execution_config.meter_start_field');
+        $pauseRows = [];
+        if ($meterStart) {
+            $saved = json_decode((string) data_get($execution->values, 'meter_pauses_'.$meterStart, '[]'), true);
+            $pauseRows = is_array($saved) ? array_filter($saved, 'is_array') : [];
+        }
         $composition = ['receivable' => '', 'payable' => ''];
         foreach ($documentLines as $line) {
             $formula = data_get($line->rule_snapshot, 'formula') ?: trim(($line->quantity ?? '').' × '.($line->unit_price ?? ''));
@@ -768,6 +773,7 @@ class ServiceManagementController extends Controller
             : '<table class="data-table"><thead><tr><th>Descrição</th><th>Fórmula</th><th class="text-right">Total</th></tr></thead><tbody>'.$rows.'</tbody></table>';
 
         return $variables + [
+            'meter_enabled' => filled($meterStart), 'meter_pauses' => $pauseRows,
             'payment_received' => 'R$ '.number_format((float) $execution->obligations->where('direction', 'receivable')->sum('paid_amount'), 2, ',', '.'),
             'payment_balance' => $execution->isFrozen() ? 'R$ '.number_format((float) $execution->obligations->where('direction', 'receivable')->sum('balance'), 2, ',', '.') : 'A confirmar após conferência',
             'financial_visible' => auth()->user()?->checkPermissionTo('view_service_financials') ?? false,
@@ -775,7 +781,7 @@ class ServiceManagementController extends Controller
             'start_time' => $order->start_time ? substr($order->start_time, 0, 5) : null,
             'end_time' => $order->end_time ? substr($order->end_time, 0, 5) : null,
             'notes' => data_get($order->order_data, 'notes'),
-            'campos_execucao' => $fieldRows === '' ? '<p>Nenhum campo adicional informado.</p>' : '<table class="data-table"><thead><tr><th>Campo</th><th>Valor</th><th>Unidade</th></tr></thead><tbody>'.$fieldRows.'</tbody></table>',
+            'campos_execucao' => $fieldRows === '' ? '<div style="height:22px;border-bottom:1px solid #bbb"></div>' : '<table class="data-table"><thead><tr><th>Campo</th><th>Valor</th><th>Unidade</th></tr></thead><tbody>'.$fieldRows.'</tbody></table>',
             'composicao_receber' => $table($composition['receivable']),
             'composicao_pagar' => $table($composition['payable']),
             'total_receber' => $documentTotal('receivable'),

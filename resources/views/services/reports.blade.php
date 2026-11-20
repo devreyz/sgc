@@ -839,6 +839,11 @@
                 </select>
             </div>
 
+            <label class="rp-field">Ordenar por<select name="sort"><option value="date">Data do serviço</option><option value="status" @selected(request('sort') === 'status')>Agrupar por situação</option></select></label>
+            <details class="rp-field"><summary>Situações incluídas</summary><small>Sem seleção, inclui todas.</small>
+            @foreach($summary['statuses'] as $status)<label><input type="checkbox" name="statuses[]" value="{{ $status }}" @checked(in_array($status, request('statuses', [])))> {{ $status }}</label>@endforeach</details>
+            <details class="rp-field"><summary>Omitir ordens específicas</summary>
+            @foreach($summary['choices'] as $id => $number)<label><input type="checkbox" name="exclude[]" value="{{ $id }}" @checked(in_array($id, request('exclude', [])))> {{ $number }}</label>@endforeach</details>
             <div class="rp-filter-actions">
                 <button
                     class="rp-button primary"
@@ -853,8 +858,8 @@
 
     <section class="rp-result">
         @if($summary['undated_count'] ?? 0)
-            <p role="status">{{ $summary['undated_count'] }} ordem(ns) validada(s) sem data ficaram fora do total por período.
-                <a href="{{ route('services.management.index', ['tenant' => $tenantSlug, 'undated' => 1, 'status' => 'validated']) }}">Ver ordens sem data</a>
+            <p role="status">{{ $summary['undated_count'] }} ordem(ns) sem data ficaram fora do total por período.
+                <a href="{{ route('services.management.index', ['tenant' => $tenantSlug, 'undated' => 1]) }}">Ver ordens sem data</a>
             </p>
         @endif
         <header class="rp-result-head">
@@ -885,6 +890,8 @@
                 >
                     @csrf
 
+                    <input type="hidden" name="sort" value="{{ request('sort','date') }}">
+                    @foreach(['statuses','exclude'] as $filter) @foreach(request($filter, []) as $value)<input type="hidden" name="{{ $filter }}[]" value="{{ $value }}">@endforeach @endforeach
                     <input
                         type="hidden"
                         name="from"

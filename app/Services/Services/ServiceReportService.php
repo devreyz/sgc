@@ -12,7 +12,7 @@ use Illuminate\Validation\ValidationException;
 
 class ServiceReportService
 {
-    public function summary(int $tenantId, CarbonInterface $from, CarbonInterface $to, ?int $providerId = null, ?int $serviceId = null, ?int $assetId = null): array
+    public function summary(int $tenantId, CarbonInterface $from, CarbonInterface $to, ?int $providerId = null, ?int $serviceId = null, ?int $assetId = null, ?array $selection = null): array
     {
         $from = $from->copy()->startOfDay();
         $to = $to->copy()->endOfDay();
@@ -20,7 +20,8 @@ class ServiceReportService
             throw ValidationException::withMessages(['from' => 'O início deve ser anterior ao fim do período.']);
         }
         $serviceDate = 'COALESCE(orders.execution_date, orders.scheduled_date, DATE(orders.scheduled_at))';
-        $base = ServiceExecution::query()->where('service_executions.tenant_id', $tenantId)->where('service_executions.status', 'validated')
+        $base = ServiceExecution::query()->where('service_executions.tenant_id', $tenantId)->when($selection === null, fn ($query) => $query->where('service_executions.status', 'validated'))
+            ->whereNotIn('service_executions.status', ['cancelled', 'voided'])
             ->join('service_orders as orders', fn ($join) => $join->on('orders.id', '=', 'service_executions.service_order_id')
                 ->on('orders.tenant_id', '=', 'service_executions.tenant_id'))
             ->whereNull('orders.deleted_at')
@@ -35,12 +36,13 @@ class ServiceReportService
             ->orderBy('report_execution_date')->orderBy('orders.start_time')->orderBy('orders.scheduled_at')->orderBy('service_executions.id')->get();
         $details = $executions->map(function ($execution) use ($to): array {
             $date = \Illuminate\Support\Carbon::parse($execution->report_execution_date);
-            $row = ['execution_id' => $execution->id, 'order_id' => $execution->service_order_id, 'date' => $date->format('d/m/Y'), 'month' => $date->format('Y-m'),
+            $execution->order->setRelation('execution', $execution);
+            $row = ['status' => app(ServiceHumanStatusResolver::class)->resolve($execution->order), 'execution_id' => $execution->id, 'order_id' => $execution->service_order_id, 'date' => $date->format('d/m/Y'), 'month' => $date->format('Y-m'),
                 'start_time' => $execution->order->start_time, 'end_time' => $execution->order->end_time,
                 'number' => $execution->order->number, 'service' => $execution->order->service?->name ?? data_get($execution->catalog_snapshot, 'service.name', '—'),
                 'beneficiary' => data_get($execution->order->beneficiary_snapshot, 'name', '—'),
                 'provider' => data_get($execution->order->provider_snapshot, 'name', '—'),
-                'unit' => $execution->unit, 'quantity' => (float) $execution->quantity,
+                'unit' => $execution->unit, 'quantity' => $execution->quantity === null ? null : (float) $execution->quantity,
                 'service_value' => 0, 'received' => 0, 'receivable_balance' => 0, 'provider_due' => 0, 'provider_paid' => 0, 'provider_balance' => 0,
                 'fields' => [], 'composition' => $execution->compositionLines->toArray(), 'payments' => [],
                 'resources' => $execution->resources->toArray()];
@@ -63,10 +65,30 @@ class ServiceReportService
                 }
             }
 
+            $row['pauses'] = [];
+            foreach ((array) $execution->values as $key => $encoded) {
+                if (! str_starts_with((string) $key, 'meter_pauses_') || ! is_string($encoded)) continue;
+                foreach ((array) json_decode($encoded, true) as $pause) {
+                    if (! is_array($pause)) continue;
+                    $row['pauses'][] = ($pause['stop'] ?? '').' / '.($pause['resume'] ?? '');
+                }
+            }
+            if ($row['pauses']) $row['fields']['Pausas / retornos'] = implode(', ', $row['pauses']);
+            if ($execution->status !== 'validated' && $execution->obligations->isEmpty()) {
+                foreach (['service_value','received','receivable_balance','provider_due','provider_paid','provider_balance'] as $key) $row[$key] = null;
+            }
             return $row;
         });
+        $choices = $details->pluck('number', 'order_id');
+        $statuses = $details->pluck('status')->unique()->values();
+        $details = $details->filter(fn ($row) =>
+            (empty($selection['statuses']) || in_array($row['status'], $selection['statuses'], true))
+            && ! in_array($row['order_id'], $selection['exclude'] ?? []));
+        if (($selection['sort'] ?? null) === 'status') $details = $details->sortBy('status');
+        $executions = $executions->whereIn('id', $details->pluck('execution_id'));
         $totals = $this->totals($details);
         $periodPayments = ServicePaymentAllocation::query()->where('tenant_id', $tenantId)
+            ->when(! empty($selection['statuses']) || ! empty($selection['exclude']), fn ($q) => $q->whereHas('obligation', fn ($o) => $o->whereIn('service_execution_id', $details->pluck('execution_id'))))
             ->whereHas('paymentEvent', fn ($q) => $q->whereIn('status', ['confirmed', 'reversed'])->whereBetween('payment_date', [$from->toDateString(), $to->toDateString()]))
             ->whereHas('obligation.execution', function ($q) use ($providerId, $serviceId, $assetId): void {
                 $q->when($providerId, fn ($e) => $e->where('service_provider_id', $providerId))
@@ -90,7 +112,7 @@ class ServiceReportService
             ->with(['expenseable', 'chartAccount'])->orderBy('date')->get();
 
         return $totals + [
-            'undated_count' => $undatedCount,
+            'choices' => $choices, 'statuses' => $statuses, 'undated_count' => $undatedCount,
             'from' => $from->toDateString(), 'to' => $to->toDateString(), 'details' => $details, 'rows' => $executions,
             'monthly' => $details->groupBy('month')->map(fn ($rows, $month) => ['month' => $month] + $this->totals($rows))->values(),
             'resource_amount' => round((float) $executions->flatMap->resources->sum('amount'), 2),

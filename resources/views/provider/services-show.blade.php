@@ -2134,6 +2134,9 @@
                                                         $calculation,
                                                         'meter_start_value'
                                                     ) }}
+                                                    @foreach(json_decode(data_get($execution->values, 'meter_pauses_'.data_get($calculation, 'meter_start_field'), '[]'), true) ?? [] as $pause)
+                                                        − ({{ $pause['resume'] }} − {{ $pause['stop'] }})
+                                                    @endforeach
                                                     =
                                                     {{ data_get(
                                                         $calculation,
@@ -4050,7 +4053,10 @@
                         : {};
                     Object.entries(saved).forEach(([name, value]) => {
                         const field = executionForm.elements.namedItem(name);
-                        if (field && field.type !== 'file') field.value = value;
+                        if (field && field.type !== 'file') {
+                            field.value = value;
+                            if (field.closest('[data-meter-pauses]')) field.dispatchEvent(new Event('restore-pauses'));
+                        }
                     });
                 } catch (error) {
                     if (serviceLocalKey) {
@@ -4172,8 +4178,16 @@
                         return;
                     }
 
-                    const validDifference =
-                        endValue >= startValue;
+                    const pauses = JSON.parse(document.querySelector('[data-meter-pauses] input[type=hidden]')?.value || '[]');
+                    let previous = startValue;
+                    let idle = 0;
+                    const validDifference = endValue >= startValue && pauses.every(pause => {
+                        const stop = Number(pause.stop), resume = Number(pause.resume);
+                        const valid = pause.stop !== '' && pause.resume !== '' && stop >= previous && resume >= stop && resume <= endValue;
+                        previous = resume;
+                        idle += resume - stop;
+                        return valid;
+                    });
 
                     preview.classList.toggle(
                         'is-invalid',
@@ -4184,7 +4198,7 @@
                         validDifference
                             ? (
                                 endValue
-                                - startValue
+                                - startValue - idle
                             ).toLocaleString(
                                 'pt-BR',
                                 {
@@ -4196,6 +4210,7 @@
                             : 'Medição final inválida';
                 };
 
+                document.querySelector('[data-meter-pauses]')?.addEventListener('input', syncMeterPreview);
                 start?.addEventListener(
                     'input',
                     syncMeterPreview

@@ -48,6 +48,7 @@
 @if(in_array('fields', $sections, true))
     <div class="section-title">Dados da execução</div>
     {!! $variables['campos_execucao'] !!}
+    @foreach($variables['meter_pauses'] ?? [] as $pause)<p>Pausa: {{ $pause['stop'] ?? '' }} · Retorno: {{ $pause['resume'] ?? '' }}</p>@endforeach
 @endif
 @if(in_array('notes', $sections, true) && filled($variables['notes'] ?? null))
     <div class="section-title">Observações</div>
