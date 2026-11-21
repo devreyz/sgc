@@ -11,7 +11,7 @@
     [$configuredStart, $configuredEnd] = \App\Services\Services\ServiceCalculationRules::meterPair((array) $execution->catalog_snapshot);
     $startField = $primary['meter_start_field'] ?? $configuredStart;
     $endField = $primary['meter_end_field'] ?? $configuredEnd;
-    $measurement = $derived['primary_quantity'] ?? $execution->quantity;
+    $measurement = $financialPreview['primary_quantity'] ?? $derived['primary_quantity'] ?? $execution->quantity;
     $visibleFields = $fields->filter(fn ($field) => !in_array($field['type'] ?? '', ['image', 'file', 'signature'], true)
         && (($operator ?? false) ? ($field['visible_to_management'] ?? true) : ($field['visible_to_provider'] ?? false)));
     $readMeters = static function ($startKey, $endKey, $fallbackUnit) use ($values, $fields, $visibleFields): ?array {

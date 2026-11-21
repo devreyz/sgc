@@ -123,22 +123,31 @@ class ServiceExecutionWorkflow
     public function preview(ServiceExecution $execution, array $values): array
     {
         $values = array_replace($execution->values ?? [], $values);
-        $derived = $this->quantities($execution, $values);
+        // A legacy service that charges by quantity needs a recorded quantity.
+        // Fixed or explicitly configured calculations supply their own quantity.
+        $snapshot = (array) $execution->catalog_snapshot;
+        $version = $execution->version;
+        $rateBased = (data_get($snapshot, 'receivable_enabled', $version?->receivable_enabled)
+                && data_get($snapshot, 'customer_pricing_method', $version?->customer_pricing_method) === 'quantity_x_rate')
+            || (data_get($snapshot, 'payable_enabled', $version?->payable_enabled)
+                && data_get($snapshot, 'provider_compensation.method', data_get($snapshot, 'provider_pricing_method', $version?->provider_pricing_method)) === 'quantity_x_rate');
+        $fallback = $execution->quantity === null && $rateBased ? NAN : (float) ($execution->quantity ?? 1);
+        $derived = $this->quantities($execution, $values, $fallback);
         $this->validateFinancialQuantities($execution, $derived);
 
         $preview = clone $execution;
         $preview->forceFill(['values' => $values, 'derived_values' => $derived, 'quantity' => $derived['primary_quantity']]);
 
-        return $this->calculator->calculate($preview, false);
+        return $this->calculator->calculate($preview, false) + ['primary_quantity' => $derived['primary_quantity']];
     }
 
-    private function quantities(ServiceExecution $execution, array $values): array
+    private function quantities(ServiceExecution $execution, array $values, ?float $fallback = null): array
     {
         return app(ServiceCalculationRules::class)->quantities(
             (array) data_get($execution->catalog_snapshot, 'execution_config', []),
             (array) data_get($execution->catalog_snapshot, 'fields', []),
             $values,
-            (float) ($execution->quantity ?? 1)
+            $fallback ?? (float) ($execution->quantity ?? 1)
         );
     }
 

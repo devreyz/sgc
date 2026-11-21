@@ -497,6 +497,7 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                             $canValidateOrder = $canApprove && $order->execution?->status === 'submitted';
                             $canRemoveOrder = $canEdit && in_array($order->execution?->status, ['draft', 'in_progress', 'submitted', 'rejected', 'validated'], true);
                             $executionDate = $order->execution_date ?? $order->scheduled_at ?? $order->scheduled_date;
+                            $displayQuantity = $order->execution?->management_preview['primary_quantity'] ?? $order->execution?->quantity;
                             $initial = \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr(trim($beneficiaryName), 0, 1));
                         @endphp
                         <tr class="sg-order cm-order">
@@ -526,8 +527,8 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                                 <span class="cm-mobile-label">Execução</span>
                                 <div class="cm-execution">
                                     <div class="cm-execution-summary">
-                                        @if($order->execution?->quantity !== null)
-                                            <strong>{{ \App\Support\PdfQuantityFormatter::format($order->execution->quantity) }} {{ $order->execution->unit }}</strong>
+                                        @if($displayQuantity !== null)
+                                            <strong>{{ \App\Support\PdfQuantityFormatter::format($displayQuantity) }} {{ $order->execution->unit }}</strong>
                                         @endif
                                         @if($order->start_time || $order->end_time)
                                             <small>{{ $order->start_time ? substr($order->start_time, 0, 5) : '-' }} a {{ $order->end_time ? substr($order->end_time, 0, 5) : '-' }}</small>

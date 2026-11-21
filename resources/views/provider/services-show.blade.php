@@ -1553,13 +1553,13 @@
                         </div>
                     @endif
 
-                    <section class="svc-live-totals" data-service-totals hidden aria-labelledby="svc-live-totals-title">
+                    <section class="svc-live-totals" data-service-totals aria-labelledby="svc-live-totals-title">
                         <h3 id="svc-live-totals-title"><strong>Valores estimados</strong></h3>
                         <dl>
-                            <div><dt>Organização recebe</dt><dd data-total="receivable">—</dd></div>
-                            <div><dt>Prestador recebe</dt><dd data-total="payable">—</dd></div>
+                            <div><dt>Organização recebe</dt><dd data-total="receivable">{{ $receivablePreview === null ? 'A calcular' : $formatMoney($receivablePreview) }}</dd></div>
+                            <div><dt>Prestador recebe</dt><dd data-total="payable">{{ $payablePreview === null ? 'A calcular' : $formatMoney($payablePreview) }}</dd></div>
                         </dl>
-                        <p role="status" data-total-status></p>
+                        <p role="status" data-total-status>{{ $financialPreview ? 'Estimativa com os dados registrados.' : 'Preencha as medições para calcular.' }}</p>
                     </section>
 
                     <div class="svc-form-actions">
@@ -2435,7 +2435,6 @@
             clearTimeout(timer);
             pending?.abort();
             const request = pending = new AbortController();
-            amounts.forEach(amount => amount.textContent = '—');
             status.textContent = 'Calculando valores…';
             timer = setTimeout(async () => {
                 const data = new URLSearchParams();
@@ -2450,6 +2449,7 @@
                     });
                     if (request.signal.aborted) return;
                     if (response.status === 422) {
+                        amounts.forEach(amount => amount.textContent = 'A calcular');
                         status.textContent = 'Confira os dados do serviço para calcular os valores.';
                         return;
                     }
@@ -2459,16 +2459,19 @@
                     amounts.forEach(amount => amount.textContent = money.format(result[amount.dataset.total]));
                     status.textContent = 'Estimativa com os dados desta tela.';
                 } catch {
-                    if (!request.signal.aborted) status.textContent = 'Prévia indisponível. Altere um campo para tentar novamente.';
+                    if (!request.signal.aborted) {
+                        amounts.forEach(amount => amount.textContent = 'A calcular');
+                        status.textContent = 'Prévia indisponível. Altere um campo para tentar novamente.';
+                    }
                 }
             }, 450);
         };
 
-        totals.hidden = false;
         ['input', 'change'].forEach(event => previewForm.addEventListener(event, ({target}) => {
             if (target.name?.startsWith('values[')) updatePreview();
         }));
-        window.addEventListener('pageshow', updatePreview);
+        window.addEventListener('pageshow', event => { if (event.persisted) updatePreview(); });
+        window.addEventListener('load', updatePreview, {once: true});
     }
 
     const serviceReloadOverlay =

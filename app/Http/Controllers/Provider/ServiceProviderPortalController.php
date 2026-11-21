@@ -112,7 +112,11 @@ class ServiceProviderPortalController extends Controller
         $order = $this->order($tenant, $provider, $operator, $order);
         $financialPreview = null;
         try {
-            $financialPreview = app(ServiceCompositionCalculator::class)->calculate($order->execution, false);
+            if ($order->execution && $order->operational_status !== 'cancelled') {
+                $financialPreview = in_array($order->execution->status, ['draft', 'in_progress', 'rejected'], true)
+                    ? app(ServiceExecutionWorkflow::class)->preview($order->execution, [])
+                    : app(ServiceCompositionCalculator::class)->calculate($order->execution, false);
+            }
         } catch (ValidationException) {
             // Campos ainda incompletos: a tela mostra as tarifas e aguarda os dados.
         }

@@ -26,5 +26,5 @@
         <small style="display:block">{{ $valueDirection === 'receivable' ? 'A receber' : 'A pagar' }}: {{ $valueMoney($valueBalance) }}</small>
     @endif
 @endif
-@if(!$valueFrozen && $valueTotal !== null)<small style="display:block">Prévia para conferência</small>@endif
+@if(!$valueFrozen && $valueTotal !== null)<small style="display:block">{{ $valueExecution->status === 'submitted' ? 'Prévia para conferência' : 'Estimativa' }}</small>@endif
 @if(isset($valuePreview['error']))<small style="display:block;white-space:normal;max-width:16rem" role="status">{{ $valuePreview['error'] }}</small>@endif

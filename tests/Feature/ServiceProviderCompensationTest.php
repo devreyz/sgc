@@ -764,12 +764,23 @@ class ServiceProviderCompensationTest extends TestCase
         $actor->id = 1;
         $actor->exists = true;
         $workflow = app(ServiceExecutionWorkflow::class);
-        $workflow->start($execution, ['meter_start' => 1000], (string) Str::uuid(), $actor);
-        $submitted = $workflow->submit($execution->fresh(), [
+        $started = $workflow->start($execution, ['meter_start' => 1000], (string) Str::uuid(), $actor);
+        $measurements = [
             'meter_end' => 1017.4,
             'meter_pauses_meter_start' => json_encode([['stop' => 1005.6, 'resume' => 1010], ['stop' => 1012, 'resume' => 1014]]),
             'internal_note' => 'Informação do gestor',
-        ], (string) Str::uuid(), $actor);
+        ];
+        $live = $workflow->preview($started, $measurements);
+        $this->assertSame(11.0, $live['primary_quantity']);
+        $this->assertSame(1650.0, $live['receivable_total']);
+        $this->assertSame(330.0, $live['payable_total']);
+        $draft = $workflow->saveDraft($started, $measurements, $actor);
+        $this->assertSame('in_progress', $draft->status);
+        $this->assertSame(0, $draft->obligations()->count());
+        $storedPreview = $workflow->preview($draft, []);
+        $this->assertSame($live['receivable_total'], $storedPreview['receivable_total']);
+        $this->assertSame($live['payable_total'], $storedPreview['payable_total']);
+        $submitted = $workflow->submit($draft, [], (string) Str::uuid(), $actor);
         $preview = app(ServiceCompositionCalculator::class)->calculate($submitted, false);
 
         $this->assertSame('submitted', $submitted->status);

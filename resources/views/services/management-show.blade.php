@@ -2069,9 +2069,21 @@
                 @include('services._financial-resource-history')
             @endif
             @if(!$hasComposition)
-                <div class="ds-empty-inline">
-                    Nenhuma obrigação financeira gerada.
-                </div>
+                @if(auth()->user()->checkPermissionTo('view_service_financials') && isset($execution->management_preview['receivable_total']))
+                    <section class="ds-fin-box">
+                        <h3 class="ds-fin-box-head">Valores estimados</h3>
+                        <div class="ds-dialog-grid">
+                            @if(!empty($execution->management_preview['receivable']))
+                                <div><small>Cobrança do cliente</small><br>@include('services._order-value', ['valueDirection' => 'receivable'])</div>
+                            @endif
+                            @if(!empty($execution->management_preview['payable']))
+                                <div><small>Valor do prestador</small><br>@include('services._order-value', ['valueDirection' => 'payable'])</div>
+                            @endif
+                        </div>
+                    </section>
+                @else
+                    <div class="ds-empty-inline">Nenhuma obrigação financeira gerada.</div>
+                @endif
             @else
                 <div class="ds-fin-overview">
                     @if($payableObligations->isNotEmpty())

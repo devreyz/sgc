@@ -71,7 +71,7 @@ class ServiceManagementController extends Controller
             ? BankAccount::query()->where('tenant_id', $tenant->id)->active()->orderBy('name')->get()
             : collect();
         if ($request->user()->checkPermissionTo('view_service_financials')) {
-            $pending = $orders->getCollection()->filter(fn ($item) => $item->execution?->status === 'submitted');
+            $pending = $orders->getCollection()->filter(fn ($item) => in_array($item->execution?->status, ['draft', 'in_progress', 'rejected', 'submitted'], true));
             $pending->loadMissing(['execution.version.fields', 'execution.provider', 'execution.resources']);
             foreach ($pending as $pendingOrder) $this->attachFinancialPreview($pendingOrder);
         }
@@ -730,18 +730,25 @@ class ServiceManagementController extends Controller
 
     private function attachFinancialPreview(ServiceOrder $order): void
     {
-        if ($order->execution?->status !== 'submitted') return;
+        if (!in_array($order->execution?->status, ['draft', 'in_progress', 'rejected', 'submitted'], true)) return;
         try {
-            $order->execution->setAttribute('management_preview', app(\App\Services\Services\ServiceCompositionCalculator::class)->calculate($order->execution, false));
+            $preview = $order->execution->status === 'submitted'
+                ? app(\App\Services\Services\ServiceCompositionCalculator::class)->calculate($order->execution, false)
+                : app(ServiceExecutionWorkflow::class)->preview($order->execution, []);
+            $order->execution->setAttribute('management_preview', $preview);
         } catch (ValidationException $exception) {
-            $order->execution->setAttribute('management_preview', ['error' => collect($exception->errors())->flatten()->first()]);
+            if ($order->execution->status === 'submitted') {
+                $order->execution->setAttribute('management_preview', ['error' => collect($exception->errors())->flatten()->first()]);
+            }
         }
     }
 
     private function executionDocumentVariables(ServiceOrder $order): array
     {
         $execution = $order->execution;
-        $this->attachFinancialPreview($order);
+        if ($execution->status === 'submitted') {
+            $this->attachFinancialPreview($order);
+        }
         $preview = (array) ($execution->management_preview ?? []);
         $documentLines = $execution->isFrozen() ? $execution->compositionLines : collect(array_merge($preview['receivable'] ?? [], $preview['payable'] ?? []))->map(fn ($line) => (object) $line);
         $documentTotal = static function (string $direction) use ($execution, $preview, $documentLines): string {
