@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\TenantCloudStorageConnection;
 use Google\Client;
 use Google\Service\Drive;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Crypt;
 use RuntimeException;
 
 class GoogleDriveClientFactory
@@ -64,15 +66,37 @@ class GoogleDriveClientFactory
 
     public function forConnection(TenantCloudStorageConnection $connection): Drive
     {
+        return $this->authenticatedDrive($connection, false);
+    }
+
+    public function forPortal(TenantCloudStorageConnection $connection): Drive
+    {
+        return $this->authenticatedDrive($connection, true);
+    }
+
+    private function authenticatedDrive(TenantCloudStorageConnection $connection, bool $cacheToken): Drive
+    {
         if ($connection->status !== 'active' || ! $connection->hasOAuthConfiguration() || trim((string) $connection->refresh_token) === '') {
             throw new RuntimeException('A conexao com o Google Drive nao esta ativa.');
         }
 
         $client = $this->baseClient($connection);
+        $key = $cacheToken ? 'drive-access:'.$connection->tenant_id.':'.hash('sha256', $client->getClientId()."\0".$connection->refresh_token) : null;
+        if ($key && ($cached = Cache::get($key))) {
+            $client->setAccessToken(Crypt::decrypt($cached));
+            if (! $client->isAccessTokenExpired()) {
+                return new Drive($client);
+            }
+        }
+
         $token = $client->fetchAccessTokenWithRefreshToken($connection->refresh_token);
 
         if (isset($token['error'])) {
             throw new RuntimeException('Nao foi possivel renovar o acesso ao Google Drive.');
+        }
+
+        if ($key && ! empty($token['access_token'])) {
+            Cache::put($key, Crypt::encrypt($token), now()->addMinutes(45));
         }
 
         return new Drive($client);

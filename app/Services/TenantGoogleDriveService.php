@@ -108,17 +108,24 @@ class TenantGoogleDriveService
 
     public function ownsDestination(Drive $drive, ?string $folderId, ?Tenant $rootTenant = null): bool
     {
+        return $this->ownedDestination($drive, $folderId, $rootTenant) !== null;
+    }
+
+    public function ownedDestination(Drive $drive, ?string $folderId, ?Tenant $rootTenant = null): ?DriveFile
+    {
         if (! $folderId || ! preg_match('/\A[A-Za-z0-9_-]+\z/', $folderId)) {
-            return false;
+            return null;
         }
 
-        $folder = $this->getDriveFile($drive, $folderId, 'mimeType,trashed,driveId,ownedByMe,capabilities(canAddChildren),appProperties');
+        $folder = $this->getDriveFile($drive, $folderId, 'id,name,mimeType,trashed,driveId,ownedByMe,capabilities(canAddChildren),appProperties');
         $properties = $folder?->getAppProperties() ?? [];
 
         return $folder?->getMimeType() === 'application/vnd.google-apps.folder'
             && (! $rootTenant || (($properties['sgc_type'] ?? null) === 'root' && ($properties['sgc_tenant'] ?? null) === (string) $rootTenant->id))
             && ! $folder->getTrashed() && ! $folder->getDriveId()
-            && $folder->getOwnedByMe() === true && $folder->getCapabilities()?->getCanAddChildren() === true;
+            && $folder->getOwnedByMe() === true && $folder->getCapabilities()?->getCanAddChildren() === true
+                ? $folder
+                : null;
     }
 
     public function putDocument(

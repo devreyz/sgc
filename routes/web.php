@@ -319,6 +319,16 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
     Route::post('/settings/google-drive/destination', [GoogleDriveOAuthController::class, 'saveDestination'])
         ->middleware('throttle:10,1')->name('settings.google-drive.destination.save');
 
+    Route::prefix('drive')->name('drive.')->controller(\App\Http\Controllers\DrivePortalController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/files', 'files')->middleware('throttle:120,1')->name('files');
+        Route::post('/files', 'store')->middleware('throttle:40,1')->name('store');
+        Route::patch('/files/{file}', 'update')->where('file', '[A-Za-z0-9_-]{1,200}')
+            ->middleware('throttle:40,1')->name('update');
+        Route::get('/files/{file}/download', 'download')->where('file', '[A-Za-z0-9_-]{1,200}')
+            ->middleware('throttle:60,1')->name('download');
+    });
+
     Route::prefix('security/associates/{associate}/access')->name('security.associates.access.')->group(function () {
         Route::get('/', [AccessInvitationAdminController::class, 'index'])->name('index');
         Route::post('/invitations', [AccessInvitationAdminController::class, 'store'])

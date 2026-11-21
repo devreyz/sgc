@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\OrganizationAuthorizedEmail;
+use App\Services\DrivePortalAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -107,6 +108,16 @@ class HubController extends Controller
                 'icon' => 'calculator',
                 'url' => route('accounting.index', ['tenant' => $currentTenant->slug]),
                 'color' => 'info',
+            ];
+        }
+
+        if (app(DrivePortalAccess::class)->level($user, $currentTenant)) {
+            $roles[] = [
+                'name' => 'Drive',
+                'description' => 'Arquivos e pastas da organização',
+                'icon' => 'folder-open',
+                'url' => route('drive.index', ['tenant' => $currentTenant->slug]),
+                'color' => 'primary',
             ];
         }
 
