@@ -39,6 +39,7 @@
 
     $resolvedStatus =
         $statuses->resolve($order);
+    $financialState = $statuses->financialState($order);
 
     $statusValue = is_object($order->operational_status)
         ? (
@@ -170,6 +171,7 @@
 @endphp
 
 @section('content')
+@include('services._financial-status-style')
 
 @once
     <link
@@ -1818,6 +1820,9 @@
                 </div>
             </div>
 
+            @if($financialState)
+                @include('services._financial-status')
+            @else
             <span
                 class="
                     ds-status
@@ -1834,6 +1839,7 @@
 
                 {{ $resolvedStatus }}
             </span>
+            @endif
         </div>
 
         @if(auth()->user()?->checkPermissionTo('operate_all_service_orders_portal') && in_array($execution?->status, ['draft', 'in_progress', 'rejected'], true))

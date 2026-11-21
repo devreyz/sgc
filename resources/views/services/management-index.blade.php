@@ -32,6 +32,7 @@
 @section('content')
 {{-- Mantido por compatibilidade com os formulários e linhas expandidas do módulo. --}}
 @include('services._management-index-style')
+@include('services._financial-status-style')
 
 <style>
 /* SGC CAMPO / Gestão de serviços: CSS local, sem alterar a shell ou outros módulos. */
@@ -496,6 +497,7 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                             $canEditExecution = $canEdit && in_array($order->execution?->status, ['draft', 'in_progress', 'submitted', 'rejected'], true);
                             $canValidateOrder = $canApprove && $order->execution?->status === 'submitted';
                             $canRemoveOrder = $canEdit && in_array($order->execution?->status, ['draft', 'in_progress', 'submitted', 'rejected', 'validated'], true);
+                            $financialState = $statuses->financialState($order);
                             $executionDate = $order->execution_date ?? $order->scheduled_at ?? $order->scheduled_date;
                             $displayQuantity = $order->execution?->management_preview['primary_quantity'] ?? $order->execution?->quantity;
                             $initial = \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr(trim($beneficiaryName), 0, 1));
@@ -520,7 +522,11 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                                     @else
                                         <span class="cm-date">Sem data</span>
                                     @endif
-                                    <span class="cm-state" data-state="{{ $order->operational_status }}">{{ $statuses->resolve($order) }}</span>
+                                    @if($financialState)
+                                        @include('services._financial-status')
+                                    @else
+                                        <span class="cm-state" data-state="{{ $order->operational_status }}">{{ $statuses->resolve($order) }}</span>
+                                    @endif
                                 </div>
                             </td>
                             <td class="cm-col-execution">
@@ -571,7 +577,7 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                                             @php
                                                 $paymentLabel = $obligation->direction === 'payable' ? 'Pagar prestador' : 'Registrar recebimento';
                                             @endphp
-                                            <button class="cm-icon-action" type="button" data-order-dialog="payment-{{ $obligation->id }}" aria-controls="payment-{{ $obligation->id }}" aria-label="{{ $paymentLabel }}" title="{{ $paymentLabel }}"><i class="ph {{ $obligation->direction === 'payable' ? 'ph-wallet' : 'ph-hand-coins' }}" aria-hidden="true"></i><span aria-hidden="true">{{ $obligation->direction === 'payable' ? 'Pagar' : 'Receber' }}</span></button>
+                                            <button class="cm-icon-action" data-money-flow="{{ $obligation->direction === 'payable' ? 'outgoing' : 'incoming' }}" type="button" data-order-dialog="payment-{{ $obligation->id }}" aria-controls="payment-{{ $obligation->id }}" aria-label="{{ $paymentLabel }}" title="{{ $paymentLabel }}"><i class="ph {{ $obligation->direction === 'payable' ? 'ph-wallet' : 'ph-hand-coins' }}" aria-hidden="true"></i><span aria-hidden="true">{{ $obligation->direction === 'payable' ? 'Pagar' : 'Receber' }}</span></button>
                                         @endforeach
                                     @endif
                                     @if($canExpense)

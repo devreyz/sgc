@@ -24,19 +24,33 @@ class ServiceHumanStatusResolver
         if ($status !== 'validated') {
             return $status === 'scheduled' ? 'Agendado' : 'Rascunho';
         }
+        return match ($this->financialState($order)) {
+            'incoming' => 'Falta receber do cliente',
+            'outgoing' => 'Falta pagar o prestador',
+            'both' => 'A receber e a pagar',
+            'settled' => 'Quitado',
+            default => 'Concluído',
+        };
+    }
+
+    public function financialState(ServiceOrder $order): ?string
+    {
+        if ($order->operational_status !== 'validated') {
+            return null;
+        }
         $obligations = ($order->execution?->obligations ?? collect())->where('status', '!=', 'cancelled');
         if ($obligations->isEmpty()) {
-            return 'Concluído';
+            return 'complete';
         }
         $pending = $obligations->where('status', '!=', 'paid');
         $receivable = $pending->contains('direction', 'receivable');
         $payable = $pending->contains('direction', 'payable');
 
         return match (true) {
-            $receivable && $payable => 'A receber e a pagar',
-            $receivable => 'Falta receber do cliente',
-            $payable => 'Falta pagar o prestador',
-            default => 'Quitado',
+            $receivable && $payable => 'both',
+            $receivable => 'incoming',
+            $payable => 'outgoing',
+            default => 'settled',
         };
     }
 }
