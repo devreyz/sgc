@@ -22,7 +22,7 @@ function setup(extra = []) {
         hasOfflineAccess: () => true, form: {reportValidity: () => true},
         currentOrder: () => ({service: 'Trator', beneficiary: 'Maria', catalog: {}}),
         values: () => Object.fromEntries([...fields].filter(([key]) => key.startsWith('value:')).map(([key, value]) => [key.slice(6),value])),
-        FormData: class { get(key) { return fields.get(key); } [Symbol.iterator]() { return fields[Symbol.iterator](); } },
+        FormData: class { get(key) { return fields.get(key); } has(key) { return fields.has(key); } [Symbol.iterator]() { return fields[Symbol.iterator](); } },
         File: class {}, navigator: {onLine: false},
         synchronize() { assert.fail('Must not sync while offline'); },
         async guardedUpdate(row) { rows.push(row); return true; },
@@ -50,5 +50,12 @@ test('creating an offline order keeps execution readings for synchronization', a
     await save('schedule');
     assert.equal(rows[0].payload.action,'draft');
     assert.equal(rows[0].payload.values.hours,'3.5');
+});
+
+test('an offline order created by an operator retains its assigned provider', async () => {
+    const {save, rows} = setup([['service_provider_id','12']]);
+    await save('schedule');
+    assert.equal(rows[0].payload.creation.service_provider_id, '12');
+    assert.equal(rows[0].scope, '9:1:5');
 });
 

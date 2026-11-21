@@ -87,32 +87,41 @@ class ServiceProviderPortalController extends Controller
 
     public function offlineData(Request $request, Tenant $tenant): JsonResponse
     {
-        $provider = $this->provider($request, $tenant);
-        $catalog = $this->availableVersions($tenant, $provider, false)->with('providerRates')->get()
+        [$provider, $operator] = $this->access($request, $tenant);
+        $providers = $operator ? ServiceProvider::query()->where('tenant_id', $tenant->id)->where('status', true)
+            ->with('services')->orderBy('name')->get() : collect([$provider]);
+        $catalog = $this->availableVersions($tenant, $provider, $operator)->with('providerRates')->get()
             ->filter(fn (ServiceVersion $version) => ! $version->service->current_version_id || (int) $version->service->current_version_id === (int) $version->id)
-            ->map(function (ServiceVersion $version) use ($provider): array {
+            ->map(function (ServiceVersion $version) use ($provider, $operator, $providers): array {
                 $snapshot = $version->snapshot();
-                $rate = $version->providerRates->first(fn ($rate) => (int) $rate->service_provider_id === (int) $provider->id && $rate->active);
-                if ($rate) {
-                    $snapshot['provider_compensation'] = [
+                $eligible = $operator
+                    ? $providers->filter(fn (ServiceProvider $candidate) => $candidate->services->contains($version->service_id))
+                    : $providers;
+                $eligibleIds = $eligible->pluck('id')->values()->all();
+                $rates = $version->providerRates->where('active', true)->whereIn('service_provider_id', $eligibleIds)
+                    ->mapWithKeys(fn ($rate) => [$rate->service_provider_id => [
                         'method' => $version->provider_pricing_method,
                         'rate' => $version->provider_pricing_method === 'fixed'
                             ? ($rate->fixed_amount ?? $rate->rate ?? $version->default_provider_rate)
                             : ($rate->rate ?? $rate->fixed_amount ?? $version->default_provider_rate),
                         'percentage' => $rate->percentage ?? $version->provider_percentage,
-                    ];
+                    ]]);
+                if (! $operator && $rates->has($provider->id)) {
+                    $snapshot['provider_compensation'] = $rates->get($provider->id);
                 }
 
                 return [
                     'id' => $version->id, 'name' => $version->service->name, 'unit' => $version->unit,
-                    'membersOnly' => (bool) $version->members_only, 'catalog' => $this->offlineCatalog($snapshot),
+                    'membersOnly' => (bool) $version->members_only, 'catalog' => $this->offlineCatalog($snapshot, $operator),
+                    'providerIds' => $eligibleIds, 'providerRates' => $operator ? $rates : [],
                 ];
             })->values();
-        $orders = ServiceOrder::query()->where('tenant_id', $tenant->id)->where('service_provider_id', $provider->id)
+        $orders = ServiceOrder::query()->where('tenant_id', $tenant->id)
+            ->when(! $operator, fn ($query) => $query->where('service_provider_id', $provider->id))
             ->whereHas('execution')->where(fn ($query) => $query->whereIn('operational_status', ['scheduled', 'in_progress', 'rejected', 'submitted'])
                 ->orWhere('updated_at', '>=', now()->subDays(30)))
-            ->with(['service', 'execution.evidences', 'execution.obligations', 'execution.resources'])->orderByDesc('scheduled_at')->get()
-            ->map(fn (ServiceOrder $order) => $this->offlineOrder($order))->values();
+            ->with(['service', 'serviceProvider', 'execution.evidences', 'execution.obligations', 'execution.resources'])->orderByDesc('scheduled_at')->get()
+            ->map(fn (ServiceOrder $order) => $this->offlineOrder($order, $operator))->values();
         $members = $catalog->contains('membersOnly', true)
             ? Associate::query()->where('tenant_id', $tenant->id)->active()->get()
                 ->map(fn (Associate $member) => ['id' => $member->id, 'name' => $member->nickname ?: $member->display_name])->values()
@@ -123,7 +132,9 @@ class ServiceProviderPortalController extends Controller
             'scope' => $this->offlineScope($request, $tenant, $provider),
             'user' => (string) $request->user()->id, 'tenant' => $tenant->slug, 'organization' => $tenant->name,
             'logo' => $this->offlineLogo($tenant),
-            'provider' => $provider->name, 'catalog' => $catalog, 'orders' => $orders, 'members' => $members,
+            'provider' => $provider?->name, 'providerId' => $provider?->id, 'operator' => $operator,
+            'providers' => $providers->map(fn (ServiceProvider $candidate) => ['id' => $candidate->id, 'name' => $candidate->name])->values(),
+            'catalog' => $catalog, 'orders' => $orders, 'members' => $members,
             'issuedAt' => $issued->toIso8601String(),
             'expiresAt' => $issued->copy()->addMinutes(min(720, max(1, (int) config('session.lifetime'))))->toIso8601String(),
             'syncUrl' => route('provider.offline.sync', $tenant->slug), 'portalUrl' => route('provider.dashboard', $tenant->slug),
@@ -133,12 +144,13 @@ class ServiceProviderPortalController extends Controller
 
     public function offlineSync(Request $request, Tenant $tenant, CreateServiceOrder $creator, ServiceExecutionWorkflow $workflow, ServiceEvidenceService $evidence): JsonResponse
     {
-        $provider = $this->provider($request, $tenant);
+        [$provider, $operator] = $this->access($request, $tenant);
         $input = $request->validate([
             'scope' => 'required|string|max:100', 'operation_key' => 'required|uuid', 'order_id' => 'nullable|integer|min:1',
             'lock_version' => 'required_with:order_id|nullable|integer|min:0', 'action' => 'required|in:schedule,draft,start,finish',
-            'creation' => 'nullable|required_without:order_id|array:service_version_id,beneficiary_name,beneficiary_whatsapp,associate_id,scheduled_at,location,order_data',
+            'creation' => 'nullable|required_without:order_id|array:service_version_id,service_provider_id,beneficiary_name,beneficiary_whatsapp,associate_id,scheduled_at,location,order_data',
             'creation.service_version_id' => 'required_without:order_id|integer|min:1',
+            'creation.service_provider_id' => 'nullable|integer|min:1',
             'creation.beneficiary_name' => 'required_without:order_id|string|max:191',
             'creation.beneficiary_whatsapp' => ['nullable', 'regex:/\A\+?[0-9 ()-]{10,25}\z/'],
             'creation.associate_id' => 'nullable|integer|min:1',
@@ -152,21 +164,25 @@ class ServiceProviderPortalController extends Controller
             'evidences' => 'array|max:12', 'evidences.*' => 'file|max:12288',
         ]);
         abort_unless(hash_equals($this->offlineScope($request, $tenant, $provider), $input['scope']), 403);
-        $identity = ['tenant_id' => $tenant->id, 'provider_id' => $provider->id,
+        $identity = ['tenant_id' => $tenant->id, 'provider_id' => $provider?->id ?? 0,
             'user_id' => $request->user()->id, 'operation_key' => $input['operation_key']];
         $localFiles = [];
         try {
-            $order = DB::transaction(function () use ($request, $tenant, $provider, $input, $identity, $creator, $workflow, $evidence, &$localFiles) {
-                ServiceProvider::query()->where('tenant_id', $tenant->id)->where('status', true)
-                    ->where('user_id', $request->user()->id)->lockForUpdate()->findOrFail($provider->id);
+            $order = DB::transaction(function () use ($request, $tenant, $provider, $operator, $input, $identity, $creator, $workflow, $evidence, &$localFiles) {
+                if ($operator) {
+                    $request->user()->newQuery()->lockForUpdate()->findOrFail($request->user()->id);
+                } else {
+                    ServiceProvider::query()->where('tenant_id', $tenant->id)->where('status', true)
+                        ->where('user_id', $request->user()->id)->lockForUpdate()->findOrFail($provider->id);
+                }
                 $previous = DB::table('service_offline_operations')->where($identity)->value('result');
                 if ($previous) {
-                    return $this->order($tenant, $provider, false, json_decode($previous, true, flags: JSON_THROW_ON_ERROR)['order_id']);
+                    return $this->order($tenant, $provider, $operator, json_decode($previous, true, flags: JSON_THROW_ON_ERROR)['order_id']);
                 }
                 if (! empty($input['order_id'])) {
-                    $order = $this->order($tenant, $provider, false, $input['order_id']);
+                    $order = $this->order($tenant, $provider, $operator, $input['order_id']);
                     $execution = $order->execution()->lockForUpdate()->firstOrFail();
-                    abort_if((int) $execution->service_provider_id !== (int) $provider->id
+                    abort_if((! $operator && (int) $execution->service_provider_id !== (int) $provider->id)
                         || (int) $execution->lock_version !== (int) $input['lock_version']
                         || ! in_array($execution->status, ['draft', 'in_progress', 'rejected'], true), 409,
                         'A ordem foi alterada no servidor. Confira os dados antes de reenviar.');
@@ -174,21 +190,31 @@ class ServiceProviderPortalController extends Controller
                     $order->setRelation('execution', $execution);
                 } else {
                     $creation = $input['creation'];
-                    $version = $this->availableVersions($tenant, $provider, false)->findOrFail($creation['service_version_id']);
+                    $version = $this->availableVersions($tenant, $provider, $operator)->findOrFail($creation['service_version_id']);
+                    $providerId = $provider?->id;
+                    if ($operator) {
+                        $selected = $creation['service_provider_id'] ?? $providerId;
+                        if (! $selected) {
+                            throw ValidationException::withMessages(['creation.service_provider_id' => 'Selecione o prestador da ordem.']);
+                        }
+                        $providerId = ServiceProvider::query()->where('tenant_id', $tenant->id)
+                            ->where('status', true)->findOrFail($selected)->id;
+                    }
                     $allowedKeys = $version->fields->filter(fn ($field) => $field->phase === 'order'
-                        && $field->visible_to_provider && $field->editable_by_provider)->pluck('key')->all();
+                        && ($operator ? $field->visible_to_management : ($field->visible_to_provider && $field->editable_by_provider)))->pluck('key')->all();
                     $creation['order_data'] = array_intersect_key($creation['order_data'] ?? [], array_flip($allowedKeys));
-                    $order = $creator->handle($tenant->id, $version, $creation + ['service_provider_id' => $provider->id], $request->user());
+                    $creation['service_provider_id'] = $providerId;
+                    $order = $creator->handle($tenant->id, $version, $creation, $request->user());
                     $execution = $order->execution;
                 }
                 if ($input['action'] !== 'schedule') {
-                    $values = $this->portalValues($order, $input['values'] ?? [], self::EXECUTION_EDIT_PHASES, false);
-                    $this->uploadSubmittedEvidences($request, $order, false, self::EXECUTION_EDIT_PHASES, $evidence,
+                    $values = $this->portalValues($order, $input['values'] ?? [], self::EXECUTION_EDIT_PHASES, $operator);
+                    $this->uploadSubmittedEvidences($request, $order, $operator, self::EXECUTION_EDIT_PHASES, $evidence,
                         function (string $path) use (&$localFiles): void { $localFiles[] = $path; });
                     $recordedAt = isset($input['recorded_at']) ? \Illuminate\Support\Carbon::parse($input['recorded_at'])->timezone(config('app.timezone')) : null;
                     if (in_array($input['action'], ['start', 'finish'], true) && $execution->status !== 'in_progress') {
                         $startedAt = isset($input['started_at']) ? \Illuminate\Support\Carbon::parse($input['started_at'])->timezone(config('app.timezone')) : $recordedAt;
-                        $execution = $workflow->start($execution, $this->portalValues($order, $values, ['start'], false),
+                        $execution = $workflow->start($execution, $this->portalValues($order, $values, ['start'], $operator),
                             $input['operation_key'], $request->user(), $startedAt);
                     }
                     if ($input['action'] === 'finish') {
@@ -201,25 +227,28 @@ class ServiceProviderPortalController extends Controller
                     'result' => json_encode(['order_id' => $order->id], JSON_THROW_ON_ERROR), 'created_at' => now(),
                 ]);
 
-                return $order->fresh(['service', 'execution.evidences', 'execution.obligations', 'execution.resources']);
+                return $order->fresh(['service', 'serviceProvider', 'execution.evidences', 'execution.obligations', 'execution.resources']);
             });
         } catch (\Throwable $error) {
             \Illuminate\Support\Facades\Storage::disk('local')->delete($localFiles);
             throw $error;
         }
 
-        return response()->json(['order' => $this->offlineOrder($order)])->header('Cache-Control', 'private, no-store');
+        return response()->json(['order' => $this->offlineOrder($order, $operator)])->header('Cache-Control', 'private, no-store');
     }
 
-    private function offlineScope(Request $request, Tenant $tenant, ServiceProvider $provider): string
+    private function offlineScope(Request $request, Tenant $tenant, ?ServiceProvider $provider): string
     {
-        return implode(':', [$request->user()->id, $tenant->id, $provider->id]);
+        return implode(':', [$request->user()->id, $tenant->id, $provider?->id ?? 0]);
     }
 
-    private function offlineCatalog(array $snapshot): array
+    private function offlineCatalog(array $snapshot, bool $operator): array
     {
         $snapshot['meter_pair'] = \App\Services\Services\ServiceCalculationRules::meterPair($snapshot);
-        $snapshot['fields'] = collect($snapshot['fields'] ?? [])->filter(fn (array $field) => $field['visible_to_provider'] ?? false)->values()->all();
+        $snapshot['fields'] = collect($snapshot['fields'] ?? [])
+            ->filter(fn (array $field) => $operator ? ($field['visible_to_management'] ?? true) : ($field['visible_to_provider'] ?? false))
+            ->map(fn (array $field) => $operator ? array_replace($field, ['editable_by_provider' => true]) : $field)
+            ->values()->all();
 
         return $snapshot;
     }
@@ -257,10 +286,10 @@ class ServiceProviderPortalController extends Controller
         return base64_encode((string) ob_get_clean());
     }
 
-    private function offlineOrder(ServiceOrder $order): array
+    private function offlineOrder(ServiceOrder $order, bool $operator): array
     {
         $execution = $order->execution;
-        $catalog = $this->offlineCatalog((array) $execution->catalog_snapshot);
+        $catalog = $this->offlineCatalog((array) $execution->catalog_snapshot, $operator);
         $keys = array_column($catalog['fields'], 'key');
         foreach (array_filter($catalog['meter_pair']) as $field) {
             $keys[] = 'meter_pauses_'.$field;
@@ -268,6 +297,7 @@ class ServiceProviderPortalController extends Controller
 
         return [
             'id' => $order->id, 'number' => $order->number, 'service' => $order->service?->name,
+            'provider' => $order->serviceProvider?->name ?? data_get($order->provider_snapshot, 'name'),
             'beneficiary' => data_get($order->beneficiary_snapshot, 'name'), 'whatsapp' => data_get($order->beneficiary_snapshot, 'whatsapp'),
             'location' => $order->location, 'scheduled' => ($order->scheduled_at ?? $order->scheduled_date)?->format('Y-m-d\TH:i'),
             'status' => app(\App\Services\Services\ServiceHumanStatusResolver::class)->resolve($order),

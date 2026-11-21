@@ -143,6 +143,22 @@ function openOrder(order, row = null) {
         version.required = !bundle.catalog.length ? false : writable;
         version.disabled = !writable;
         if (!version.value && bundle.catalog.length === 1) version.value = bundle.catalog[0].id;
+        if (bundle.operator) {
+            const assignedProvider = select(form,'Prestador responsável','service_provider_id',
+                bundle.providers.map(item => [item.id,item.name]), reference.service_provider_id ?? bundle.providerId);
+            assignedProvider.disabled = !writable;
+            assignedProvider.required = writable;
+            const updateProviders = () => {
+                const eligible = (chosenVersion()?.providerIds || []).map(String);
+                for (const option of assignedProvider.options) {
+                    option.disabled = !!option.value && !eligible.includes(option.value);
+                }
+                if (assignedProvider.selectedOptions[0]?.disabled) assignedProvider.value = '';
+                if (!assignedProvider.value && eligible.length === 1) assignedProvider.value = eligible[0];
+            };
+            version.addEventListener('change',updateProviders);
+            updateProviders();
+        }
         const member = select(form,'Membro associado','associate_id', bundle.members.map(item => [item.id,item.name]),reference.associate_id);
         member.disabled = !writable;
         const beneficiary = field(form,'Beneficiário','beneficiary_name',reference.beneficiary_name);
@@ -198,7 +214,7 @@ function openOrder(order, row = null) {
         let totals;
         try { totals = estimate(model, values(model.catalog)); } catch {}
         if (!provisional && model.totals) totals = model.totals;
-        const blob = beneficiaryPdf({organization:bundle.organization,logo:bundle.logo,provider:bundle.provider,order:model,
+        const blob = beneficiaryPdf({organization:bundle.organization,logo:bundle.logo,provider:model.provider ?? bundle.provider,order:model,
             status:row ? localStatus(row) : order?.status || 'Rascunho no aparelho',totals,provisional});
         try { await sharePdf(blob,(model.number || 'ordem-local')+'-beneficiario.pdf'); }
         catch (error) { if (error.name !== 'AbortError') message.textContent = 'O aparelho não conseguiu compartilhar o PDF.'; }
@@ -219,7 +235,11 @@ function openOrder(order, row = null) {
 function currentOrder() {
     if (active.order) return active.order;
     const version = chosenVersion();
-    return {service:version?.name,unit:version?.unit,catalog:version?.catalog,beneficiary:form.elements.namedItem('beneficiary_name')?.value,
+    const selectedProvider = form.elements.namedItem('service_provider_id')?.value;
+    const compensation = version?.providerRates?.[selectedProvider];
+    const catalog = compensation ? {...version.catalog,provider_compensation:compensation} : version?.catalog;
+    const provider = bundle.providers?.find(item => String(item.id) === selectedProvider)?.name ?? bundle.provider;
+    return {service:version?.name,unit:version?.unit,catalog,provider,beneficiary:form.elements.namedItem('beneficiary_name')?.value,
         whatsapp:form.elements.namedItem('beneficiary_whatsapp')?.value,scheduled:form.elements.namedItem('scheduled_at')?.value,location:form.elements.namedItem('location')?.value};
 }
 
@@ -253,7 +273,9 @@ async function save(action) {
     const model = currentOrder(), row = active.row;
     const data = new FormData(form), currentValues = values(model.catalog), creation = {};
     if (!model.id) {
-        for (const key of ['service_version_id','beneficiary_name','beneficiary_whatsapp','associate_id','scheduled_at','location']) creation[key] = data.get(key) || '';
+        for (const key of ['service_version_id','service_provider_id','beneficiary_name','beneficiary_whatsapp','associate_id','scheduled_at','location']) {
+            if (data.has(key)) creation[key] = data.get(key) || '';
+        }
         creation.order_data = Object.fromEntries([...data].filter(([name]) => name.startsWith('order:')).map(([name,value]) => [name.slice(6),value]));
     }
     const files = {...row?.files};
