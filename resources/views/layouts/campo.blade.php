@@ -4019,7 +4019,7 @@
         window.SgcPwaConfig = <?= json_encode($sgcPwaConfig, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;
     </script>
 
-    <script src="{{ asset('js/image-compressor.js') }}"></script>
+    <script src="{{ asset('js/image-compressor.js') }}?v={{ filemtime(public_path('js/image-compressor.js')) }}"></script>
 
     <script>
         (function () {

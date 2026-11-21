@@ -6,7 +6,7 @@ use Illuminate\Validation\ValidationException;
 
 class ServiceEvidenceImageOptimizer
 {
-    private const MAX_BYTES = 200 * 1024;
+    private const MAX_BYTES = 230 * 1024;
 
     public function optimize(string $bytes, string $mime, string $field): array
     {
@@ -35,7 +35,7 @@ class ServiceEvidenceImageOptimizer
         imagesavealpha($image, true);
         $smallest = null;
 
-        for ($edge = min($longEdge, 1600); ; $edge = max(720, (int) ($edge * .8))) {
+        for ($edge = min($longEdge, 1728); ; $edge = max(720, (int) ($edge * .8))) {
             $ratio = $edge / $longEdge;
             $scaled = $edge === $longEdge ? $image
                 : imagescale($image, max(1, (int) round($dimensions[0] * $ratio)), max(1, (int) round($dimensions[1] * $ratio)), IMG_BICUBIC_FIXED);
@@ -43,7 +43,7 @@ class ServiceEvidenceImageOptimizer
                 break;
             }
             imagesavealpha($scaled, true);
-            foreach ([82, 74, 66, 58, 48] as $quality) {
+            foreach ([85, 76, 68, 60, 50] as $quality) {
                 ob_start();
                 $encoded = imagewebp($scaled, null, $quality);
                 $result = (string) ob_get_clean();

@@ -10,9 +10,9 @@
     const config = {
         maxWidth: 1920,
         maxHeight: 1920,
-        quality: 0.85,
+        quality: 0.87,
         format: "image/webp",
-        maxSizeKB: 500,
+        maxSizeKB: 550,
     };
 
     /**
@@ -102,7 +102,7 @@
                                         resolve(recompressed);
                                     },
                                     config.format,
-                                    0.7,
+                                    0.74,
                                 );
                             } else {
                                 resolve(compressedFile);

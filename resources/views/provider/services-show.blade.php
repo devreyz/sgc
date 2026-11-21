@@ -4268,7 +4268,7 @@
                                         );
                                     },
                                     'image/webp',
-                                    .82
+                                    .85
                                 );
                             } catch (error) {
                                 renderOriginalFile(

@@ -39,7 +39,8 @@ document.querySelectorAll('[data-expense-files]').forEach(picker => {
     }
 
     async function compress(file) {
-        if (!file.type.startsWith('image/') || file.size <= 200 * 1024) return file;
+        const targetBytes = 230 * 1024;
+        if (!file.type.startsWith('image/') || file.size <= targetBytes) return file;
         const url = URL.createObjectURL(file);
         try {
             const image = new Image();
@@ -47,17 +48,17 @@ document.querySelectorAll('[data-expense-files]').forEach(picker => {
             await image.decode();
             const canvas = document.createElement('canvas');
             let best = file;
-            for (const edge of [1600, 1280, 1000, 800]) {
+            for (const edge of [1728, 1360, 1060, 800]) {
                 const scale = Math.min(1, edge / Math.max(image.naturalWidth, image.naturalHeight));
                 canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
                 canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
                 canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
-                for (const quality of [.8, .68, .54]) {
+                for (const quality of [.84, .71, .57]) {
                     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', quality));
                     if (blob?.type === 'image/webp' && blob.size < best.size) {
                         best = new File([blob], file.name.replace(/\.[^.]+$/, '') + '.webp', {type: blob.type});
                     }
-                    if (best.size <= 200 * 1024) return best;
+                    if (best.size <= targetBytes) return best;
                 }
             }
             return best;
