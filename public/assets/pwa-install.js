@@ -32,8 +32,7 @@
 
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            const version = document.querySelector('meta[name="app-version"]')?.content || 'dev';
-            navigator.serviceWorker.register(`/sw.js?v=${encodeURIComponent(version)}`, {
+            navigator.serviceWorker.register('/sw.js', {
                 scope: '/',
                 updateViaCache: 'none',
             }).catch(() => {});

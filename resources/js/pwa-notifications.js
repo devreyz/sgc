@@ -32,9 +32,20 @@ function installationId() {
 
 async function registration() {
     if (!('serviceWorker' in navigator)) return null;
-    const version = document.querySelector('meta[name="app-version"]')?.content || 'dev';
-    await navigator.serviceWorker.register(`/sw.js?v=${encodeURIComponent(version)}`, { scope: '/', updateViaCache: 'none' });
+    await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' });
     return navigator.serviceWorker.ready;
+}
+
+let workerCheckedAt = 0;
+async function checkAppUpdate() {
+    if (!navigator.onLine || Date.now() - workerCheckedAt < 10 * 60 * 1000) return;
+    workerCheckedAt = Date.now();
+    try {
+        const worker = await registration();
+        await worker?.update();
+    } catch {
+        workerCheckedAt = 0;
+    }
 }
 
 async function jsonRequest(url, options = {}) {
@@ -264,6 +275,11 @@ else {
     // O SGC não usa mais Web Push. Navegador e PWA mantêm apenas a central
     // interna e nunca devem exibir ou solicitar permissão de notificações.
     document.getElementById('pushPermissionDialog')?.remove();
-    registration().catch(() => {});
+    checkAppUpdate();
+    window.addEventListener('online', checkAppUpdate);
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) checkAppUpdate();
+    });
+    setInterval(checkAppUpdate, 10 * 60 * 1000);
 }
 refreshUnreadCount();

@@ -1,3 +1,9 @@
+<IfModule mod_headers.c>
+    <FilesMatch "^(sw\.js|manifest(?:-dark)?\.json|provider-offline(?:-store|-document)?\.js|provider-offline\.(html|css))$">
+        Header always set Cache-Control "no-cache, must-revalidate"
+    </FilesMatch>
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes

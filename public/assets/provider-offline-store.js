@@ -128,6 +128,7 @@ export async function refreshBundle({force = false, sync = true} = {}) {
     if (busy) return busy;
     if (!force && Date.now() - renewedAt < MAX_AGE) return current;
     const update = async () => {
+        refreshOfflineShell().catch(() => {});
         const bundle = await download(endpoint);
         if (!bundle) return null;
         if (page && bundle.user !== page.dataset.providerOfflineUser) return null;
@@ -154,12 +155,21 @@ export async function refreshBundle({force = false, sync = true} = {}) {
     return busy;
 }
 
+let shellUpdate;
+function refreshOfflineShell() {
+    if (!navigator.serviceWorker || !navigator.onLine) return Promise.resolve();
+    shellUpdate ??= navigator.serviceWorker.register('/sw.js', {scope: '/', updateViaCache: 'none'})
+        .then(async registration => {
+            registration.active?.postMessage({type: 'SGC_REFRESH_OFFLINE_SHELL'});
+            await registration.update();
+        }).finally(() => { shellUpdate = null; });
+    return shellUpdate;
+}
+
 async function bootstrap() {
     const previous = await profile();
     if (previous && previous.user !== page.dataset.providerOfflineUser) await setProfile(null);
     localStorage.removeItem(signedOutKey);
-    const version = document.querySelector('meta[name="app-version"]')?.content || 'dev';
-    navigator.serviceWorker?.register('/sw.js?v='+encodeURIComponent(version), {scope: '/', updateViaCache: 'none'}).catch(() => {});
     await refreshBundle();
 }
 
