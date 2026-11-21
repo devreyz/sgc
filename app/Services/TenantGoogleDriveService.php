@@ -137,6 +137,10 @@ class TenantGoogleDriveService
         string $contents,
         string $mimeType = 'application/pdf',
     ): CloudDocument {
+        $layout = DriveDocumentLayout::resolve($documentType, $owner, $filename);
+        $folders = $layout['folders'] ?? $folders;
+        $filename = $layout['filename'] ?? $filename;
+
         $result = DB::transaction(function () use ($tenant, $owner, $documentType, $folders, $filename, $contents, $mimeType) {
             $connection = TenantCloudStorageConnection::query()
                 ->where('tenant_id', $tenant->id)
@@ -181,19 +185,29 @@ class TenantGoogleDriveService
         }
 
         $checksum = hash('sha256', $contents);
+        $customName = $document->metadata['drive_custom_name'] ?? null;
+        $safeFilename = $customName ?: $this->safeFilename($filename);
+        $remotePath = implode('/', [...$folders, $safeFilename]);
         try {
             $drive = $this->clients->forConnection($connection);
             $rootId = $parentId = $this->ensureRootFolder($connection, $drive);
 
-            foreach ($folders as $folder) {
-                $parentId = $this->findOrCreateFolder($drive, $parentId, $this->safeSegment($folder));
+            $actualParent = $document->remote_file_id && ! $document->drive_archive_id
+                ? $this->writableParentInRoot($drive, $document->remote_file_id, $rootId, $rootId)
+                : null;
+            if ($actualParent && ($document->metadata['drive_custom_parent'] ?? false)) {
+                $parentId = $actualParent;
+                $remotePath = $document->remote_path;
+            } else {
+                $actualFolders = [];
+                foreach ($folders as $folder) {
+                    [$parentId, $actualFolders[]] = $this->findOrCreateFolder($drive, $parentId, $this->safeSegment($folder));
+                }
+                $remotePath = implode('/', [...$actualFolders, $safeFilename]);
             }
 
-            $actualParent = $document->remote_file_id && ! $document->drive_archive_id
-                ? $this->writableParentInRoot($drive, $document->remote_file_id, $rootId, $parentId)
-                : null;
-
-            if ($actualParent === $parentId && $document->checksum === $checksum && $document->status === 'synced') {
+            if ($actualParent === $parentId && $document->checksum === $checksum
+                && $document->status === 'synced' && $document->remote_path === $remotePath) {
                 if ($document->remote_folder_id !== $parentId) {
                     $document->forceFill(['remote_folder_id' => $parentId])->save();
                 }
@@ -201,7 +215,6 @@ class TenantGoogleDriveService
                 return $document;
             }
 
-            $safeFilename = $this->safeFilename($filename);
             $options = [
                 'data' => $contents,
                 'mimeType' => $mimeType,
@@ -231,7 +244,7 @@ class TenantGoogleDriveService
                 'drive_archive_id' => null,
                 'remote_file_id' => $file->id,
                 'remote_folder_id' => $parentId,
-                'remote_path' => implode('/', [...$folders, $safeFilename]),
+                'remote_path' => $remotePath,
                 'checksum' => $checksum,
                 'version' => $document->exists ? ((int) $document->version + 1) : 1,
                 'status' => 'synced',
@@ -246,7 +259,7 @@ class TenantGoogleDriveService
             $safeError = $this->safeConnectionError($exception);
             if (! $document->drive_archive_id) {
                 $document->forceFill([
-                    'remote_path' => implode('/', [...$folders, $filename]),
+                    'remote_path' => $document->remote_file_id ? $document->remote_path : $remotePath,
                     'status' => 'failed',
                     'last_error' => $safeError,
                 ])->save();
@@ -300,6 +313,54 @@ class TenantGoogleDriveService
 
             throw $exception;
         }
+    }
+
+    public function reorganizeDocument(CloudDocument $document, array $layout): bool
+    {
+        return DB::transaction(function () use ($document, $layout): bool {
+            $connection = TenantCloudStorageConnection::query()->where('tenant_id', $document->tenant_id)
+                ->where('provider', 'google_drive')->where('status', 'active')->lockForUpdate()->first();
+            $document = $document->fresh();
+            if (! $connection?->root_folder_id || ! $document?->remote_file_id || $document->drive_archive_id
+                || $document->status !== 'synced' || ($document->metadata['drive_custom_parent'] ?? false)
+                || ($document->metadata['drive_custom_name'] ?? false)) {
+                return false;
+            }
+
+            $filename = $this->safeFilename($layout['filename']);
+            $path = implode('/', [...$layout['folders'], $filename]);
+            if ($document->remote_path === $path) {
+                return false;
+            }
+            $drive = $this->clients->forPortal($connection);
+            $tenant = Tenant::query()->findOrFail($document->tenant_id);
+            $root = $this->ownedDestination($drive, $connection->root_folder_id, $tenant)?->getId();
+            if ($root !== $connection->root_folder_id) {
+                return false;
+            }
+            $source = $this->writableParentInRoot($drive, $document->remote_file_id, $root, $root);
+            if (! $source) {
+                return false;
+            }
+
+            $target = $root;
+            $actualFolders = [];
+            foreach ($layout['folders'] as $folder) {
+                [$target, $actualFolders[]] = $this->findOrCreateFolder($drive, $target, $this->safeSegment($folder));
+            }
+            $path = implode('/', [...$actualFolders, $filename]);
+            if ($source === $target && $document->remote_path === $path) {
+                return false;
+            }
+            $options = ['fields' => 'id'];
+            if ($source !== $target) {
+                $options += ['addParents' => $target, 'removeParents' => $source];
+            }
+            $drive->files->update($document->remote_file_id, new DriveFile(['name' => $filename]), $options);
+            $document->forceFill(['remote_path' => $path, 'remote_folder_id' => $target])->save();
+
+            return true;
+        });
     }
 
     public function archiveDocuments(TenantCloudStorageConnection $connection): void
@@ -381,18 +442,21 @@ class TenantGoogleDriveService
         }
     }
 
-    private function findOrCreateFolder(Drive $drive, string $parentId, string $name): string
+    private function findOrCreateFolder(Drive $drive, string $parentId, string $name): array
     {
         $escaped = str_replace(["\\", "'"], ["\\\\", "\\'"], $name);
-        $files = $drive->files->listFiles([
-            'q' => "name = '{$escaped}' and mimeType = 'application/vnd.google-apps.folder' and '{$parentId}' in parents and trashed = false",
-            'spaces' => 'drive',
-            'fields' => 'files(id)',
-            'pageSize' => 1,
-        ]);
+        foreach (["name = '{$escaped}'", "appProperties has { key='sgcCanonicalName' and value='{$escaped}' }"] as $match) {
+            $files = $drive->files->listFiles([
+                'q' => "{$match} and mimeType = 'application/vnd.google-apps.folder' and '{$parentId}' in parents and trashed = false",
+                'spaces' => 'drive',
+                'fields' => 'files(id,name)',
+                'pageSize' => 1,
+            ]);
+            if ($files->getFiles()) {
+                $folder = $files->getFiles()[0];
 
-        if ($files->getFiles() !== []) {
-            return (string) $files->getFiles()[0]->id;
+                return [(string) $folder->getId(), (string) $folder->getName()];
+            }
         }
 
         $folder = $drive->files->create(new DriveFile([
@@ -401,19 +465,19 @@ class TenantGoogleDriveService
             'parents' => [$parentId],
         ]), ['fields' => 'id']);
 
-        return (string) $folder->id;
+        return [(string) $folder->id, $name];
     }
 
-    private function safeSegment(string $value): string
+    private function safeSegment(string $value, int $limit = 120): string
     {
         $value = trim(preg_replace('/[\\\\\/:*?"<>|]+/u', '-', $value) ?? '');
 
-        return mb_substr($value !== '' ? $value : 'Sem nome', 0, 120);
+        return mb_substr($value !== '' ? $value : 'Sem nome', 0, $limit);
     }
 
     private function safeFilename(string $value): string
     {
-        return mb_substr($this->safeSegment($value), 0, 180);
+        return $this->safeSegment($value, 180);
     }
 
     private function safeConnectionError(Throwable $exception): string

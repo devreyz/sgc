@@ -19,6 +19,13 @@ class Expense extends Model
 {
     use BelongsToTenant, HasFactory, LogsActivity, SoftDeletes;
 
+    public function linkedServiceOrder(): ?ServiceOrder
+    {
+        $target = $this->expenseable;
+
+        return $target instanceof ServiceExecution ? $target->order : ($target instanceof ServiceOrder ? $target : null);
+    }
+
     protected $fillable = [
         'description',
         'document_number',

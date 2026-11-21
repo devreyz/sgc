@@ -224,9 +224,11 @@ function closeWebPdfViewer() {
     }
     webPdfState?.renderTask?.cancel();
     webPdfState?.loadingTask?.destroy().catch(() => {});
-    if (webPdfState?.url) URL.revokeObjectURL(webPdfState.url);
+    if (!webPdfState) return;
+    if (webPdfState.url) URL.revokeObjectURL(webPdfState.url);
+    document.documentElement.style.overflow = webPdfState.previousOverflow;
+    webPdfState.previousFocus?.focus({preventScroll: true});
     webPdfState = null;
-    document.documentElement.style.overflow = '';
 }
 
 function ensureWebPdfViewer() {
@@ -241,38 +243,68 @@ function ensureWebPdfViewer() {
     viewer.setAttribute('aria-label', 'Visualizador de PDF');
     viewer.innerHTML = `
         <header class="sgc-pdf-toolbar">
-            <div class="sgc-pdf-heading"><span>Documento</span><strong data-sgc-pdf-title></strong></div>
+            <strong class="sgc-pdf-heading" data-sgc-pdf-title></strong>
             <nav aria-label="Ações do documento">
                 <button type="button" data-sgc-pdf-download>Baixar</button>
                 <button type="button" data-sgc-pdf-open>Abrir em nova aba</button>
                 <button type="button" data-sgc-pdf-share>Compartilhar</button>
                 <button type="button" data-sgc-pdf-print>Imprimir</button>
-                <button type="button" data-sgc-pdf-close>Fechar</button>
             </nav>
+            <button type="button" data-sgc-pdf-close aria-label="Fechar visualizador"><i class="ph ph-x" aria-hidden="true"></i></button>
         </header>
+        <div class="sgc-pdf-controls" data-sgc-pdf-controls hidden>
+            <div role="group" aria-label="Páginas">
+                <button type="button" data-sgc-pdf-prev aria-label="Página anterior"><i class="ph ph-caret-left" aria-hidden="true"></i></button>
+                <label><input type="number" min="1" value="1" inputmode="numeric" data-sgc-pdf-page aria-label="Ir para a página"> / <span data-sgc-pdf-total></span></label>
+                <button type="button" data-sgc-pdf-next aria-label="Próxima página"><i class="ph ph-caret-right" aria-hidden="true"></i></button>
+            </div>
+            <div role="group" aria-label="Zoom">
+                <button type="button" data-sgc-pdf-minus aria-label="Diminuir zoom"><i class="ph ph-minus" aria-hidden="true"></i></button>
+                <button type="button" data-sgc-pdf-fit aria-label="Ajustar à largura" title="Ajustar à largura">100%</button>
+                <button type="button" data-sgc-pdf-plus aria-label="Aumentar zoom"><i class="ph ph-plus" aria-hidden="true"></i></button>
+            </div>
+        </div>
+        <div class="sgc-pdf-progress" data-sgc-pdf-progress hidden>
+            <span role="status" data-sgc-pdf-progress-text></span><progress aria-label="Progresso da prévia"></progress>
+        </div>
         <div class="sgc-pdf-pages" data-sgc-pdf-pages aria-label="Páginas do PDF"></div>
     `;
     const style = document.createElement('style');
     style.textContent = `
-        #sgc-web-pdf-viewer{position:fixed;inset:0;z-index:2147482000;display:grid;grid-template-rows:auto minmax(0,1fr);background:var(--ui-color-canvas,#eef4f0);color:var(--ui-color-text,#102018);padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
-        #sgc-web-pdf-viewer[hidden]{display:none}
-        .sgc-pdf-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:var(--ui-color-surface,#fff);border-bottom:1px solid var(--ui-color-border,#dce6df);box-shadow:0 5px 20px rgba(15,35,24,.1)}
-        .sgc-pdf-heading{display:grid;min-width:0}.sgc-pdf-heading span{font-size:11px;color:#718078}.sgc-pdf-heading strong{white-space:normal;overflow-wrap:anywhere;font-size:15px}
-        .sgc-pdf-toolbar nav{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none}.sgc-pdf-toolbar button{min-height:38px;padding:7px 12px;border:1px solid #b9cec1;border-radius:10px;background:var(--ui-color-surface,#fff);color:var(--ui-color-text,#173d32);font:700 12px/1 system-ui;white-space:nowrap}.sgc-pdf-toolbar button[data-sgc-pdf-close]{background:#173d32;color:#fff;border-color:#173d32}
-        .sgc-pdf-pages{min-height:0;overflow:auto;padding:12px;background:var(--ui-color-canvas-deep,#dfe7e2);text-align:center;overscroll-behavior:contain}.sgc-pdf-pages[hidden]{display:none}.sgc-pdf-pages canvas{display:block;max-width:100%;height:auto;margin:0 auto 12px;background:#fff;box-shadow:0 2px 10px rgba(15,35,24,.16)}.sgc-pdf-pages>p{padding:24px;color:#53675c;font:600 13px system-ui}
-        @media(max-width:720px){.sgc-pdf-toolbar{align-items:stretch;flex-direction:column}.sgc-pdf-toolbar nav{width:100%}.sgc-pdf-toolbar button{flex:1}.sgc-pdf-heading span{display:none}}
+        #sgc-web-pdf-viewer{position:fixed;inset:0;z-index:2147482000;display:grid;grid-template-rows:auto auto auto minmax(0,1fr);background:var(--ui-color-canvas,#eef4f0);color:var(--ui-color-text,#102018);padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+        #sgc-web-pdf-viewer[hidden],#sgc-web-pdf-viewer [hidden]{display:none}
+        .sgc-pdf-toolbar,.sgc-pdf-controls{display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--ui-color-surface,#fff);border-bottom:1px solid var(--ui-color-border,#dce6df)}
+        .sgc-pdf-heading{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.95rem}
+        .sgc-pdf-toolbar nav,.sgc-pdf-controls>div{display:flex;align-items:center;gap:4px;min-width:0}
+        .sgc-pdf-toolbar nav{overflow-x:auto;scrollbar-width:none}
+        #sgc-web-pdf-viewer button{min-height:40px;padding:0 .55rem;border:1px solid var(--ui-color-border,#dce6df);border-radius:.5rem;background:var(--ui-color-surface-soft,#eef4f0);color:inherit;font-weight:700;font-size:.8rem;white-space:nowrap}
+        #sgc-web-pdf-viewer button:disabled{opacity:.48}
+        #sgc-web-pdf-viewer button i{font-size:1.05rem}
+        #sgc-web-pdf-viewer [data-sgc-pdf-close]{min-width:44px;background:var(--sgc-accent);color:var(--sgc-on-accent)}
+        .sgc-pdf-controls{justify-content:center;flex-wrap:wrap}
+        .sgc-pdf-controls label{font-size:.8rem;white-space:nowrap}
+        .sgc-pdf-controls input{width:3.2rem;height:40px;padding:.15rem;text-align:center;background:var(--ui-color-surface-soft,#eef4f0);border:1px solid var(--ui-color-border,#dce6df);border-radius:.5rem;color:inherit}
+        .sgc-pdf-progress{padding:.4rem .75rem;background:var(--ui-color-surface,#fff);font-size:.8rem}
+        .sgc-pdf-progress progress{display:block;width:100%;height:.55rem;accent-color:var(--ui-color-primary-strong,#173d32)}
+        .sgc-pdf-pages{grid-row:4;min-height:0;overflow:auto;padding:8px;background:var(--ui-color-canvas-deep,#dfe7e2);overscroll-behavior:contain}
+        .sgc-pdf-pages canvas{display:block;max-width:none;margin:0 auto 8px;background:#fff;box-shadow:0 2px 10px rgba(15,35,24,.16)}
+        .sgc-pdf-pages>p{padding:24px;font-size:.85rem}
+        @media(max-width:720px){.sgc-pdf-toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 8px}.sgc-pdf-toolbar nav{grid-row:2;grid-column:1/-1}.sgc-pdf-toolbar nav button{flex:1}.sgc-pdf-toolbar [data-sgc-pdf-close]{grid-column:2;grid-row:1}}
         @media print {
             html:has(#sgc-web-pdf-viewer:not([hidden])) { overflow:visible !important; }
             body:has(> #sgc-web-pdf-viewer:not([hidden])) > :not(#sgc-web-pdf-viewer) { display:none !important; }
             #sgc-web-pdf-viewer:not([hidden]), #sgc-web-pdf-viewer .sgc-pdf-pages { display:block;position:static;overflow:visible;padding:0;background:#fff; }
-            #sgc-web-pdf-viewer .sgc-pdf-toolbar { display:none; }
-            #sgc-web-pdf-viewer canvas { width:auto;margin:0 auto;box-shadow:none;break-inside:avoid; }
+            #sgc-web-pdf-viewer :is(.sgc-pdf-toolbar,.sgc-pdf-controls,.sgc-pdf-progress) { display:none; }
+            #sgc-web-pdf-viewer canvas { width:100% !important;height:auto !important;max-height:94vh;object-fit:contain;margin:0 auto;box-shadow:none;break-inside:avoid; }
             #sgc-web-pdf-viewer canvas:not(:last-child) { break-after:page; }
         }
     `;
     document.head.appendChild(style);
     document.body.appendChild(viewer);
     viewer.querySelector('[data-sgc-pdf-close]').addEventListener('click', closeWebPdfViewer);
+    viewer.addEventListener('keydown', event => {
+        if (event.key === 'Escape') closeWebPdfViewer();
+    });
     viewer.querySelector('[data-sgc-pdf-download]').addEventListener('click', () => {
         if (webPdfState) downloadInBrowser(webPdfState.blob, webPdfState.fileName);
     });
@@ -283,58 +315,162 @@ function ensureWebPdfViewer() {
         if (webPdfState) window.SgcDocuments.sharePdf(webPdfState.blob, webPdfState.fileName, webPdfState.title);
     });
     viewer.querySelector('[data-sgc-pdf-print]').addEventListener('click', () => window.print());
+    const host = viewer.querySelector('[data-sgc-pdf-pages]');
+    const pageInput = viewer.querySelector('[data-sgc-pdf-page]');
+    pageInput.addEventListener('change', () => goToPdfPage(Number(pageInput.value)));
+    viewer.querySelector('[data-sgc-pdf-prev]').addEventListener('click', () => goToPdfPage(webPdfState.page - 1));
+    viewer.querySelector('[data-sgc-pdf-next]').addEventListener('click', () => goToPdfPage(webPdfState.page + 1));
+    const zoom = value => {
+        const state = webPdfState;
+        if (!state?.pdf || value < .5 || value > 3 || state.zoom === value) return;
+        state.zoom = value;
+        renderPdfPages(viewer, state);
+    };
+    viewer.querySelector('[data-sgc-pdf-minus]').addEventListener('click', () => zoom(webPdfState.zoom - .25));
+    viewer.querySelector('[data-sgc-pdf-fit]').addEventListener('click', () => zoom(1));
+    viewer.querySelector('[data-sgc-pdf-plus]').addEventListener('click', () => zoom(webPdfState.zoom + .25));
+    host.addEventListener('scroll', () => {
+        const state = webPdfState;
+        if (!state?.pdf || state.rendering) return;
+        const target = host.getBoundingClientRect().top + host.clientHeight * .4;
+        const visible = Array.from(host.children).find(canvas => canvas.getBoundingClientRect().bottom >= target);
+        if (visible?.dataset.page) setPdfPage(state, Number(visible.dataset.page));
+    }, {passive: true});
+    let resizeTimer;
+    if (window.ResizeObserver) new ResizeObserver(() => {
+        clearTimeout(resizeTimer);
+        const state = webPdfState;
+        if (!state?.pdf || host.clientWidth === state.width) return;
+        resizeTimer = setTimeout(() => {
+            if (state === webPdfState) renderPdfPages(viewer, state);
+        }, 180);
+    }).observe(host);
+
     return viewer;
+}
+
+function setPdfPage(state, page) {
+    state.page = page;
+    state.viewer.querySelector('[data-sgc-pdf-page]').value = page;
+    state.viewer.querySelector('[data-sgc-pdf-prev]').disabled = page <= 1;
+    state.viewer.querySelector('[data-sgc-pdf-next]').disabled = page >= state.pdf.numPages;
+}
+
+function goToPdfPage(number) {
+    const state = webPdfState;
+    if (!state?.pdf) return;
+    const page = Math.max(1, Math.min(state.pdf.numPages, Math.trunc(number) || 1));
+    setPdfPage(state, page);
+    state.viewer.querySelector('[data-page="' + page + '"]')?.scrollIntoView({block: 'start', inline: 'nearest'});
+}
+
+function showPdfProgress(viewer, message, value, max) {
+    const progress = viewer.querySelector('[data-sgc-pdf-progress]');
+    progress.hidden = !message;
+    progress.querySelector('span').textContent = message;
+    const bar = progress.querySelector('progress');
+    if (max) {
+        bar.max = max;
+        bar.value = value;
+    } else {
+        bar.removeAttribute('value');
+    }
 }
 
 function openInBrowser(blob, fileName, title) {
     closeWebPdfViewer();
     const viewer = ensureWebPdfViewer();
     const url = URL.createObjectURL(blob);
-    webPdfState = { blob, fileName, title, url };
+    const state = webPdfState = {
+        blob, fileName, title, url, viewer, zoom: 1, page: 1, revision: 0,
+        previousFocus: document.activeElement,
+        previousOverflow: document.documentElement.style.overflow,
+    };
     viewer.hidden = false;
     viewer.querySelector('[data-sgc-pdf-title]').textContent = title;
-    const pages = viewer.querySelector('[data-sgc-pdf-pages]');
-    const print = viewer.querySelector('[data-sgc-pdf-print]');
-    print.disabled = true;
-    renderPdfPages(blob, pages, webPdfState).then(rendered => {
-        if (webPdfState?.url === url) print.disabled = !rendered;
-    });
+    viewer.querySelector('[data-sgc-pdf-controls]').hidden = true;
+    viewer.querySelector('[data-sgc-pdf-print]').disabled = true;
+    showPdfProgress(viewer, 'Preparando o PDF…');
     document.documentElement.style.overflow = 'hidden';
     hideNavigationLoading();
+    requestAnimationFrame(() => {
+        if (state === webPdfState) viewer.querySelector('[data-sgc-pdf-close]').focus();
+    });
+    loadWebPdf(viewer, state);
 }
 
-async function renderPdfPages(blob, host, state) {
-    host.innerHTML = '<p>Renderizando documento…</p>';
+async function loadWebPdf(viewer, state) {
     try {
         const pdfjsLib = await loadPdfJs();
-        if (state !== webPdfState) return;
-        const data = new Uint8Array(await blob.arrayBuffer());
+        const data = new Uint8Array(await state.blob.arrayBuffer());
         if (state !== webPdfState) return;
         state.loadingTask = pdfjsLib.getDocument({data});
-        const pdf = await state.loadingTask.promise;
+        state.pdf = await state.loadingTask.promise;
         if (state !== webPdfState) return;
-        host.replaceChildren();
-        const availableWidth = Math.max(280, Math.min(1100, host.clientWidth - 24));
-        for (let number = 1; number <= pdf.numPages; number += 1) {
-            if (state !== webPdfState) return;
+        viewer.querySelector('[data-sgc-pdf-total]').textContent = state.pdf.numPages;
+        viewer.querySelector('[data-sgc-pdf-page]').max = state.pdf.numPages;
+        viewer.querySelector('[data-sgc-pdf-controls]').hidden = false;
+        setPdfPage(state, 1);
+        await renderPdfPages(viewer, state);
+    } catch (error) {
+        if (state === webPdfState) pdfRenderError(viewer, error);
+    }
+}
+
+function pdfRenderError(viewer, error) {
+    console.warn('SGC PDF rendering failed', error);
+    showPdfProgress(viewer, '');
+    viewer.querySelector('[data-sgc-pdf-pages]').innerHTML = '<p>Não foi possível renderizar este PDF. Use "Baixar" ou "Abrir em nova aba".</p>';
+}
+
+async function renderPdfPages(viewer, state) {
+    const host = viewer.querySelector('[data-sgc-pdf-pages]');
+    const print = viewer.querySelector('[data-sgc-pdf-print]');
+    const {pdf, zoom} = state;
+    const revision = ++state.revision;
+    const active = () => state === webPdfState && revision === state.revision;
+    state.renderTask?.cancel();
+    state.width = host.clientWidth;
+    state.rendering = true;
+    print.disabled = true;
+    viewer.querySelector('[data-sgc-pdf-fit]').textContent = Math.round(zoom * 100) + '%';
+    viewer.querySelector('[data-sgc-pdf-minus]').disabled = zoom <= .5;
+    viewer.querySelector('[data-sgc-pdf-plus]').disabled = zoom >= 3;
+    showPdfProgress(viewer, 'Renderizando páginas…', 0, pdf.numPages);
+    const availableWidth = Math.max(1, Math.min(1100, state.width - 16));
+    try {
+        for (let number = 1; number <= pdf.numPages && active(); number += 1) {
             const page = await pdf.getPage(number);
-            if (state !== webPdfState) return;
-            const initial = page.getViewport({scale:1});
-            const viewport = page.getViewport({scale:Math.min(2.2, availableWidth / initial.width)});
+            if (!active()) return;
+            const initial = page.getViewport({scale: 1});
+            const viewport = page.getViewport({scale: (availableWidth / initial.width) * zoom});
+            const pixelBudget = Math.min(8_000_000, 60_000_000 / pdf.numPages);
+            const density = Math.min(window.devicePixelRatio || 1, Math.sqrt(pixelBudget / (viewport.width * viewport.height)),
+                4096 / Math.max(viewport.width, viewport.height));
             const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d', {alpha:false});
-            canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
-            canvas.setAttribute('aria-label', `Página ${number} de ${pdf.numPages}`);
-            host.appendChild(canvas);
-            state.renderTask = page.render({canvas, canvasContext:context, viewport});
+            canvas.width = Math.ceil(viewport.width * density);
+            canvas.height = Math.ceil(viewport.height * density);
+            canvas.style.width = viewport.width + 'px';
+            canvas.style.height = viewport.height + 'px';
+            canvas.dataset.page = number;
+            canvas.setAttribute('aria-label', 'Página ' + number + ' de ' + pdf.numPages);
+            state.renderTask = page.render({canvas, viewport, transform: [density, 0, 0, density, 0, 0]});
             await state.renderTask.promise;
+            if (!active()) return;
+            const previous = host.children[number - 1];
+            if (previous) previous.replaceWith(canvas); else host.appendChild(canvas);
+            if (number === state.page && (number > 1 || host.scrollTop > 0)) goToPdfPage(number);
+            showPdfProgress(viewer, 'Páginas renderizadas: ' + number + ' de ' + pdf.numPages, number, pdf.numPages);
             page.cleanup();
         }
-        return true;
+        if (active()) {
+            state.renderTask = null;
+            state.rendering = false;
+            showPdfProgress(viewer, '');
+            print.disabled = false;
+        }
     } catch (error) {
-        if (state !== webPdfState) return;
-        console.warn('SGC PDF rendering failed', error);
-        host.innerHTML = '<p>Não foi possível renderizar este PDF. Use “Baixar” ou “Abrir em nova aba”.</p>';
+        if (active()) pdfRenderError(viewer, error);
     }
 }
 

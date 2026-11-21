@@ -111,7 +111,7 @@ class DrivePortalController extends Controller
                 'X-Content-Type-Options' => 'nosniff',
                 'Content-Security-Policy' => "sandbox; default-src 'none'",
                 'X-Frame-Options' => 'SAMEORIGIN',
-            ]);
+            ] + ($data['size'] > 0 ? ['X-SGC-Content-Length' => (string) $data['size']] : []));
         });
     }
 
@@ -138,7 +138,7 @@ class DrivePortalController extends Controller
             $root = $this->storage->ownedDestination($drive, $connection->root_folder_id, $tenant);
             abort_unless($root?->getId() === $connection->root_folder_id, 409, 'Reconecte o Google Drive para liberar a pasta da organização.');
 
-            return $operation(new DrivePortalFiles($drive, $root));
+            return $operation(new DrivePortalFiles($drive, $root, $tenant->id));
         };
 
         try {

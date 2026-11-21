@@ -50,7 +50,7 @@ class ServiceEvidenceService
                 throw ValidationException::withMessages(['file' => 'O arquivo deve ter no máximo 12 MB.']);
             }$bytes = file_get_contents($file->getRealPath());
             $originalSize = strlen($bytes);
-            [$bytes, $mime, $extension] = $this->optimize($bytes, $mime);
+            [$bytes, $mime, $extension] = (new ServiceEvidenceImageOptimizer)->optimize($bytes, $mime, 'file');
             $hash = hash('sha256', $bytes);
             $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME).'.'.$extension;
             $drive = Schema::hasTable('tenant_cloud_storage_connections')
@@ -103,34 +103,5 @@ class ServiceEvidenceService
         abort_unless($document->disk === 'local' && Storage::disk('local')->exists($document->path), 404);
 
         return Storage::disk('local')->get($document->path);
-    }
-
-    private function optimize(string $bytes, string $mime): array
-    {
-        if ($mime === 'application/pdf') {
-            return [$bytes, $mime, 'pdf'];
-        }
-        $image = @imagecreatefromstring($bytes);
-        if (! $image) {
-            throw ValidationException::withMessages(['file' => 'A imagem enviada não pôde ser lida.']);
-        }
-        $width = imagesx($image);
-        $height = imagesy($image);
-        $max = 2048;
-        if (max($width, $height) > $max) {
-            $ratio = $max / max($width, $height);
-            $resized = imagescale($image, max(1, (int) round($width * $ratio)), max(1, (int) round($height * $ratio)), IMG_BICUBIC_FIXED);
-            imagedestroy($image);
-            $image = $resized;
-        }
-        imagepalettetotruecolor($image);
-        imagealphablending($image, true);
-        imagesavealpha($image, true);
-        ob_start();
-        imagewebp($image, null, 82);
-        $optimized = (string) ob_get_clean();
-        imagedestroy($image);
-
-        return [$optimized, 'image/webp', 'webp'];
     }
 }

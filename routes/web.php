@@ -515,6 +515,8 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/expenses', [ServiceProviderPortalController::class, 'expenses'])->name('management.expenses');
         Route::post('/expenses', [ServiceProviderPortalController::class, 'storeExpense'])->middleware('throttle:20,1')->name('management.expenses.store');
         Route::post('/expenses/link', [ServiceProviderPortalController::class, 'linkExpense'])->middleware('throttle:20,1')->name('management.expenses.link');
+        Route::get('/expenses/{expense}', [ServiceProviderPortalController::class, 'showExpense'])->whereNumber('expense')->name('management.expenses.show');
+        Route::patch('/expenses/{expense}', [ServiceProviderPortalController::class, 'manageExpense'])->whereNumber('expense')->middleware('throttle:20,1')->name('management.expenses.manage');
         Route::get('/expenses/documents/{document}', [ServiceProviderPortalController::class, 'expenseDocument'])->whereNumber('document')->name('management.expenses.documents.show');
         Route::get('/orders/{order}', [ServiceManagementController::class, 'show'])->whereNumber('order')->name('management.show');
         Route::get('/orders/{order}/execute', [ServiceManagementController::class, 'execute'])->whereNumber('order')->name('management.execute');
@@ -584,6 +586,8 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::post('/financial/payout-requests', [ServiceProviderPortalController::class, 'payout'])->middleware('throttle:10,1')->name('financial.payout');
         Route::get('/expenses', [ServiceProviderPortalController::class, 'expenses'])->name('expenses');
         Route::post('/expenses', [ServiceProviderPortalController::class, 'storeExpense'])->middleware('throttle:20,1')->name('expenses.store');
+        Route::get('/expenses/{expense}', [ServiceProviderPortalController::class, 'showExpense'])->whereNumber('expense')->name('expenses.show');
+        Route::patch('/expenses/{expense}', [ServiceProviderPortalController::class, 'manageExpense'])->whereNumber('expense')->middleware('throttle:20,1')->name('expenses.manage');
         Route::get('/expenses/documents/{document}', [ServiceProviderPortalController::class, 'expenseDocument'])->whereNumber('document')->name('expenses.documents.show');
     });
 

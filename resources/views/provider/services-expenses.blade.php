@@ -1682,6 +1682,10 @@
             transition: none !important;
         }
     }
+    .expense-attachment-actions { display:flex; flex-wrap:wrap; gap:.6rem; }
+    .expense-attachment-actions button { width:auto; min-height:44px; gap:.45rem; padding:.65rem .8rem; }
+    .expense-attachment-preview button { min-height:32px; color:var(--ui-color-danger-strong); font-size:.75rem; cursor:pointer; }
+    .expense-main a:hover, .expenses-mobile-main a:hover { text-decoration:underline; }
 </style>
 
 <main class="expenses-page">
@@ -1857,7 +1861,7 @@
                                         <strong
                                             title="{{ $expense->description }}"
                                         >
-                                            {{ $expense->description }}
+                                            <a href="{{ route($management ? 'services.management.expenses.show' : 'provider.expenses.show', ['tenant' => $tenantSlug, 'expense' => $expense->id]) }}">{{ $expense->description }}</a>
                                         </strong>
 
                                         @if($expense->serviceProvider)
@@ -2002,7 +2006,7 @@
                         <div class="expenses-mobile-top">
                             <div class="expenses-mobile-main">
                                 <strong>
-                                    {{ $expense->description }}
+                                    <a href="{{ route($management ? 'services.management.expenses.show' : 'provider.expenses.show', ['tenant' => $tenantSlug, 'expense' => $expense->id]) }}">{{ $expense->description }}</a>
                                 </strong>
 
                                 <small>
@@ -2466,32 +2470,10 @@
                                 </div>
                             </label>
 
-                            <label class="expense-field full">
-                                <span class="expense-label">
-                                    <i class="ph-duotone ph-paperclip"></i>
-                                    Comprovantes
-                                    <span class="optional">opcional</span>
-                                </span>
-
-                                <input
-                                    id="expense-attachments"
-                                    class="expense-attachment-input"
-                                    type="file"
-                                    name="attachments[]"
-                                    accept="image/jpeg,image/png,image/webp,application/pdf"
-                                    multiple
-                                >
-
-                                <small class="expense-attachment-help">
-                                    Até 5 imagens ou PDFs, com no máximo 12 MB cada. As imagens são reduzidas e convertidas para WebP antes do envio.
-                                </small>
-
-                                <div
-                                    id="expense-attachment-previews"
-                                    class="expense-attachment-previews"
-                                    aria-live="polite"
-                                ></div>
-                            </label>
+                            <div class="expense-field full">
+                                <span class="expense-label"><i class="ph-duotone ph-paperclip"></i> Comprovantes</span>
+                                @include('provider._expense-attachments')
+                            </div>
 
                             <label class="expense-field full">
                                 <span class="expense-label">
@@ -2703,12 +2685,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitButton =
         document.getElementById('expense-submit');
 
-    const attachmentInput =
-        document.getElementById('expense-attachments');
-
-    const attachmentPreviews =
-        document.getElementById('expense-attachment-previews');
-
     const selectTriggers =
         new WeakMap();
 
@@ -2727,78 +2703,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         return node.innerHTML;
     };
-
-    const renderAttachmentPreviews = files => {
-        attachmentPreviews.innerHTML = '';
-
-        [...files].forEach(file => {
-            const card = document.createElement('span');
-            card.className = 'expense-attachment-preview';
-
-            if (file.type.startsWith('image/')) {
-                const image = document.createElement('img');
-                image.alt = `Prévia de ${file.name}`;
-                image.src = URL.createObjectURL(file);
-                image.addEventListener('load', () => URL.revokeObjectURL(image.src), { once: true });
-                card.appendChild(image);
-            } else {
-                const icon = document.createElement('i');
-                icon.className = 'ph-duotone ph-file-pdf';
-                icon.setAttribute('aria-hidden', 'true');
-                card.appendChild(icon);
-            }
-
-            const name = document.createElement('small');
-            name.textContent = file.name;
-            name.title = file.name;
-            card.appendChild(name);
-            attachmentPreviews.appendChild(card);
-        });
-    };
-
-    const optimizeImage = file => new Promise(resolve => {
-        if (!file.type.startsWith('image/') || file.type === 'image/webp') {
-            resolve(file);
-            return;
-        }
-
-        const image = new Image();
-        const source = URL.createObjectURL(file);
-        image.onload = () => {
-            URL.revokeObjectURL(source);
-            const scale = Math.min(1, 2048 / Math.max(image.naturalWidth, image.naturalHeight));
-            const canvas = document.createElement('canvas');
-            canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-            canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-            canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
-            canvas.toBlob(blob => {
-                if (!blob) {
-                    resolve(file);
-                    return;
-                }
-
-                resolve(new File(
-                    [blob],
-                    `${file.name.replace(/\.[^.]+$/, '')}.webp`,
-                    { type: 'image/webp', lastModified: file.lastModified }
-                ));
-            }, 'image/webp', .82);
-        };
-        image.onerror = () => {
-            URL.revokeObjectURL(source);
-            resolve(file);
-        };
-        image.src = source;
-    });
-
-    attachmentInput?.addEventListener('change', async () => {
-        const selected = [...attachmentInput.files].slice(0, 5);
-        const optimized = await Promise.all(selected.map(optimizeImage));
-        const transfer = new DataTransfer();
-        optimized.forEach(file => transfer.items.add(file));
-        attachmentInput.files = transfer.files;
-        renderAttachmentPreviews(transfer.files);
-    });
 
     const showSubmitErrors = errors => {
         form.querySelector('.expense-submit-errors')?.remove();
@@ -3724,10 +3628,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 Registrando…
             `;
 
+            const formData = new FormData(form);
             try {
                 const response = await fetch(form.action, {
                     method: 'POST',
-                    body: new FormData(form),
+                    body: formData,
                     headers: {
                         Accept: 'application/json',
                         'X-Requested-With': 'XMLHttpRequest',

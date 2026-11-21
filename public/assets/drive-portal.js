@@ -159,7 +159,10 @@
         const key = routeKey(state, term);
         const stored = cache.get(key);
         trashSwitch.setAttribute('aria-pressed', String(state.trash));
-        trashSwitch.replaceChildren(icon(state.trash ? 'folder-open' : 'trash'), document.createTextNode(state.trash ? 'Ver arquivos' : 'Lixeira da pasta'));
+        const trashLabel = state.trash ? 'Ver arquivos' : 'Lixeira da pasta';
+        trashSwitch.setAttribute('aria-label', trashLabel);
+        trashSwitch.title = trashLabel;
+        trashSwitch.replaceChildren(icon(state.trash ? 'folder-open' : 'trash'), element('span', '', trashLabel));
 
         if (stored && !append) render(stored.page);
         if (stored && !force && !append && Date.now() - stored.fetchedAt < 30000) {
@@ -216,22 +219,66 @@
 
     function render(page) {
         data = {...page, trash: route.trash};
-        const crumbs = document.createDocumentFragment();
+        const crumbs = element('div', 'drive-path-trail');
+        const currentEntry = page.path.at(-1);
         page.path.forEach((entry, index) => {
             if (index > 0) crumbs.append(icon('caret-right'));
-            if (index === page.path.length - 1) {
-                const current = element('span', '', entry.name);
+            const name = entry.label || (index === 0 ? 'Arquivos' : entry.name);
+            if (entry === currentEntry) {
+                const current = element('span', '', name);
+                current.title = name;
                 current.setAttribute('aria-current', 'location');
                 crumbs.append(current);
             } else {
-                crumbs.append(button(entry.name, () => navigate(index === 0 ? '' : entry.id), index === 0 ? 'house' : null, ''));
+                const link = button(name, () => navigate(index === 0 ? '' : entry.id), index === 0 ? 'house' : null, '');
+                link.title = name;
+                crumbs.append(link);
             }
         });
-        path.replaceChildren(crumbs);
+        const mobilePath = element('div', 'drive-path-mobile');
+        const currentName = route.trash ? 'Lixeira' : (currentEntry.label || (page.path.length === 1 ? 'Arquivos' : currentEntry.name));
+        if (page.path.length > 1 || route.trash) {
+            const parent = button('', () => route.trash ? navigate(route.folder) : navigate(page.path.length > 2 ? page.path.at(-2).id : ''), 'arrow-left', 'drive-icon-button');
+            parent.setAttribute('aria-label', route.trash ? 'Voltar aos arquivos' : 'Voltar à pasta anterior');
+            const location = button('', () => {
+                const folders = page.path.map((entry, index) => {
+                    const entryButton = button(entry.label || (index === 0 ? 'Arquivos' : entry.name), () => {
+                        dialog.close();
+                        navigate(index === 0 ? '' : entry.id);
+                    }, index === 0 ? 'house' : 'folder');
+                    if (!route.trash && entry === currentEntry) entryButton.setAttribute('aria-current', 'location');
+                    return entryButton;
+                });
+                showDialog('Localização da pasta', ...folders);
+            }, 'caret-down', 'drive-location');
+            location.prepend(element('span', '', currentName));
+            location.setAttribute('aria-label', currentName + ' · Ver caminho da pasta');
+            mobilePath.append(parent, location);
+        } else {
+            mobilePath.append(element('span', 'drive-location', currentName));
+        }
+        path.replaceChildren(crumbs, mobilePath);
+        crumbs.scrollLeft = crumbs.scrollWidth;
 
         const fragment = document.createDocumentFragment();
         const sorted = [...page.items.filter(item => item.folder), ...page.items.filter(item => !item.folder)];
-        for (const item of sorted) fragment.append(rowFor(item));
+        const groups = new Map();
+        for (const item of sorted) {
+            const match = !item.folder && item.name.match(/^([A-Z]{2,4}-[A-Z0-9-]+) - ([^·]+?)(?: · .*|\.[^.]+)?$/i);
+            const key = match?.[1] || item.id;
+            if (!groups.has(key)) groups.set(key, {title: match ? match[1] + ' · ' + match[2].trim() : null, items: []});
+            groups.get(key).items.push(item);
+        }
+        for (const group of groups.values()) {
+            if (group.title && group.items.length > 1) {
+                const header = element('tr', 'drive-document-group');
+                const label = element('th', '', group.title);
+                label.colSpan = 4;
+                header.append(label);
+                fragment.append(header);
+            }
+            for (const item of group.items) fragment.append(rowFor(item));
+        }
         rows.replaceChildren(fragment);
         table.hidden = sorted.length === 0;
         empty.hidden = sorted.length > 0 || Boolean(page.nextPage);
@@ -250,7 +297,9 @@
         const glyph = item.folder ? 'folder' : item.preview === 'application/pdf' ? 'file-pdf' : item.preview?.startsWith('image/') ? 'image' : 'file';
         const mark = element('span', 'drive-file-icon');
         mark.append(icon(glyph));
-        label.append(mark, element('span', '', item.name));
+        const filename = element('span', 'drive-file-name', item.label || item.name);
+        filename.title = item.label || item.name;
+        label.append(mark, filename);
         if (item.folder && !trash) {
             const prefetch = () => {
                 const child = {folder: item.id, trash: false};
@@ -315,22 +364,49 @@
 
     function preview(item) {
         const url = itemUrl(item.id) + '?inline=1';
+        const progress = element('div', 'drive-progress');
+        const progressText = element('span', '', 'Carregando prévia…');
+        progressText.setAttribute('role', 'status');
+        const progressBar = element('progress');
+        progressBar.setAttribute('aria-label', 'Progresso da prévia');
+        progress.append(progressText, progressBar);
         if (item.preview === 'application/pdf' && window.SgcDocuments?.openPdf) {
-            showDialog(item.name, downloadLink(item));
-            feedback('Carregando prévia…');
+            showDialog(item.name, progress, downloadLink(item));
+            dialog.dataset.preview = 'loading';
             const turn = dialogRequest;
             fetch(url, {credentials: 'same-origin', globalLoader: false, headers: {Accept: 'application/pdf'}})
-                .then(response => {
+                .then(async response => {
                     if (!response.ok || !response.headers.get('Content-Type')?.includes('application/pdf')) throw new Error();
-                    return response.blob();
+                    const reader = response.body?.getReader();
+                    if (!reader) return response.blob();
+                    const total = Number(response.headers.get('X-SGC-Content-Length')) || Number(item.size);
+                    const chunks = [];
+                    let received = 0;
+                    if (total > 0) progressBar.max = total;
+                    while (turn === dialogRequest) {
+                        const {done, value} = await reader.read();
+                        if (done) return new Blob(chunks, {type: 'application/pdf'});
+                        chunks.push(value);
+                        received += value.byteLength;
+                        if (total > 0) {
+                            progressBar.value = received;
+                            progressText.textContent = 'Carregando prévia · ' + Math.min(100, Math.floor(received / total * 100)) + '%';
+                        }
+                    }
+                    await reader.cancel();
+                    return null;
                 })
                 .then(blob => {
-                    if (turn !== dialogRequest) return;
-                    dialog.close();
-                    return window.SgcDocuments.openPdf(blob, item.name, item.name);
+                    if (turn !== dialogRequest || !blob) return;
+                    const filename = /\.pdf$/i.test(item.name) ? item.name : item.name + '.pdf';
+                    return window.SgcDocuments.openPdf(blob, filename, item.name).then(() => {
+                        if (turn === dialogRequest && dialog.open) dialog.close();
+                    });
                 })
                 .catch(() => {
-                    if (turn === dialogRequest) feedback('Não foi possível abrir a prévia. Você pode baixar o arquivo.', true);
+                    if (turn !== dialogRequest) return;
+                    progress.remove();
+                    feedback('Não foi possível abrir a prévia. Você pode baixar o arquivo.', true);
                 });
             return;
         }
@@ -343,8 +419,14 @@
             media.setAttribute('sandbox', '');
         }
         if (kind === 'video' || kind === 'audio') media.controls = true;
+        showDialog(item.name, progress, media, downloadLink(item));
+        const turn = dialogRequest;
+        media.addEventListener(kind === 'audio' || kind === 'video' ? 'loadedmetadata' : 'load', () => progress.remove(), {once: true});
+        media.addEventListener('error', () => {
+            progress.remove();
+            if (turn === dialogRequest) feedback('Não foi possível abrir a prévia. Você pode baixar o arquivo.', true);
+        }, {once: true});
         media.src = url;
-        showDialog(item.name, media, downloadLink(item));
         dialog.dataset.preview = '';
     }
 
@@ -459,11 +541,11 @@
                 currentFolder = folder;
                 parentFolder = page.path.length > 2 ? page.path.at(-2).id : '';
                 up.hidden = page.path.length < 2;
-                location.textContent = page.path.map(entry => entry.name).join(' / ');
+                location.textContent = page.path.map(entry => entry.label || entry.name).join(' / ');
                 const options = page.items.filter(entry => entry.folder && entry.id !== item.id);
                 if (!cursor) choices.replaceChildren();
                 for (const entry of options) {
-                    choices.append(button(entry.name, () => chooseFolder(entry.id), 'folder'));
+                    choices.append(button(entry.label || entry.name, () => chooseFolder(entry.id), 'folder'));
                 }
                 if (!choices.childNodes.length && !page.nextPage) choices.textContent = 'Nenhuma subpasta.';
                 nextPage = page.nextPage;

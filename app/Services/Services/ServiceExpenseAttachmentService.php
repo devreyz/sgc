@@ -8,6 +8,7 @@ use App\Models\Expense;
 use App\Models\Tenant;
 use App\Models\TenantCloudStorageConnection;
 use App\Models\User;
+use App\Services\DriveDocumentLayout;
 use App\Services\TenantGoogleDriveService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -30,9 +31,10 @@ class ServiceExpenseAttachmentService
         }
 
         $bytes = (string) file_get_contents($file->getRealPath());
-        [$bytes, $mime, $extension] = $this->optimize($bytes, $mime);
-        $baseName = trim(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'comprovante';
-        $filename = Str::slug($baseName).'-'.Str::lower(Str::random(8)).'.'.$extension;
+        [$bytes, $mime, $extension] = (new ServiceEvidenceImageOptimizer)->optimize($bytes, $mime, 'attachments');
+        $documentType = 'service_expense_attachment_'.Str::uuid();
+        $layout = DriveDocumentLayout::resolve($documentType, $expense, 'comprovante.'.$extension);
+        $filename = $layout['filename'];
         $drive = TenantCloudStorageConnection::query()
             ->where('tenant_id', $tenant->id)
             ->where('provider', 'google_drive')
@@ -43,8 +45,8 @@ class ServiceExpenseAttachmentService
             $cloud = app(TenantGoogleDriveService::class)->putDocument(
                 $tenant,
                 $expense,
-                'service_expense_attachment_'.Str::uuid(),
-                ['Serviços', 'Despesas', now()->format('Y'), 'Despesa '.$expense->id],
+                $documentType,
+                $layout['folders'],
                 $filename,
                 $bytes,
                 $mime,
@@ -58,7 +60,7 @@ class ServiceExpenseAttachmentService
         }
 
         $document = new Document([
-            'name' => 'Comprovante — '.$baseName,
+            'name' => 'Comprovante – '.$expense->description,
             'original_name' => $filename,
             'path' => $path,
             'disk' => $disk,
@@ -92,33 +94,5 @@ class ServiceExpenseAttachmentService
         abort_unless($document->disk === 'local' && Storage::disk('local')->exists($document->path), 404);
 
         return Storage::disk('local')->get($document->path);
-    }
-
-    private function optimize(string $bytes, string $mime): array
-    {
-        if ($mime === 'application/pdf') {
-            return [$bytes, $mime, 'pdf'];
-        }
-        $image = @imagecreatefromstring($bytes);
-        if (! $image) {
-            throw ValidationException::withMessages(['attachments' => 'Uma das imagens não pôde ser lida.']);
-        }
-        $width = imagesx($image);
-        $height = imagesy($image);
-        if (max($width, $height) > 2048) {
-            $ratio = 2048 / max($width, $height);
-            $resized = imagescale($image, max(1, (int) round($width * $ratio)), max(1, (int) round($height * $ratio)), IMG_BICUBIC_FIXED);
-            imagedestroy($image);
-            $image = $resized;
-        }
-        imagepalettetotruecolor($image);
-        imagealphablending($image, true);
-        imagesavealpha($image, true);
-        ob_start();
-        imagewebp($image, null, 82);
-        $optimized = (string) ob_get_clean();
-        imagedestroy($image);
-
-        return [$optimized, 'image/webp', 'webp'];
     }
 }

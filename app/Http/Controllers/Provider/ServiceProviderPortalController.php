@@ -289,6 +289,79 @@ class ServiceProviderPortalController extends Controller
         return back()->with('success', 'Despesa vinculada à ordem.');
     }
 
+    public function showExpense(Request $request, Tenant $tenant, int $expense): View
+    {
+        [$management, $provider] = $this->expenseAccess($request, $tenant);
+        $record = Expense::query()->where('tenant_id', $tenant->id)->where('origin_module', 'services')
+            ->when($provider, fn ($query) => $query->where('service_provider_id', $provider->id))
+            ->with(['documents', 'expenseable', 'serviceProvider'])->findOrFail($expense);
+        $resource = \App\Models\ServiceExecutionResource::query()->where('tenant_id', $tenant->id)->where('expense_id', $record->id)->first();
+        $editable = ! $resource && (float) $record->paid_amount <= 0 && in_array($record->status->value, ['pending', 'overdue'], true);
+        $canConvert = ! $provider && ! $resource && $record->status->value !== 'cancelled'
+            && $request->user()->checkPermissionTo('manage_service_resources')
+            && $request->user()->checkPermissionTo('manage_service_receivables');
+        $order = $record->linkedServiceOrder();
+        $linkedOrder = $order && $order->operational_status !== 'cancelled' ? $order->id : null;
+        $canChangeLink = ! $resource && $record->status->value !== 'cancelled';
+        $canLink = $canChangeLink && ! $linkedOrder;
+        $orderSearch = trim(mb_substr($request->string('ordem')->toString(), 0, 80));
+        $orders = ($canConvert || $canLink) ? ServiceOrder::query()->where('tenant_id', $tenant->id)->whereNotNull('service_version_id')
+            ->when($provider, fn ($query) => $query->where('service_provider_id', $provider->id))
+            ->when(! $canLink, fn ($query) => $query->whereHas('execution'))
+            ->where(fn ($query) => $query->whereNull('operational_status')->orWhere('operational_status', '!=', 'cancelled'))
+            ->when($linkedOrder, fn ($query) => $query->whereKey($linkedOrder))
+            ->when($canLink && $orderSearch !== '', fn ($query) => $query->where(fn ($matches) => $matches
+                ->whereLike('number', '%'.$orderSearch.'%')->orWhereLike('beneficiary_snapshot->name', '%'.$orderSearch.'%')))
+            ->latest()->limit(100)
+            ->select(['id', 'number', 'beneficiary_snapshot'])->withExists('execution')->get() : collect();
+
+        return view('provider.service-expense-detail', compact('tenant', 'management', 'provider', 'record', 'order', 'resource', 'editable', 'orders', 'canLink', 'canConvert', 'canChangeLink', 'orderSearch'));
+    }
+
+    public function manageExpense(Request $request, Tenant $tenant, int $expense, ServiceExpenseService $service, \App\Services\Services\ServiceResourceService $resources, ServiceExpenseAttachmentService $attachments): RedirectResponse
+    {
+        [$management, $provider] = $this->expenseAccess($request, $tenant);
+        $data = $request->validate([
+            'action' => 'required|in:edit,link,unlink,delete,convert,attach',
+            'description' => 'exclude_unless:action,edit|required|string|max:191',
+            'amount' => 'exclude_unless:action,edit|required|numeric|min:0.01',
+            'date' => 'exclude_unless:action,edit|required|date',
+            'due_date' => 'exclude_unless:action,edit|required|date|after_or_equal:date',
+            'document_number' => 'exclude_unless:action,edit|nullable|string|max:80',
+            'notes' => 'exclude_unless:action,edit|nullable|string|max:2000',
+            'service_order_id' => 'exclude_unless:action,convert,link|required|integer|min:1',
+            'attachments' => 'exclude_unless:action,attach|required|array|min:1|max:5',
+            'attachments.*' => 'file|mimes:jpg,jpeg,png,webp,pdf|max:12288',
+        ]);
+        if ($data['action'] === 'attach') {
+            DB::transaction(function () use ($tenant, $expense, $provider, $data, $request, $attachments): void {
+                $record = Expense::query()->where('tenant_id', $tenant->id)->where('origin_module', 'services')
+                    ->when($provider, fn ($query) => $query->where('service_provider_id', $provider->id))
+                    ->lockForUpdate()->findOrFail($expense);
+                if ($record->status->value === 'cancelled' || $record->documents()->count() + count($data['attachments']) > 5) {
+                    throw ValidationException::withMessages(['attachments' => 'Despesas ativas aceitam até cinco comprovantes ao todo.']);
+                }
+                foreach ($data['attachments'] as $file) {
+                    $attachments->upload($tenant, $record, $file, $request->user());
+                }
+            });
+        } else {
+            $service->manage($tenant, $expense, $data, $request->user(), $provider, $resources);
+        }
+        $base = $management ? 'services.management.expenses' : 'provider.expenses';
+
+        return redirect()->route($data['action'] === 'delete' ? $base : $base.'.show', $data['action'] === 'delete'
+            ? ['tenant' => $tenant->slug] : ['tenant' => $tenant->slug, 'expense' => $expense])
+            ->with('success', match ($data['action']) {
+                'delete' => 'Despesa excluída.',
+                'unlink' => 'Vínculo com a ordem cancelado.',
+                'link' => 'Despesa vinculada à ordem.',
+                'convert' => 'Despesa registrada como abatimento na ordem.',
+                'attach' => 'Comprovantes adicionados.',
+                default => 'Despesa atualizada.',
+            });
+    }
+
     public function storeExpense(Request $request, Tenant $tenant, ServiceExpenseService $service, ServiceExpenseAttachmentService $attachments): RedirectResponse|JsonResponse
     {
         [$management, $reportingProvider] = $this->expenseAccess($request, $tenant);

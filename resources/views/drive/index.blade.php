@@ -49,8 +49,8 @@
                     <nav aria-label="Localização da pasta" data-drive-path class="drive-path">
                         <span><i class="ph ph-house" aria-hidden="true"></i> Arquivos</span>
                     </nav>
-                    <button class="drive-button drive-trash-switch" type="button" data-drive-trash aria-pressed="false">
-                        <i class="ph ph-trash" aria-hidden="true"></i> Lixeira da pasta
+                    <button class="drive-button drive-trash-switch" type="button" data-drive-trash aria-pressed="false" aria-label="Lixeira da pasta" title="Lixeira da pasta">
+                        <i class="ph ph-trash" aria-hidden="true"></i><span>Lixeira da pasta</span>
                     </button>
                 </div>
                 <div class="drive-searchbar">
