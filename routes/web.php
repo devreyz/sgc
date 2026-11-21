@@ -314,6 +314,10 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
     Route::get('/settings/google-drive/connect', [GoogleDriveOAuthController::class, 'connect'])
         ->middleware(['auth.recent', 'throttle:google-drive-oauth'])
         ->name('settings.google-drive.connect');
+    Route::get('/settings/google-drive/destination', [GoogleDriveOAuthController::class, 'destination'])
+        ->middleware('throttle:20,1')->name('settings.google-drive.destination');
+    Route::post('/settings/google-drive/destination', [GoogleDriveOAuthController::class, 'saveDestination'])
+        ->middleware('throttle:10,1')->name('settings.google-drive.destination.save');
 
     Route::prefix('security/associates/{associate}/access')->name('security.associates.access.')->group(function () {
         Route::get('/', [AccessInvitationAdminController::class, 'index'])->name('index');

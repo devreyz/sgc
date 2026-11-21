@@ -10,7 +10,7 @@
     >
 
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="referrer" content="no-referrer">
+    <meta name="referrer" content="@yield('referrer-policy', 'no-referrer')">
     <meta name="robots" content="noindex,nofollow,noarchive">
     <meta name="theme-color" content="#173c2e">
     <link rel="manifest" href="/manifest.json?v=campo">

@@ -9,10 +9,31 @@ use RuntimeException;
 
 class GoogleDriveClientFactory
 {
+    public function hasManagedCredentials(): bool
+    {
+        return filled(config('services.google_drive.client_id')) && filled(config('services.google_drive.client_secret'));
+    }
+
+    public function canConnect(?TenantCloudStorageConnection $connection): bool
+    {
+        return ($connection?->hasOAuthConfiguration() ?? false) || $this->hasManagedCredentials();
+    }
+
+    public function pickerConfiguration(Client $client): ?array
+    {
+        $appId = (string) config('services.google_drive.picker_app_id');
+        $apiKey = (string) config('services.google_drive.picker_api_key');
+
+        return $client->getClientId() === config('services.google_drive.client_id')
+            && ctype_digit($appId) && filled($apiKey) ? compact('appId', 'apiKey') : null;
+    }
+
     public function baseClient(TenantCloudStorageConnection $connection): Client
     {
-        $clientId = trim((string) $connection->oauth_client_id);
-        $clientSecret = trim((string) $connection->oauth_client_secret);
+        $manual = $connection->hasOAuthConfiguration()
+            && (! $this->hasManagedCredentials() || $connection->oauth_client_id !== config('services.google_drive.client_id'));
+        $clientId = trim((string) ($manual ? $connection->oauth_client_id : config('services.google_drive.client_id')));
+        $clientSecret = trim((string) ($manual ? $connection->oauth_client_secret : config('services.google_drive.client_secret')));
         $redirectUri = $this->redirectUri();
 
         if ($clientId === '' || $clientSecret === '' || $redirectUri === '') {
@@ -43,7 +64,7 @@ class GoogleDriveClientFactory
 
     public function forConnection(TenantCloudStorageConnection $connection): Drive
     {
-        if ($connection->status !== 'active' || trim((string) $connection->refresh_token) === '') {
+        if ($connection->status !== 'active' || ! $connection->hasOAuthConfiguration() || trim((string) $connection->refresh_token) === '') {
             throw new RuntimeException('A conexao com o Google Drive nao esta ativa.');
         }
 

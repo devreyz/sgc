@@ -1,26 +1,31 @@
 # Google Drive por organizacao
 
-O Google Drive usado para documentos e separado do login Google. Cada organizacao concede acesso a propria conta, e o SGC usa apenas o escopo `drive.file`, que permite operar nos arquivos criados pelo proprio SGC.
+O Google Drive usado para documentos é separado do login Google. Cada organização autoriza sua própria conta. O escopo `drive.file` permite trabalhar com os itens criados pelo SGC ou autorizados pelo usuário.
 
-## Configuracao do Google Cloud
+## Configuração única do servidor
 
-1. Ative a Google Drive API em um projeto Google Cloud controlado pela organizacao.
-2. Configure a tela de consentimento OAuth.
-3. Crie um cliente OAuth do tipo Aplicativo da Web.
-4. Em **Minha Organizacao > Google Drive**, copie a URI de redirecionamento exibida.
-5. Cadastre essa URI exatamente nas URIs de redirecionamento autorizadas do cliente OAuth.
-6. Informe o Client ID e o Client Secret nessa mesma pagina e salve.
-7. Selecione **Conectar Google Drive** e conclua o consentimento com a conta da organizacao.
+1. No projeto do Google Cloud do SGC, ative **Google Drive API** e **Google Picker API**.
+2. Configure o consentimento OAuth e crie um cliente do tipo **Aplicativo da Web**. Em produção, se o público for externo, publique o aplicativo em vez de mantê-lo em teste. Com a permissão de Drive, os tokens de atualização de um aplicativo externo em teste expiram em sete dias.
+3. No cliente OAuth, adicione a origem JavaScript do SGC, por exemplo `https://sgc.ultror.com`. Adicione a URI de redirecionamento exata `https://sgc.ultror.com/auth/google-drive/callback`, usando o domínio definido em `APP_URL`.
+4. No mesmo projeto, crie uma chave de API, restrinja-a ao **Google Picker API** e aos sites `https://sgc.ultror.com/*` e `https://docs.google.com/*`. Use o número do projeto para o App ID do Picker.
+5. Preencha as variáveis no `.env` do servidor e regenere o cache de configuração com `php artisan config:cache`.
 
-As credenciais OAuth, o refresh token e os erros tecnicos sao criptografados no banco com a `APP_KEY`. Nao existem variaveis globais de Google Drive no `.env`; cada tenant possui uma conexao independente.
+```dotenv
+SGC_DRIVE_CLIENT_ID=
+SGC_DRIVE_CLIENT_SECRET=
+SGC_DRIVE_PICKER_APP_ID=
+SGC_DRIVE_PICKER_API_KEY=
+```
 
-## Conexao de uma organizacao
+O cliente OAuth é compartilhado na configuração do servidor. Os tokens do Drive de cada organização são independentes e criptografados com a `APP_KEY`. A seleção visual depende do App ID e da chave do Picker.
 
-Um membro administrador autenticado recentemente configura e conecta o Drive. O super-admin nao ve nem pode executar essa configuracao. O Client Secret nunca e devolvido pelo backend depois de salvo; deixar o campo vazio preserva o valor atual.
+## Conexão de uma organização
 
-Ao trocar o Client ID ou o Client Secret, o token anterior e descartado e a organizacao precisa autorizar novamente. Isso impede que um token emitido para um cliente OAuth seja reutilizado com credenciais diferentes.
+Em **Minha Organização → Google Drive**, um membro administrador seleciona **Conectar com Google** e autoriza a conta da organização. Em seguida, escolhe uma pasta no **Meu Drive** ou seleciona **Criar pasta automaticamente**. Ao escolher uma pasta, o SGC cria dentro dela a subpasta `SGC - Nome da organização`. Na reconexão, a conta precisa ter acesso à pasta usada anteriormente.
 
-O consentimento deve ser feito com a conta Google que sera proprietaria do arquivo. O SGC cria a estrutura:
+Organizações com um cliente próprio já salvo continuam usando essas credenciais. A seção **Credenciais próprias** permite a configuração manual quando o servidor ainda não possui um cliente central. Nesse caso, cadastre a URI exibida na seção no cliente OAuth, salve as credenciais e conecte a conta. O seletor visual usa o projeto central e a criação automática também funciona com credenciais próprias.
+
+O SGC cria a estrutura:
 
 ```text
 SGC - Nome da organizacao/
@@ -58,7 +63,7 @@ Use o caminho do executavel PHP selecionado para o dominio na Hostinger. O worke
 
 Depois de atualizar nomes de projetos ou implantar esta versao, use **Minha Organizacao > Google Drive > Sincronizar agora**. Os jobs serao processados na proxima passagem do cron.
 
-Ao conectar uma organizacao, os comprovantes existentes tambem sao enfileirados. Falhas ficam registradas sem token, codigo OAuth ou credenciais. Os arquivos ja enviados permanecem na conta da organizacao depois da desconexao.
+Ao conectar uma organizacao, os comprovantes existentes tambem sao enfileirados. Falhas ficam registradas sem token, codigo OAuth ou credenciais. **Desconectar** remove o token armazenado para aquela organização, preservando seus arquivos. Revogar o aplicativo na própria conta Google afeta todas as conexões dessa conta com o projeto OAuth.
 
 ## Seguranca operacional
 

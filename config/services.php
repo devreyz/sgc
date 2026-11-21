@@ -43,4 +43,11 @@ return [
         'android_client_id' => env('GOOGLE_ANDROID_CLIENT_ID'),
     ],
 
+    'google_drive' => [
+        'client_id' => env('SGC_DRIVE_CLIENT_ID'),
+        'client_secret' => env('SGC_DRIVE_CLIENT_SECRET'),
+        'picker_app_id' => env('SGC_DRIVE_PICKER_APP_ID'),
+        'picker_api_key' => env('SGC_DRIVE_PICKER_API_KEY'),
+    ],
+
 ];

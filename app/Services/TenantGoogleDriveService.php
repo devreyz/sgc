@@ -23,31 +23,66 @@ class TenantGoogleDriveService
             return $connection->root_folder_id;
         }
 
-        $drive = $this->clients->forConnection($connection);
+        $folderId = $this->prepareRootFolder($this->clients->forConnection($connection), $connection->tenant);
+        $connection->forceFill(['root_folder_id' => $folderId])->save();
+
+        return $folderId;
+    }
+
+    public function prepareRootFolder(Drive $drive, Tenant $tenant, ?string $existingRoot = null, ?string $selectedFolder = null): string
+    {
+        if ($existingRoot) {
+            $this->validateDestination($drive, $existingRoot);
+
+            return $existingRoot;
+        }
+
+        $query = "mimeType = 'application/vnd.google-apps.folder' and trashed = false and appProperties has { key='sgc_tenant' and value='".(int) $tenant->id."' } and appProperties has { key='sgc_type' and value='root' }";
+        if ($selectedFolder) {
+            $this->validateDestination($drive, $selectedFolder);
+            $query .= " and '{$selectedFolder}' in parents";
+        }
         $existing = $drive->files->listFiles([
-            'q' => "mimeType = 'application/vnd.google-apps.folder' and trashed = false and appProperties has { key='sgc_tenant' and value='".(int) $connection->tenant_id."' } and appProperties has { key='sgc_type' and value='root' }",
+            'q' => $query,
             'spaces' => 'drive',
             'fields' => 'files(id)',
             'pageSize' => 1,
         ]);
-        if ($existing->getFiles() !== []) {
-            $connection->forceFill(['root_folder_id' => $existing->getFiles()[0]->id])->save();
-
+        if ($existing->getFiles()) {
             return (string) $existing->getFiles()[0]->id;
         }
 
-        $folder = $drive->files->create(new DriveFile([
-            'name' => 'SGC - '.$this->safeSegment($connection->tenant->name),
+        $metadata = [
+            'name' => 'SGC - '.$this->safeSegment($tenant->name),
             'mimeType' => 'application/vnd.google-apps.folder',
             'appProperties' => [
-                'sgc_tenant' => (string) $connection->tenant_id,
+                'sgc_tenant' => (string) $tenant->id,
                 'sgc_type' => 'root',
             ],
-        ]), ['fields' => 'id']);
+        ];
+        if ($selectedFolder) {
+            $metadata['parents'] = [$selectedFolder];
+        }
 
-        $connection->forceFill(['root_folder_id' => $folder->id])->save();
+        $folder = $drive->files->create(new DriveFile($metadata), ['fields' => 'id']);
 
         return (string) $folder->id;
+    }
+
+    private function validateDestination(Drive $drive, string $folderId): void
+    {
+        if (! preg_match('/\A[A-Za-z0-9_-]+\z/', $folderId)) {
+            throw new RuntimeException('Identificador da pasta inválido.');
+        }
+
+        $folder = $drive->files->get($folderId, [
+            'fields' => 'mimeType,trashed,driveId,capabilities(canAddChildren)',
+            'supportsAllDrives' => true,
+        ]);
+        if ($folder->getMimeType() !== 'application/vnd.google-apps.folder'
+            || $folder->getTrashed() || $folder->getDriveId() || ! $folder->getCapabilities()?->getCanAddChildren()) {
+            throw new RuntimeException('A pasta do Meu Drive precisa permitir adicionar arquivos.');
+        }
     }
 
     public function putDocument(
@@ -152,15 +187,7 @@ class TenantGoogleDriveService
 
     public function disconnect(TenantCloudStorageConnection $connection): void
     {
-        try {
-            if ($connection->hasOAuthConfiguration() && $connection->refresh_token) {
-                $client = $this->clients->baseClient($connection);
-                $client->revokeToken($connection->refresh_token);
-            }
-        } catch (Throwable) {
-            // A revogacao local continua obrigatoria se o Google estiver indisponivel.
-        }
-
+        // Revogar o projeto no Google também pode desligar outras organizações que usam a mesma conta.
         $connection->forceFill([
             'refresh_token' => null,
             'granted_scopes' => [],

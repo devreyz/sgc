@@ -117,6 +117,7 @@ class OrganizationSettingsPage extends Page implements HasForms
         return $form
             ->schema([
                 Forms\Components\Tabs::make('Configurações da Organização')
+                    ->id('organization-settings')
                     ->tabs([
                         Forms\Components\Tabs\Tab::make('Básico')
                             ->icon('heroicon-o-building-office')
@@ -377,34 +378,14 @@ class OrganizationSettingsPage extends Page implements HasForms
                             ->icon('heroicon-o-cloud-arrow-up')
                             ->visible(fn (): bool => $this->canManageGoogleDrive())
                             ->schema([
-                                Forms\Components\TextInput::make('google_drive_client_id')
-                                    ->label('OAuth Client ID')
-                                    ->autocomplete(false)
-                                    ->maxLength(512),
-                                Forms\Components\TextInput::make('google_drive_client_secret')
-                                    ->label('OAuth Client Secret')
-                                    ->password()
-                                    ->revealable()
-                                    ->autocomplete('new-password')
-                                    ->placeholder(fn (): string => $this->googleDriveConfigured()
-                                        ? 'Mantido sem alteração'
-                                        : '')
-                                    ->maxLength(1024),
-                                Forms\Components\Placeholder::make('google_drive_redirect_uri')
-                                    ->label('URI de redirecionamento')
-                                    ->content(fn (): string => app(GoogleDriveClientFactory::class)->redirectUri()),
-                                Forms\Components\Actions::make([
-                                    Forms\Components\Actions\Action::make('save_google_drive_credentials')
-                                        ->label('Salvar credenciais')
-                                        ->icon('heroicon-o-key')
-                                        ->action(fn () => $this->saveGoogleDriveCredentials()),
-                                ]),
                                 Forms\Components\Placeholder::make('google_drive_status')
                                     ->label('Armazenamento de documentos')
                                     ->content(function (): string {
                                         $connection = $this->googleDriveConnection();
                                         if (! $connection || ! $connection->hasOAuthConfiguration()) {
-                                            return 'Credenciais pendentes';
+                                            return $this->googleDriveConfigured()
+                                                ? 'Pronto para conectar com uma conta Google'
+                                                : 'Credenciais pendentes';
                                         }
 
                                         if ($connection->status === 'revoked') {
@@ -429,18 +410,23 @@ class OrganizationSettingsPage extends Page implements HasForms
                                     }),
                                 Forms\Components\Placeholder::make('google_drive_scope')
                                     ->label('Privacidade')
-                                    ->content('O SGC acessa somente os arquivos e pastas que ele próprio cria nesta conexão.'),
+                                    ->content('O SGC usa acesso por arquivo para trabalhar com os itens que cria ou que você autoriza.'),
                                 Forms\Components\Actions::make([
                                     Forms\Components\Actions\Action::make('connect_google_drive')
                                         ->label(fn (): string => $this->googleDriveConnection()?->status === 'active'
                                             ? 'Reconectar Google Drive'
-                                            : 'Conectar Google Drive')
+                                            : 'Conectar com Google')
                                         ->icon('heroicon-o-link')
                                         ->color('primary')
                                         ->disabled(fn (): bool => ! $this->googleDriveConfigured())
                                         ->url(fn (): string => route('settings.google-drive.connect', [
                                             'tenant' => $this->currentTenant()->slug,
                                         ])),
+                                    Forms\Components\Actions\Action::make('open_google_drive_folder')
+                                        ->label('Abrir pasta do SGC')
+                                        ->icon('heroicon-o-folder-open')
+                                        ->visible(fn (): bool => (bool) $this->googleDriveConnection()?->root_folder_id)
+                                        ->url(fn (): string => 'https://drive.google.com/drive/folders/'.rawurlencode((string) $this->googleDriveConnection()?->root_folder_id), true),
                                     Forms\Components\Actions\Action::make('disconnect_google_drive')
                                         ->label('Desconectar')
                                         ->icon('heroicon-o-link-slash')
@@ -455,6 +441,33 @@ class OrganizationSettingsPage extends Page implements HasForms
                                         ->visible(fn (): bool => $this->googleDriveConnection()?->status === 'active')
                                         ->action(fn () => $this->syncGoogleDrive()),
                                 ]),
+                                Forms\Components\Section::make('Credenciais próprias')
+                                    ->collapsible()
+                                    ->collapsed(fn (): bool => app(GoogleDriveClientFactory::class)->hasManagedCredentials())
+                                    ->schema([
+                                        Forms\Components\TextInput::make('google_drive_client_id')
+                                            ->label('OAuth Client ID')
+                                            ->autocomplete(false)
+                                            ->maxLength(512),
+                                        Forms\Components\TextInput::make('google_drive_client_secret')
+                                            ->label('OAuth Client Secret')
+                                            ->password()
+                                            ->revealable()
+                                            ->autocomplete('new-password')
+                                            ->placeholder(fn (): string => $this->googleDriveConnection()?->hasOAuthConfiguration()
+                                                ? 'Mantido sem alteração'
+                                                : '')
+                                            ->maxLength(1024),
+                                        Forms\Components\Placeholder::make('google_drive_redirect_uri')
+                                            ->label('URI de redirecionamento')
+                                            ->content(fn (): string => app(GoogleDriveClientFactory::class)->redirectUri()),
+                                        Forms\Components\Actions::make([
+                                            Forms\Components\Actions\Action::make('save_google_drive_credentials')
+                                                ->label('Salvar credenciais')
+                                                ->icon('heroicon-o-key')
+                                                ->action(fn () => $this->saveGoogleDriveCredentials()),
+                                        ]),
+                                    ]),
                             ]),
                     ])
                     ->columnSpanFull()
@@ -642,7 +655,7 @@ class OrganizationSettingsPage extends Page implements HasForms
 
     private function googleDriveConfigured(): bool
     {
-        return $this->googleDriveConnection()?->hasOAuthConfiguration() ?? false;
+        return app(GoogleDriveClientFactory::class)->canConnect($this->googleDriveConnection());
     }
 
     private function canManageGoogleDrive(): bool
