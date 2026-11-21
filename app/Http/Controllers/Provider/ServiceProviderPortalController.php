@@ -249,18 +249,23 @@ class ServiceProviderPortalController extends Controller
 
     public function expenses(Request $request, Tenant $tenant): View
     {
-        $management = $this->expenseAccess($request, $tenant);
+        [$management, $reportingProvider] = $this->expenseAccess($request, $tenant);
         $selectedOrder = $request->integer('order') ?: null;
         $expenses = Expense::query()->where('tenant_id', $tenant->id)->where('origin_module', 'services')
+            ->when($reportingProvider, fn ($query) => $query->where('service_provider_id', $reportingProvider->id))
             ->when($selectedOrder, fn ($query) => $query->where(fn ($linked) => $linked
                 ->whereMorphedTo('expenseable', ServiceOrder::class)->where('expenseable_id', $selectedOrder)
                 ->orWhereHasMorph('expenseable', [\App\Models\ServiceExecution::class], fn ($execution) => $execution->where('tenant_id', $tenant->id)->where('service_order_id', $selectedOrder))))
-            ->with(['expenseable', 'documents'])->latest('date')->paginate(25)->withQueryString();
+            ->with(['expenseable', 'documents', 'serviceProvider:id,name'])->latest('date')->paginate(25)->withQueryString();
         $orders = ServiceOrder::query()->where('tenant_id', $tenant->id)->whereNotNull('service_version_id')
+            ->when($reportingProvider, fn ($query) => $query->where('service_provider_id', $reportingProvider->id))
             ->where(fn ($query) => $query->whereNull('operational_status')->orWhere('operational_status', '!=', 'cancelled'))
             ->when($selectedOrder, fn ($query) => $query->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [$selectedOrder]))
             ->latest()->limit(200)->get(['id', 'number', 'beneficiary_snapshot', 'scheduled_at']);
         $accounts = ChartAccount::query()->where('tenant_id', $tenant->id)->where('type', 'despesa')->orderBy('name')->get(['id', 'name']);
+        $expenseProviders = $reportingProvider ? collect() : ServiceProvider::query()->where('tenant_id', $tenant->id)
+            ->where('status', true)->orderBy('name')->get(['id', 'name', 'user_id']);
+        $defaultProviderId = $expenseProviders->firstWhere('user_id', $request->user()->id)?->id;
 
         $selectedOrder = $orders->contains('id', $selectedOrder) ? $selectedOrder : null;
         $unlinkedExpenses = $management && $selectedOrder
@@ -269,7 +274,10 @@ class ServiceProviderPortalController extends Controller
                 ->get(['id', 'description', 'amount', 'date'])
             : collect();
 
-        return view('provider.services-expenses', ['operator' => true] + compact('management', 'expenses', 'orders', 'accounts', 'selectedOrder', 'unlinkedExpenses'));
+        return view('provider.services-expenses', compact(
+            'management', 'expenses', 'orders', 'accounts', 'selectedOrder', 'unlinkedExpenses',
+            'expenseProviders', 'reportingProvider', 'defaultProviderId'
+        ));
     }
 
     public function linkExpense(Request $request, Tenant $tenant, ServiceExpenseService $service): RedirectResponse
@@ -283,15 +291,16 @@ class ServiceProviderPortalController extends Controller
 
     public function storeExpense(Request $request, Tenant $tenant, ServiceExpenseService $service, ServiceExpenseAttachmentService $attachments): RedirectResponse|JsonResponse
     {
-        $management = $this->expenseAccess($request, $tenant);
+        [$management, $reportingProvider] = $this->expenseAccess($request, $tenant);
         $data = $request->validate([
             'description' => 'required|string|max:191', 'amount' => 'required|numeric|min:0.01',
             'date' => 'required|date', 'due_date' => 'required|date|after_or_equal:date', 'service_order_id' => 'nullable|integer',
             'chart_account_id' => 'nullable|integer', 'document_number' => 'nullable|string|max:80', 'notes' => 'nullable|string|max:2000',
+            'service_provider_id' => 'nullable|integer|min:1',
             'attachments' => 'nullable|array|max:5', 'attachments.*' => 'file|mimes:jpg,jpeg,png,webp,pdf|max:12288',
         ]);
-        DB::transaction(function () use ($tenant, $data, $request, $service, $attachments): void {
-            $expense = $service->create($tenant, $data, $request->user());
+        DB::transaction(function () use ($tenant, $data, $request, $service, $attachments, $reportingProvider): void {
+            $expense = $service->create($tenant, $data, $request->user(), $reportingProvider);
             foreach ($request->file('attachments', []) as $file) {
                 $attachments->upload($tenant, $expense, $file, $request->user());
             }
@@ -311,10 +320,12 @@ class ServiceProviderPortalController extends Controller
 
     public function expenseDocument(Request $request, Tenant $tenant, int $document, ServiceExpenseAttachmentService $attachments)
     {
-        $this->expenseAccess($request, $tenant);
+        [, $reportingProvider] = $this->expenseAccess($request, $tenant);
         $record = Document::query()->where('tenant_id', $tenant->id)
             ->where('documentable_type', Expense::class)->whereKey($document)->with('documentable')->firstOrFail();
-        abort_unless($record->documentable?->origin_module === 'services', 404);
+        $expense = $record->documentable;
+        abort_unless($expense?->origin_module === 'services' && (int) $expense->tenant_id === (int) $tenant->id
+            && (! $reportingProvider || (int) $expense->service_provider_id === (int) $reportingProvider->id), 404);
 
         return response($attachments->contents($record), 200, [
             'Content-Type' => $record->mime_type,
@@ -323,14 +334,19 @@ class ServiceProviderPortalController extends Controller
         ]);
     }
 
-    private function expenseAccess(Request $request, Tenant $tenant): bool
+    /** @return array{bool, ?ServiceProvider} */
+    private function expenseAccess(Request $request, Tenant $tenant): array
     {
         $management = $request->routeIs('services.management.expenses*');
         $permission = $management ? 'view_service_management' : 'operate_all_service_orders_portal';
-        abort_unless($request->user()->checkPermissionTo($permission)
-            && $request->user()->checkPermissionTo('manage_service_expenses'), 403);
+        if ($request->user()->checkPermissionTo($permission)
+            && $request->user()->checkPermissionTo('manage_service_expenses')) {
+            return [$management, null];
+        }
 
-        return $management;
+        abort_if($management, 403);
+
+        return [false, $this->provider($request, $tenant)];
     }
 
     /** @return array{0:?ServiceProvider,1:bool} */

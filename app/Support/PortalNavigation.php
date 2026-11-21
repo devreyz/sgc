@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\ServiceProvider;
 use Illuminate\Support\Facades\Route;
 
 class PortalNavigation
@@ -36,7 +37,7 @@ class PortalNavigation
                 ['key' => 'dashboard', 'label' => 'Inicio', 'route' => 'provider.dashboard', 'icon' => 'house'],
                 ['key' => 'orders', 'label' => 'Ordens', 'route' => 'provider.orders', 'icon' => 'clipboard-text'],
                 ['key' => 'financial', 'label' => 'Financeiro', 'route' => 'provider.financial', 'icon' => 'wallet'],
-                ...((auth()->user()?->checkPermissionTo('manage_service_expenses') ?? false) ? [['key' => 'expenses', 'label' => 'Despesas', 'route' => 'provider.expenses', 'icon' => 'receipt']] : []),
+                ...(self::canAccessProviderExpenses($tenantSlug) ? [['key' => 'expenses', 'label' => 'Despesas', 'route' => 'provider.expenses', 'icon' => 'receipt']] : []),
             ],
             'services' => [
                 ...((auth()->user()?->checkPermissionTo('view_service_management') ?? false) ? [['key' => 'queue', 'label' => 'Ordens', 'route' => 'services.management.index', 'icon' => 'list-checks']] : []),
@@ -103,5 +104,17 @@ class PortalNavigation
                 return $item;
             })->all(),
         ];
+    }
+
+    private static function canAccessProviderExpenses(?string $tenantSlug): bool
+    {
+        $user = auth()->user();
+        if (! $user || ! $tenantSlug) {
+            return false;
+        }
+
+        return ($user->checkPermissionTo('operate_all_service_orders_portal') && $user->checkPermissionTo('manage_service_expenses'))
+            || ServiceProvider::query()->where('user_id', $user->id)->where('status', true)
+                ->whereRelation('tenant', 'slug', $tenantSlug)->exists();
     }
 }

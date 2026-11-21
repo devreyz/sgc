@@ -2,7 +2,7 @@
 
 @section('title', 'Despesas de serviços')
 @section('page-title', 'Despesas')
-@section('user-role', 'Operação de serviços')
+@section('user-role', $reportingProvider ? 'Prestador' : 'Operação de serviços')
 
 @php
     $routeTenant = request()->route('tenant');
@@ -1697,7 +1697,7 @@
             <div class="expenses-head-copy">
                 <small>Serviços</small>
                 <h1>Despesas</h1>
-                <p>Registros pendentes e pagamentos do módulo.</p>
+                <p>{{ $reportingProvider ? 'Acompanhe as despesas vinculadas ao seu cadastro.' : 'Registros pendentes e pagamentos do módulo.' }}</p>
             </div>
         </div>
 
@@ -1860,6 +1860,10 @@
                                             {{ $expense->description }}
                                         </strong>
 
+                                        @if($expense->serviceProvider)
+                                            <small>Prestador: {{ $expense->serviceProvider->name }}</small>
+                                        @endif
+
                                         @if($expense->document_number ?? null)
                                             <small>
                                                 Doc. {{ $expense->document_number }}
@@ -2005,6 +2009,9 @@
                                     {{ $expense->date?->format('d/m/Y') ?? 'Sem data' }}
                                     · {{ $origin }}
                                 </small>
+                                @if($expense->serviceProvider)
+                                    <small>Prestador: {{ $expense->serviceProvider->name }}</small>
+                                @endif
                             </div>
 
                             <span
@@ -2300,6 +2307,34 @@
                         </div>
                     </div>
                 </section>
+
+                <div class="expense-field full">
+                    <label class="expense-label" for="expense-provider">
+                        <i class="ph-duotone ph-user" aria-hidden="true"></i>
+                        Quem fez a despesa
+                        @unless($reportingProvider)<span class="optional">opcional</span>@endunless
+                    </label>
+                    @if($reportingProvider)
+                        <div class="expense-input">
+                            <input id="expense-provider" value="{{ $reportingProvider->name }}" readonly>
+                        </div>
+                    @else
+                        <select
+                            id="expense-provider"
+                            name="service_provider_id"
+                            data-custom-select
+                            data-picker-title="Escolher prestador"
+                            data-picker-icon="ph-user"
+                        >
+                            <option value="">Sem prestador vinculado</option>
+                            @foreach($expenseProviders as $expenseProvider)
+                                <option value="{{ $expenseProvider->id }}" @selected((string) old('service_provider_id', $defaultProviderId) === (string) $expenseProvider->id)>
+                                    {{ $expenseProvider->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    @endif
+                </div>
 
                 <details
                     class="expense-optional"

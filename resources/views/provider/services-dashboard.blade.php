@@ -561,7 +561,7 @@ html:has(.svc-agenda-dialog[open]), body:has(.svc-agenda-dialog[open]) { overflo
         <a class="svc-tool financial" href="{{ route('provider.financial', $tenantSlug) }}">
             <i class="ph-fill ph-coins" aria-hidden="true"></i><span>Financeiro</span>
         </a>
-        @if(auth()->user()->checkPermissionTo('manage_service_expenses'))
+        @if($provider || (($operator ?? false) && auth()->user()->checkPermissionTo('manage_service_expenses')))
             <a class="svc-tool expense" href="{{ route('provider.expenses', $tenantSlug) }}">
                 <i class="ph-fill ph-money-wavy" aria-hidden="true"></i><span>Registrar despesa</span>
             </a>

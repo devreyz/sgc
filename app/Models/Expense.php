@@ -33,6 +33,7 @@ class Expense extends Model
         'chart_account_id',
         'bank_account_id',
         'supplier_id',
+        'service_provider_id',
         'expenseable_type',
         'expenseable_id',
         'origin_module',
@@ -68,7 +69,7 @@ class Expense extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['description', 'amount', 'status', 'due_date', 'paid_date', 'paid_amount'])
+            ->logOnly(['description', 'amount', 'status', 'due_date', 'paid_date', 'paid_amount', 'service_provider_id'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }
@@ -95,6 +96,11 @@ class Expense extends Model
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    public function serviceProvider(): BelongsTo
+    {
+        return $this->belongsTo(ServiceProvider::class)->withTrashed();
     }
 
     /**

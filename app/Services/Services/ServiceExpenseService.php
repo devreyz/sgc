@@ -6,6 +6,7 @@ use App\Enums\ExpenseStatus;
 use App\Models\Expense;
 use App\Models\ChartAccount;
 use App\Models\ServiceOrder;
+use App\Models\ServiceProvider;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Arr;
@@ -30,16 +31,25 @@ class ServiceExpenseService
         }, 3);
     }
 
-    public function create(Tenant $tenant, array $data, User $actor): Expense
+    public function create(Tenant $tenant, array $data, User $actor, ?ServiceProvider $reportingProvider = null): Expense
     {
-        return DB::transaction(function () use ($tenant, $data, $actor): Expense {
+        return DB::transaction(function () use ($tenant, $data, $actor, $reportingProvider): Expense {
             $amount = app(ServiceCalculationRules::class)->number($data['amount'] ?? null, 'amount');
             if ($amount <= 0) {
                 throw ValidationException::withMessages(['amount' => 'O valor da despesa deve ser maior que zero.']);
             }
             $order = null;
             if (filled($data['service_order_id'] ?? null)) {
-                $order = $this->activeOrder($tenant, (int) $data['service_order_id']);
+                $order = $this->activeOrder($tenant, (int) $data['service_order_id'], $reportingProvider?->id);
+            }
+            $providerId = $reportingProvider?->id ?? ($data['service_provider_id'] ?? null);
+            if (filled($providerId)) {
+                $providerId = ServiceProvider::query()->where('tenant_id', $tenant->id)->where('status', true)
+                    ->when($reportingProvider, fn ($query) => $query->where('user_id', $actor->id))
+                    ->whereKey($providerId)->lockForUpdate()->value('id')
+                    ?? throw ValidationException::withMessages(['service_provider_id' => 'Escolha um prestador ativo desta organização.']);
+            } else {
+                $providerId = null;
             }
             if (filled($data['chart_account_id'] ?? null)) {
                 $data['chart_account_id'] = ChartAccount::query()->where('tenant_id', $tenant->id)->where('type', 'despesa')->whereKey($data['chart_account_id'])->value('id')
@@ -49,6 +59,7 @@ class ServiceExpenseService
                 'status' => ExpenseStatus::PENDING,
                 'expenseable_type' => $order ? ServiceOrder::class : null,
                 'expenseable_id' => $order?->id,
+                'service_provider_id' => $providerId,
                 'origin_module' => 'services',
                 'created_by' => $actor->id,
             ]);
@@ -59,9 +70,10 @@ class ServiceExpenseService
         }, 3);
     }
 
-    private function activeOrder(Tenant $tenant, int $orderId): ServiceOrder
+    private function activeOrder(Tenant $tenant, int $orderId, ?int $providerId = null): ServiceOrder
     {
         $order = ServiceOrder::query()->where('tenant_id', $tenant->id)->whereNotNull('service_version_id')
+            ->when($providerId, fn ($query) => $query->where('service_provider_id', $providerId))
             ->whereKey($orderId)->lockForUpdate()->first();
         if (! $order || $order->operational_status === 'cancelled') {
             throw ValidationException::withMessages(['service_order_id' => 'Escolha uma ordem ativa desta organização.']);
