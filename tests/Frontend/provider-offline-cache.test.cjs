@@ -29,8 +29,8 @@ function setup() {
         };
     }
     vm.runInNewContext(script, {
-        URL, Request: class { constructor(url, options) { this.url = url; this.options = options; } },
-        Date: {now: () => now}, Response: {error: () => ({status: 0})},
+        URL, URLSearchParams, Request: class { constructor(url, options) { this.url = url; this.options = options; } },
+        Date: {now: () => now}, Response: {error: () => ({status: 0}), redirect: location => ({status: 302, location})},
         self: {
             location: {origin: 'https://sgc.test'},
             addEventListener: (event, handler) => events[event] = handler,
@@ -118,5 +118,17 @@ test('a permission denial from the server takes precedence over the offline page
     const url = '/sgc/provider/dashboard';
     sw.source.set(url, {status: 403});
     assert.equal((await sw.fetchPath(url, 'navigate').response).status, 403);
+});
+
+test('the provider create route opens the offline order form for the same organization', async () => {
+    const sw = setup();
+    sw.release('current');
+    await sw.run('install').pending;
+    const url = '/minha-coop/provider/orders/create';
+    sw.onlineFile(url, 'online-form');
+    assert.equal((await sw.fetchPath(url, 'navigate').response).release, 'online-form');
+    sw.network(false);
+    const offline = await sw.fetchPath(url, 'navigate').response;
+    assert.equal(offline.location, 'https://sgc.test/provider-offline.html?tenant=minha-coop&new=1');
 });
 

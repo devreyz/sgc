@@ -43,15 +43,19 @@ self.addEventListener('message', event => {
     }
 });
 
-async function networkFirst(request, cacheName, fallback, save = false) {
+async function networkFirst(request, cacheName, fallback, save = false, offlineRedirect = null) {
+    async function cachedFallback() {
+        const cached = await (await caches.open(cacheName)).match(fallback);
+        return cached && offlineRedirect ? Response.redirect(offlineRedirect) : cached;
+    }
     let response;
     try {
         response = await fetch(request, {cache: 'no-cache'});
     } catch {
-        return (await caches.open(cacheName)).match(fallback).then(cached => cached || Response.error());
+        return await cachedFallback() || Response.error();
     }
     if (response.status >= 500) {
-        const cached = await (await caches.open(cacheName)).match(fallback);
+        const cached = await cachedFallback();
         if (cached) return cached;
     }
     if (save && response.ok && response.type === 'basic' && !response.redirected
@@ -76,7 +80,9 @@ self.addEventListener('fetch', event => {
         return;
     }
     if (event.request.mode === 'navigate' && (url.pathname === '/app' || /^\/[^/]+\/provider\/(dashboard|orders(?:\/.*)?)$/.test(url.pathname))) {
-        event.respondWith(networkFirst(event.request, PROVIDER_CACHE, PROVIDER_PAGE));
+        const create = url.pathname.match(/^\/([a-z0-9_-]+)\/provider\/orders\/create\/?$/i);
+        const offlineCreate = create && new URL(PROVIDER_PAGE + '?' + new URLSearchParams({tenant: create[1], new: '1'}), url.origin);
+        event.respondWith(networkFirst(event.request, PROVIDER_CACHE, PROVIDER_PAGE, false, offlineCreate?.href));
         return;
     }
     if (url.pathname === OFFLINE_URL) {

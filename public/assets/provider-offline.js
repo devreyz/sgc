@@ -3,7 +3,8 @@ import {estimate, currency, beneficiaryPdf, sharePdf} from './provider-offline-d
 
 const get = id => document.getElementById(id);
 const message = get('message'), form = get('order-form'), actions = get('order-actions');
-let bundle, pending = [], active, syncing = false;
+let bundle, pending = [], active, syncing = false, saving = false;
+let requestedCreation = new URL(location.href).searchParams.get('new') === '1' || /\/provider\/orders\/create\/?$/.test(location.pathname);
 let requestedOrderId = new URL(location.href).searchParams.get('os') || location.pathname.match(/\/provider\/orders\/(\d+)$/)?.[1];
 
 function element(tag, text) {
@@ -58,6 +59,7 @@ function renderList() {
     get('portal').href = bundle.portalUrl;
     get('updated').textContent = 'Dados de '+new Date(bundle.issuedAt).toLocaleString('pt-BR')+' • '+pending.length+' pendente(s)';
     get('create').disabled = bundle.catalog.length === 0;
+    get('catalog-status').hidden = bundle.catalog.length > 0;
     for (const row of pending) {
         const item = button(row.display.beneficiary || row.display.service || 'Nova ordem', () => openOrder(bundle.orders.find(order => order.id === row.payload.order_id),row));
         item.className = 'order-row';
@@ -129,7 +131,7 @@ function renderFields(catalog, target, values, files, writable, isNew) {
 }
 
 function openOrder(order, row = null) {
-    active = {order:order || null,row};
+    active = {order:order || null,row,scope:bundle.scope};
     const reference = row?.payload.creation || {};
     const writable = !row?.sent && !row?.conflict && (!order || editableState(order));
     get('editor-title').textContent = order?.number || 'Nova ordem';
@@ -167,10 +169,10 @@ function openOrder(order, row = null) {
     if (!order) form.elements.namedItem('associate_id').required = !!chosenVersion()?.membersOnly && writable;
     renderFields(order?.catalog || chosenVersion()?.catalog, dynamic, {...order?.values,...reference.order_data,...row?.payload.values},row?.files || {},writable,!order);
     if (writable) {
-        if (!order) actions.append(button('Salvar agendamento',() => save('schedule')));
+        if (!order) actions.append(button(row ? 'Salvar ordem' : 'Criar ordem',() => save('schedule'),true));
         actions.append(button('Salvar rascunho',() => save('draft')));
         if (order?.execution !== 'in_progress') actions.append(button('Iniciar serviço',() => save('start')));
-        actions.append(button('Finalizar para enviar',() => save('finish'),true));
+        actions.append(button('Finalizar para enviar',() => save('finish'),Boolean(order)));
     }
     if (row?.error && !row.sent) {
         if (row.conflict && order && editableState(order)) actions.append(button('Revisar com os dados atuais', async () => {
@@ -245,8 +247,9 @@ function preview() {
 }
 
 async function save(action) {
+    if (saving) return;
     if (!hasOfflineAccess(bundle)) {await redraw();return;}
-    if (!form.reportValidity() || !active) return;
+    if (!active || active.scope !== bundle.scope || !form.reportValidity()) return;
     const model = currentOrder(), row = active.row;
     const data = new FormData(form), currentValues = values(model.catalog), creation = {};
     if (!model.id) {
@@ -258,6 +261,12 @@ async function save(action) {
         if (!key.startsWith('file:') || !(value instanceof File) || !value.size) continue;
         if (value.size > 12*1024*1024) {message.textContent='Cada evidência deve ter até 12 MB.';return;}
         files[key.slice(5)] = value;
+    }
+    if (action === 'schedule' && (row?.payload.started_at || row?.payload.action === 'finish')) {
+        action = row.payload.action;
+    } else if (action === 'schedule' && (Object.keys(files).length
+        || [...data].some(([key,value]) => (key.startsWith('value:') || key.startsWith('pause-')) && String(value).trim()))) {
+        action = 'draft';
     }
     if (action === 'finish' || action === 'start') {
         const phases = action === 'start' ? ['start'] : ['order','start','execution','finish'];
@@ -277,19 +286,23 @@ async function save(action) {
         revision:crypto.randomUUID(),display:{beneficiary:model.beneficiary,service:model.service},files,
         payload:{order_id:model.id,lock_version:model.lockVersion,action,creation:model.id ? null : creation,
             values:currentValues,recorded_at:now,started_at:row?.payload.started_at || (action === 'start' ? now : null)}};
+    saving = true;
     try {
         if (!await guardedUpdate(next,row)) throw new Error('Este registro mudou em outra aba. Volte à lista e confira a versão mais recente.');
         active = null;
-        message.textContent = 'Registro salvo neste aparelho.';
+        message.textContent = model.id ? 'Registro salvo neste aparelho.' : 'Ordem salva neste aparelho. O número será atribuído após a sincronização.';
         await redraw();
         if (navigator.onLine) synchronize(true);
     } catch (error) {
         message.textContent = error.message;
+    } finally {
+        saving = false;
     }
 }
 
 async function redraw() {
     bundle = await getBundle();
+    if (active && active.scope !== bundle?.scope) active = null;
     pending = bundle ? await queued(bundle.scope) : [];
     get('connection').textContent = navigator.onLine ? 'Online' : 'Sem internet';
     get('refresh').hidden = !bundle;
@@ -298,6 +311,11 @@ async function redraw() {
         message.textContent = 'Abra o portal do prestador com internet e entre na sua conta para baixar os dados deste aparelho.';
     }
     renderList();
+    if (requestedCreation && bundle?.catalog.length) {
+        requestedCreation = false;
+        openOrder(null);
+        return;
+    }
     const requestedOrder = bundle?.orders.find(order => String(order.id) === requestedOrderId);
     if (requestedOrder) {
         requestedOrderId = null;
@@ -323,7 +341,10 @@ async function synchronize(force = false) {
     }
 }
 
-form.addEventListener('submit',event => event.preventDefault());
+form.addEventListener('submit',event => {
+    event.preventDefault();
+    if (active && !active.order && !active.row?.sent && !active.row?.conflict) save('schedule');
+});
 form.addEventListener('input',preview);
 get('create').addEventListener('click',() => openOrder(null));
 get('back').addEventListener('click',() => {active=null;renderList();});

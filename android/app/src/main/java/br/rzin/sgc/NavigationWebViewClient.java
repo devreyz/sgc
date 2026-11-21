@@ -81,7 +81,14 @@ final class NavigationWebViewClient extends BridgeWebViewClient {
             String path = failedUrl.getPath();
             boolean providerPortal = "https".equals(failedUrl.getScheme()) && "sgc.rzin.com.br".equals(failedUrl.getHost())
                 && path != null && (path.equals("/app") || path.matches("/[^/]+/provider/(dashboard|orders(?:/.*)?)"));
-            view.loadUrl(providerPortal ? PROVIDER_OFFLINE_PAGE : OFFLINE_PAGE);
+            if (providerPortal && path.matches("/[^/]+/provider/orders/create")) {
+                view.loadUrl(Uri.parse(PROVIDER_OFFLINE_PAGE).buildUpon()
+                    .appendQueryParameter("tenant", failedUrl.getPathSegments().get(0))
+                    .appendQueryParameter("new", "1")
+                    .build().toString());
+            } else {
+                view.loadUrl(providerPortal ? PROVIDER_OFFLINE_PAGE : OFFLINE_PAGE);
+            }
         }
     }
 
