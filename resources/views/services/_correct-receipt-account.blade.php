@@ -8,6 +8,7 @@
     && $payment?->event_type === 'payment' && $payment->status === 'confirmed'
     && $payment->bank_account_id && $payment->cash_movement_id
     && !data_get($payment->metadata, 'payment_plan_installment_id')
+    && !data_get($payment->metadata, 'payment_plan_id')
     && (float) $payment->amount === (float) $allocation->amount
     && $alternativeAccounts->isNotEmpty()
     && auth()->user()->checkPermissionTo('manage_service_receivables')

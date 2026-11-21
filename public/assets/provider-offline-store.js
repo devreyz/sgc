@@ -63,10 +63,28 @@ export async function getBundle() {
     const bundle = await profile();
     if (hasOfflineAccess(bundle)) {
         const tenant = requestedTenant();
-        return !tenant || tenant === bundle.tenant ? bundle : null;
+        return !tenant || tenant === bundle.tenant ? fieldworkBundle(bundle) : null;
     }
     if (bundle) await setProfile(null);
     return null;
+}
+
+export function fieldworkBundle(bundle, now = new Date()) {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('pt-BR', {
+        timeZone: bundle.timezone || 'America/Sao_Paulo', year: 'numeric', month: 'numeric', day: 'numeric',
+    }).formatToParts(now).map(({type, value}) => [type, Number(value)]));
+    const {year, month, day} = parts;
+    const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+    const dateString = date => date.toISOString().slice(0, 10);
+    const from = dateString(new Date(Date.UTC(year, month - 1, day - 7)));
+    const to = dateString(new Date(Date.UTC(year, month, Math.min(day, lastDay))));
+    const orders = (bundle.orders || []).filter(order => {
+        const date = order.executionDate || order.scheduled?.slice(0, 10);
+        return ['scheduled', 'in_progress'].includes(order.state)
+            && ['draft', 'in_progress'].includes(order.execution) && date >= from && date <= to;
+    });
+
+    return {...bundle, orders, window: {from, to}};
 }
 
 export function hasOfflineAccess(bundle) {
@@ -78,6 +96,9 @@ function notify() {
     signal?.postMessage('changed');
 }
 signal?.addEventListener('message', () => window.dispatchEvent(new Event('sgc-provider-data')));
+window.addEventListener('storage', event => {
+    if (event.key === signedOutKey) window.dispatchEvent(new Event('sgc-provider-data'));
+});
 
 async function download(endpoint) {
     const response = await fetch(endpoint, {cache: 'no-store', credentials: 'same-origin', globalLoader: false, headers: {Accept: 'application/json'}});
@@ -106,8 +127,9 @@ async function send(bundle, row) {
         headers: {Accept: 'application/json', 'X-CSRF-TOKEN': bundle.csrf},
     });
     if (response.ok) {
-        const {order} = await response.json();
-        bundle.orders = [...bundle.orders.filter(item => item.id !== order.id), order];
+        const {order, available} = await response.json();
+        bundle.orders = bundle.orders.filter(item => item.id !== order.id);
+        if (available !== false) bundle.orders.push(order);
         await discardOperation(row.id);
         return true;
     }
@@ -135,7 +157,7 @@ export async function refreshBundle({force = false, sync = true} = {}) {
         bundle.endpoint = endpoint;
         const publish = async () => {
             if (localStorage.getItem(signedOutKey)) return null;
-            const {csrf, ...stored} = bundle;
+            const {csrf, ...stored} = fieldworkBundle(bundle);
             await setProfile(stored);
             notify();
             return stored;

@@ -8,6 +8,7 @@ use App\Models\Expense;
 use App\Models\ServiceOrder;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ServiceReportService
@@ -89,6 +90,21 @@ class ServiceReportService
         }
         $executions = $executions->whereIn('id', $details->pluck('execution_id'));
         $totals = $this->totals($details);
+        $receivables = $executions->flatMap->obligations->where('direction', 'receivable');
+        $inActivePlan = DB::table('service_payment_plan_obligations as link')
+            ->join('service_payment_plans as plan', 'plan.id', '=', 'link.service_payment_plan_id')
+            ->where('plan.tenant_id', $tenantId)->where('plan.status', 'active')
+            ->whereIntegerInRaw('link.service_obligation_id', $receivables->pluck('id')->all())
+            ->distinct()->pluck('link.service_obligation_id')->flip();
+        $negotiatedBalance = $receivables->sum(function ($obligation) use ($inActivePlan): int {
+            if (! $inActivePlan->has($obligation->id) || $obligation->status === 'cancelled') {
+                return 0;
+            }
+            $settled = $obligation->allocations->sum(fn ($allocation) => in_array($allocation->paymentEvent?->status, ['confirmed', 'reversed'], true)
+                ? ServiceMoney::cents($allocation->amount) : 0);
+
+            return max(0, $obligation->totalCents() - $settled);
+        });
         $periodPayments = ServicePaymentAllocation::query()->where('tenant_id', $tenantId)
             ->when(! empty($selection['statuses']) || ! empty($selection['exclude']), fn ($q) => $q->whereHas('obligation', fn ($o) => $o->whereIn('service_execution_id', $details->pluck('execution_id'))))
             ->whereHas('paymentEvent', fn ($q) => $q->whereIn('status', ['confirmed', 'reversed'])->whereBetween('payment_date', [$from->toDateString(), $to->toDateString()]))
@@ -119,6 +135,7 @@ class ServiceReportService
             'monthly' => $details->groupBy('month')->map(fn ($rows, $month) => ['month' => $month] + $this->totals($rows))->values(),
             'resource_amount' => round((float) $executions->flatMap->resources->sum('amount'), 2),
             'cash_received_period' => round((float) $periodPayments->filter(fn ($a) => $a->obligation->direction === 'receivable')->sum('amount'), 2),
+            'active_negotiated_balance' => $negotiatedBalance / 100,
             'cash_paid_period' => round((float) $periodPayments->filter(fn ($a) => $a->obligation->direction === 'payable')->sum('amount'), 2),
             'payments_without_cash' => $periodPayments->filter(fn ($a) => ! $a->paymentEvent->cash_movement_id)->count(),
             'service_expense_total' => round((float) $serviceExpenses->sum(fn (Expense $expense) => $expense->total_amount), 2),

@@ -4,14 +4,22 @@ import android.net.Uri;
 import android.graphics.Bitmap;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
 
 import com.getcapacitor.Bridge;
 import com.getcapacitor.BridgeWebViewClient;
 
+import java.io.IOException;
+import java.util.Collections;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 final class NavigationWebViewClient extends BridgeWebViewClient {
     private static final String OFFLINE_PAGE = "file:///android_asset/offline.html";
-    private static final String PROVIDER_OFFLINE_PAGE = "https://sgc.rzin.com.br/provider-offline.html";
+    private static final String OFFLINE_ASSET_PATH = "/__sgc_android_offline/";
+    private static final String PROVIDER_OFFLINE_PAGE = "https://sgc.rzin.com.br" + OFFLINE_ASSET_PATH + "provider-offline.html";
+    private static final Pattern PROVIDER_ROUTE = Pattern.compile("^/([a-zA-Z0-9_-]+)/provider/(?:dashboard|orders(?:/(create|\\d+))?)/?$");
     private final PathNavigationEngine navigationEngine;
     private final MainActivity activity;
 
@@ -64,6 +72,61 @@ final class NavigationWebViewClient extends BridgeWebViewClient {
     }
 
     @Override
+    public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+        Uri uri = request.getUrl();
+        String path = uri.getPath();
+        if ("GET".equals(request.getMethod()) && isSgcOrigin(uri) && path != null && path.startsWith(OFFLINE_ASSET_PATH)) {
+            String asset = path.substring(OFFLINE_ASSET_PATH.length());
+            String contentType = switch (asset) {
+                case "provider-offline.html" -> "text/html";
+                case "assets/provider-offline.css" -> "text/css";
+                case "assets/provider-offline.js", "assets/provider-offline-store.js",
+                    "assets/provider-offline-document.js" -> "text/javascript";
+                case "assets/icons/campo-dark-192.png" -> "image/png";
+                default -> null;
+            };
+            if (contentType != null) {
+                try {
+                    return new WebResourceResponse(contentType, contentType.equals("image/png") ? null : "UTF-8",
+                        200, "OK", Collections.singletonMap("Cache-Control", "no-store"),
+                        activity.getAssets().open("provider-offline/" + asset));
+                } catch (IOException error) {
+                    android.util.Log.w("SGCOffline", "Arquivo offline ausente no APK", error);
+                }
+            }
+            return new WebResourceResponse("text/plain", "UTF-8", 404, "Not Found", Collections.emptyMap(),
+                new java.io.ByteArrayInputStream(new byte[0]));
+        }
+        return super.shouldInterceptRequest(view, request);
+    }
+
+    private boolean isSgcOrigin(Uri uri) {
+        return "https".equals(uri.getScheme()) && "sgc.rzin.com.br".equals(uri.getHost())
+            && (uri.getPort() == -1 || uri.getPort() == 443);
+    }
+
+    private String offlinePage(Uri failedUrl) {
+        String path = failedUrl.getPath();
+        if (!isSgcOrigin(failedUrl) || path == null) return OFFLINE_PAGE;
+        Uri.Builder local = Uri.parse(PROVIDER_OFFLINE_PAGE).buildUpon();
+        if (path.equals("/app")) return local.build().toString();
+        if (path.equals("/provider-offline.html")) {
+            for (String param : new String[]{"tenant", "new", "os"}) {
+                String value = failedUrl.getQueryParameter(param);
+                if (value != null) local.appendQueryParameter(param, value);
+            }
+            return local.build().toString();
+        }
+        Matcher provider = PROVIDER_ROUTE.matcher(path);
+        if (!provider.matches()) return OFFLINE_PAGE;
+        local.appendQueryParameter("tenant", provider.group(1));
+        String action = provider.group(2);
+        if ("create".equals(action)) local.appendQueryParameter("new", "1");
+        else if (action != null) local.appendQueryParameter("os", action);
+        return local.build().toString();
+    }
+
+    @Override
     public void onPageStarted(WebView view, String url, Bitmap favicon) {
         super.onPageStarted(view, url, favicon);
         if (isWebUrl(Uri.parse(url))) {
@@ -77,18 +140,7 @@ final class NavigationWebViewClient extends BridgeWebViewClient {
 
         if (request.isForMainFrame() && !OFFLINE_PAGE.equals(request.getUrl().toString())) {
             activity.hideNavigationLoading();
-            Uri failedUrl = request.getUrl();
-            String path = failedUrl.getPath();
-            boolean providerPortal = "https".equals(failedUrl.getScheme()) && "sgc.rzin.com.br".equals(failedUrl.getHost())
-                && path != null && (path.equals("/app") || path.matches("/[^/]+/provider/(dashboard|orders(?:/.*)?)"));
-            if (providerPortal && path.matches("/[^/]+/provider/orders/create")) {
-                view.loadUrl(Uri.parse(PROVIDER_OFFLINE_PAGE).buildUpon()
-                    .appendQueryParameter("tenant", failedUrl.getPathSegments().get(0))
-                    .appendQueryParameter("new", "1")
-                    .build().toString());
-            } else {
-                view.loadUrl(providerPortal ? PROVIDER_OFFLINE_PAGE : OFFLINE_PAGE);
-            }
+            view.loadUrl(offlinePage(request.getUrl()));
         }
     }
 

@@ -55,6 +55,7 @@ class PortalNavigation
             ],
             'finance' => [
                 ['key' => 'dashboard', 'label' => 'Visão geral', 'route' => 'finance.index', 'icon' => 'chart-pie-slice'],
+                ...((auth()->user()?->checkPermissionTo('manage_service_agreements') ?? false) ? [['key' => 'service-agreements', 'label' => 'Acordos de serviços', 'route' => 'services.management.agreements', 'icon' => 'handshake', 'mobile' => false]] : []),
                 ['key' => 'document-verification', 'label' => 'Verificar documento', 'route' => 'finance.documents.verify', 'icon' => 'qr-code'],
                 ['key' => 'receipts', 'label' => 'Recebimentos', 'route' => 'finance.receipts.index', 'icon' => 'receipt'],
                 ['key' => 'management', 'label' => 'Cadastros', 'route' => 'finance.management.index', 'parameters' => ['module' => 'accounts'], 'icon' => 'sliders-horizontal'],

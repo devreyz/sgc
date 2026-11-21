@@ -9,8 +9,10 @@ use App\Models\CashMovement;
 use App\Models\ServiceObligation;
 use App\Models\ServicePaymentAllocation;
 use App\Models\ServicePaymentEvent;
+use App\Models\ServicePaymentPlan;
 use App\Models\ServicePaymentPlanInstallment;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
@@ -31,7 +33,9 @@ class ServicePaymentService
             if ($existing) {
                 $existing->load('allocations');
                 $allocation = $existing->allocations->first();
-                if (! $allocation || $allocation->service_obligation_id !== $obligation->id || abs((float) $existing->amount - round($amount, 2)) > .0001 || $existing->payment_method !== $method || (int) $existing->bank_account_id !== $bankAccountId || $existing->payment_date->toDateString() !== $date) {
+                if (! $allocation || $existing->event_type !== 'payment' || data_get($existing->metadata, 'payment_plan_id')
+                    || $allocation->service_obligation_id !== $obligation->id || abs((float) $existing->amount - round($amount, 2)) > .0001
+                    || $existing->payment_method !== $method || (int) $existing->bank_account_id !== $bankAccountId || $existing->payment_date->toDateString() !== $date) {
                     throw ValidationException::withMessages(['operation_key' => 'A chave de operação já foi usada com outro pagamento.']);
                 }
 
@@ -58,7 +62,11 @@ class ServicePaymentService
                     throw ValidationException::withMessages(['bank_account_id' => 'Conta inválida para esta organização.']);
                 }
             }
-            $event = new ServicePaymentEvent(['operation_key' => $operationKey, 'event_type' => 'payment', 'status' => 'confirmed', 'amount' => $amount, 'payment_method' => $method, 'payment_date' => $date, 'bank_account_id' => $account?->id, 'metadata' => $metadata, 'registered_by' => $actor->id]);
+            $event = new ServicePaymentEvent(['operation_key' => $operationKey, 'event_type' => 'payment', 'status' => 'confirmed', 'amount' => $amount, 'payment_method' => $method, 'payment_date' => $date, 'bank_account_id' => $account?->id, 'metadata' => $metadata + [
+                'remaining_obligation_cents' => $obligation->balanceCents() - ServiceMoney::cents($amount),
+                'registered_by_name' => $actor->getAttributes()['name'] ?? null,
+                'payer_name' => data_get($obligation->party_snapshot, 'name'),
+            ], 'registered_by' => $actor->id]);
             $event->tenant_id = $obligation->tenant_id;
             $event->save();
             $allocation = new ServicePaymentAllocation(['service_payment_event_id' => $event->id, 'service_obligation_id' => $obligation->id, 'amount' => $amount]);
@@ -81,110 +89,159 @@ class ServicePaymentService
 
     public function recordInstallment(ServicePaymentPlanInstallment $installment, string $method, string $date, int $bankAccountId, string $operationKey, User $actor): ServicePaymentEvent
     {
-        return DB::transaction(function () use ($installment, $method, $date, $bankAccountId, $operationKey, $actor): ServicePaymentEvent {
-            if (! in_array($method, array_column(PaymentMethod::cases(), 'value'), true)) {
-                throw ValidationException::withMessages(['payment_method' => 'Forma de pagamento inválida.']);
+        return $this->recordInstallments($installment->plan, [$installment->id => null], $method, $date, $bankAccountId, $operationKey, $actor);
+    }
+
+    public function recordInstallments(ServicePaymentPlan $plan, array $amounts, string $method, string $date, int $bankAccountId, string $operationKey, User $actor, array $details = []): ServicePaymentEvent
+    {
+        foreach ($amounts as $id => $amount) {
+            if ($amount === null) {
+                continue;
             }
-            $existing = ServicePaymentEvent::query()->where('tenant_id', $installment->tenant_id)->where('operation_key', $operationKey)->first();
+            if (! is_numeric($amount) || ! preg_match('/^\+?\d{0,12}(?:\.\d{0,2})?$/D', (string) $amount)) {
+                throw ValidationException::withMessages(['amounts' => 'Use valores em reais com até dois centavos decimais.']);
+            }
+            $amounts[$id] = ServiceMoney::decimal(ServiceMoney::cents((string) $amount));
+        }
+        ksort($amounts);
+        $signature = hash('sha256', json_encode([$amounts, $method, $date, $bankAccountId, $details], JSON_THROW_ON_ERROR));
+
+        return DB::transaction(function () use ($plan, $amounts, $method, $date, $bankAccountId, $operationKey, $actor, $details, $signature): ServicePaymentEvent {
+            $plan = ServicePaymentPlan::query()->where('tenant_id', $plan->tenant_id)->lockForUpdate()->findOrFail($plan->id);
+            $existing = ServicePaymentEvent::query()->where('tenant_id', $plan->tenant_id)->where('operation_key', $operationKey)->lockForUpdate()->first();
             if ($existing) {
-                if ((int) data_get($existing->metadata, 'payment_plan_installment_id') !== (int) $installment->id) {
-                    throw ValidationException::withMessages(['operation_key' => 'A chave de operação já foi usada em outro pagamento.']);
+                $legacy = ! isset($existing->metadata['request_signature']) && count($amounts) === 1
+                    && array_key_exists((int) data_get($existing->metadata, 'payment_plan_installment_id'), $amounts)
+                    && ($amounts[array_key_first($amounts)] === null || $amounts[array_key_first($amounts)] === $existing->amount)
+                    && $existing->payment_method === $method
+                    && $existing->payment_date->toDateString() === $date && (int) $existing->bank_account_id === $bankAccountId;
+                if ((int) data_get($existing->metadata, 'payment_plan_id') !== (int) $plan->id
+                    || (data_get($existing->metadata, 'request_signature') !== $signature && ! $legacy)) {
+                    throw ValidationException::withMessages(['operation_key' => 'Esta operação já foi usada em outro pagamento.']);
                 }
 
                 return $existing->load('allocations');
             }
-
-            $installment = ServicePaymentPlanInstallment::query()
-                ->where('tenant_id', $installment->tenant_id)
-                ->whereKey($installment->id)
-                ->with('plan.obligations')
-                ->lockForUpdate()
-                ->firstOrFail();
-            if ($installment->plan()->lockForUpdate()->value('status') !== 'active') {
+            if ($plan->status !== 'active') {
                 throw ValidationException::withMessages(['installment' => 'Este acordo não aceita novos recebimentos.']);
             }
-            if ($installment->status === 'paid' || $installment->service_payment_event_id) {
-                throw ValidationException::withMessages(['installment' => 'Esta parcela já foi recebida.']);
+            if ($amounts === [] || ! in_array($method, array_column(PaymentMethod::cases(), 'value'), true)) {
+                throw ValidationException::withMessages(['payment_method' => 'Informe as parcelas e uma forma de pagamento válida.']);
             }
-
-            $account = BankAccount::query()->whereKey($bankAccountId)
-                ->where('tenant_id', $installment->tenant_id)->where('status', true)
-                ->lockForUpdate()->first();
+            $installments = $plan->installments()->where('tenant_id', $plan->tenant_id)
+                ->whereIn('id', array_keys($amounts))->lockForUpdate()->get();
+            if ($installments->count() !== count($amounts)) {
+                throw ValidationException::withMessages(['amounts' => 'Selecione apenas parcelas deste acordo.']);
+            }
+            $obligationIds = DB::table('service_payment_plan_obligations')->where('service_payment_plan_id', $plan->id)
+                ->lockForUpdate()->pluck('service_obligation_id');
+            $obligations = ServiceObligation::query()->where('tenant_id', $plan->tenant_id)->where('direction', 'receivable')
+                ->whereIn('id', $obligationIds)->orderBy('id')->lockForUpdate()->get();
+            $account = BankAccount::query()->whereKey($bankAccountId)->where('tenant_id', $plan->tenant_id)
+                ->where('status', true)->lockForUpdate()->first();
             if (! $account) {
                 throw ValidationException::withMessages(['bank_account_id' => 'Conta inválida para esta organização.']);
             }
 
-            $obligationIds = $installment->plan->obligations->pluck('id');
-            $obligations = ServiceObligation::query()->where('tenant_id', $installment->tenant_id)
-                ->whereIn('id', $obligationIds)->orderBy('id')->lockForUpdate()->get();
-            $amount = round((float) $installment->amount, 2);
-            if (round((float) $obligations->sum(fn (ServiceObligation $obligation) => $obligation->balance), 2) + 0.0001 < $amount) {
-                throw ValidationException::withMessages(['installment' => 'O saldo atual das obrigações é menor que o valor desta parcela. Revise pagamentos já lançados.']);
+            $events = $plan->receiptEvents()->orderBy('id')->get();
+            $balances = $obligations->mapWithKeys(fn (ServiceObligation $item) => [$item->id => $item->balanceCents()])->all();
+            $distributions = [];
+            $allocated = [];
+            foreach ($installments as $installment) {
+                $balance = $installment->balanceCents($events);
+                $cents = $amounts[$installment->id] === null ? $balance : ServiceMoney::cents($amounts[$installment->id]);
+                if ($installment->status !== 'scheduled' || $cents <= 0 || $cents > $balance) {
+                    throw ValidationException::withMessages(['amounts' => 'O valor deve ser positivo e não pode superar o saldo da parcela.']);
+                }
+
+                $remaining = $cents;
+                $byObligation = [];
+                foreach ($balances as $id => $available) {
+                    $portion = min($remaining, $available);
+                    if ($portion > 0) {
+                        $byObligation[$id] = $portion;
+                        $allocated[$id] = ($allocated[$id] ?? 0) + $portion;
+                        $balances[$id] -= $portion;
+                        $remaining -= $portion;
+                    }
+                    if ($remaining === 0) {
+                        break;
+                    }
+                }
+                if ($remaining !== 0) {
+                    throw ValidationException::withMessages(['amounts' => 'O saldo atual das ordens é menor que o valor informado.']);
+                }
+                $distributions[$installment->id] = [
+                    'number' => $installment->number, 'kind' => $installment->kind,
+                    'cents' => $cents, 'obligations' => $byObligation,
+                ];
             }
 
             $event = new ServicePaymentEvent([
-                'operation_key' => $operationKey,
-                'event_type' => 'payment',
-                'status' => 'confirmed',
-                'amount' => $amount,
-                'payment_method' => $method,
-                'payment_date' => $date,
-                'bank_account_id' => $account->id,
-                'metadata' => [
-                    'payment_plan_id' => $installment->service_payment_plan_id,
-                    'payment_plan_installment_id' => $installment->id,
-                    'installment_number' => $installment->number,
-                    'installment_kind' => $installment->kind,
-                ],
-                'registered_by' => $actor->id,
+                'operation_key' => $operationKey, 'event_type' => 'payment', 'status' => 'confirmed',
+                'amount' => ServiceMoney::decimal(array_sum($allocated)), 'payment_method' => $method,
+                'payment_date' => $date, 'bank_account_id' => $account->id, 'registered_by' => $actor->id,
+                'metadata' => array_merge($details, [
+                    'payment_plan_id' => (int) $plan->id,
+                    'payment_plan_installment_id' => count($distributions) === 1 ? array_key_first($distributions) : null,
+                    'installments' => $distributions, 'request_signature' => $signature,
+                    'remaining_plan_cents' => array_sum($balances),
+                    'registered_by_name' => $actor->getAttributes()['name'] ?? null,
+                ]),
             ]);
-            $event->tenant_id = $installment->tenant_id;
+            $event->tenant_id = $plan->tenant_id;
             $event->save();
 
-            $remaining = $amount;
             foreach ($obligations as $obligation) {
-                $allocated = min($remaining, $obligation->balance);
-                if ($allocated <= 0) {
+                if (! isset($allocated[$obligation->id])) {
                     continue;
                 }
                 $allocation = new ServicePaymentAllocation([
-                    'service_payment_event_id' => $event->id,
-                    'service_obligation_id' => $obligation->id,
-                    'amount' => round($allocated, 2),
+                    'service_payment_event_id' => $event->id, 'service_obligation_id' => $obligation->id,
+                    'amount' => ServiceMoney::decimal($allocated[$obligation->id]),
                 ]);
-                $allocation->tenant_id = $installment->tenant_id;
+                $allocation->tenant_id = $plan->tenant_id;
                 $allocation->save();
-                $remaining = round($remaining - $allocated, 2);
                 $this->refreshStatus($obligation);
             }
 
             $movement = new CashMovement([
-                'type' => CashMovementType::INCOME,
-                'amount' => $amount,
-                'description' => ($installment->kind === 'entry' ? 'Entrada' : 'Parcela '.$installment->number).' de negociação de serviços',
-                'movement_date' => $date,
-                'bank_account_id' => $account->id,
-                'payment_method' => $method,
-                'document_number' => 'NEG-'.$installment->service_payment_plan_id.'-'.$installment->number,
-                'created_by' => $actor->id,
+                'type' => CashMovementType::INCOME, 'amount' => $event->amount,
+                'description' => 'Recebimento de acordo de serviços', 'movement_date' => $date,
+                'bank_account_id' => $account->id, 'payment_method' => $method,
+                'document_number' => 'NEG-'.$plan->id.'-'.$event->id, 'notes' => $details['notes'] ?? null, 'created_by' => $actor->id,
             ]);
-            $movement->tenant_id = $installment->tenant_id;
+            $movement->tenant_id = $plan->tenant_id;
             $movement->reference_type = ServicePaymentEvent::class;
             $movement->reference_id = $event->id;
             $movement->save();
             $event->update(['cash_movement_id' => $movement->id]);
-            $installment->update(['status' => 'paid', 'service_payment_event_id' => $event->id, 'paid_at' => now()]);
-            if (! $installment->plan->installments()->where('status', '!=', 'paid')->exists()) {
-                $installment->plan->update(['status' => 'completed']);
+
+            $events->push($event);
+            foreach ($installments as $installment) {
+                $this->refreshInstallment($installment, $events);
+            }
+            if (! $plan->installments()->where('status', '!=', 'paid')->exists()) {
+                $plan->update(['status' => 'completed']);
             }
 
-            activity('service_payment')->performedOn($event)->causedBy($actor)->withProperties([
-                'tenant_id' => $installment->tenant_id,
-                'payment_plan_installment_id' => $installment->id,
-            ])->log('Parcela de negociação de serviços recebida');
+            activity('service_payment')->performedOn($event)->causedBy($actor)
+                ->withProperties(['payment_plan_id' => $plan->id, 'installments' => $distributions])
+                ->log('Recebimento de acordo de serviços registrado');
 
             return $event->fresh(['allocations', 'cashMovement']);
         }, 3);
+    }
+
+    private function refreshInstallment(ServicePaymentPlanInstallment $installment, Collection $events): void
+    {
+        $paid = $installment->balanceCents($events) === 0;
+        $lastPayment = $events->where('status', 'confirmed')->last(fn (ServicePaymentEvent $event) => $installment->eventCents($event) > 0);
+        $installment->update([
+            'status' => $paid ? 'paid' : 'scheduled',
+            'service_payment_event_id' => $paid ? $lastPayment?->id : null,
+            'paid_at' => $paid ? $lastPayment?->payment_date : null,
+        ]);
     }
 
     public function correctReceiptAccount(ServicePaymentEvent $payment, int $accountId, string $reason, string $operationKey, User $actor): ServicePaymentEvent
@@ -204,7 +261,7 @@ class ServicePaymentService
             }
 
             if ($payment->event_type !== 'payment' || $payment->status !== 'confirmed' || $payment->reversal_of_id
-                || !$payment->bank_account_id || !$payment->cash_movement_id || data_get($payment->metadata, 'payment_plan_installment_id')) {
+                || !$payment->bank_account_id || !$payment->cash_movement_id || data_get($payment->metadata, 'payment_plan_id')) {
                 throw ValidationException::withMessages(['payment' => 'Selecione um recebimento direto, confirmado e vinculado a uma conta.']);
             }
             if ((int) $payment->bank_account_id === $accountId) {
@@ -241,15 +298,21 @@ class ServicePaymentService
     public function reverse(ServicePaymentEvent $payment, string $reason, string $operationKey, User $actor, ?string $effectiveDate = null): ServicePaymentEvent
     {
         return DB::transaction(function () use ($payment, $reason, $operationKey, $actor, $effectiveDate): ServicePaymentEvent {
+            $planId = data_get($payment->metadata, 'payment_plan_id');
+            $legacy = ! $planId && Schema::hasTable('service_payment_plan_installments')
+                ? ServicePaymentPlanInstallment::query()->where('tenant_id', $payment->tenant_id)
+                    ->where('service_payment_event_id', $payment->id)->lockForUpdate()->first()
+                : null;
+            $planId ??= $legacy?->service_payment_plan_id;
+            $plan = $planId ? ServicePaymentPlan::query()->where('tenant_id', $payment->tenant_id)->lockForUpdate()->findOrFail($planId) : null;
             $payment = ServicePaymentEvent::query()->whereKey($payment->id)->where('tenant_id', $payment->tenant_id)->lockForUpdate()->firstOrFail();
-            if ($existing = ServicePaymentEvent::query()->where('tenant_id', $payment->tenant_id)->where('operation_key', $operationKey)->first()) {
+            if ($existing = ServicePaymentEvent::query()->where('tenant_id', $payment->tenant_id)->where('operation_key', $operationKey)->lockForUpdate()->first()) {
                 if ($existing->reversal_of_id !== $payment->id) {
                     throw ValidationException::withMessages(['operation_key' => 'A chave de operação já foi usada em outro estorno.']);
                 }
 
                 return $existing->load('allocations');
             }
-            $payment = ServicePaymentEvent::query()->whereKey($payment->id)->where('tenant_id', $payment->tenant_id)->lockForUpdate()->firstOrFail();
             if ($payment->event_type !== 'payment' || $payment->status !== 'confirmed' || $payment->reversal_of_id) {
                 throw ValidationException::withMessages(['payment' => 'Pagamento não pode ser estornado ou já foi estornado.']);
             }
@@ -261,7 +324,10 @@ class ServicePaymentService
                 throw ValidationException::withMessages(['payment' => 'Pagamento sem alocação não pode ser estornado.']);
             }
             $obligations = ServiceObligation::query()->whereIn('id', $allocations->pluck('service_obligation_id'))
-                ->where('tenant_id', $payment->tenant_id)->lockForUpdate()->get()->keyBy('id');
+                ->where('tenant_id', $payment->tenant_id)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            if ($obligations->contains(fn (ServiceObligation $obligation) => $obligation->activePaymentPlan($plan?->id))) {
+                throw ValidationException::withMessages(['payment' => 'O estorno afeta outro acordo ativo. Revise o acordo vigente antes de estornar.']);
+            }
             $account = null;
             if ($payment->bank_account_id) {
                 $account = BankAccount::query()->whereKey($payment->bank_account_id)->where('tenant_id', $payment->tenant_id)->lockForUpdate()->firstOrFail();
@@ -272,7 +338,7 @@ class ServicePaymentService
             $reversal->save();
             foreach ($allocations as $allocation) {
                 $obligation = $obligations->get($allocation->service_obligation_id);
-                $reverseAllocation = new ServicePaymentAllocation(['service_payment_event_id' => $reversal->id, 'service_obligation_id' => $allocation->service_obligation_id, 'amount' => -(float) $allocation->amount]);
+                $reverseAllocation = new ServicePaymentAllocation(['service_payment_event_id' => $reversal->id, 'service_obligation_id' => $allocation->service_obligation_id, 'amount' => ServiceMoney::decimal(-ServiceMoney::cents($allocation->amount))]);
                 $reverseAllocation->tenant_id = $payment->tenant_id;
                 $reverseAllocation->save();
                 if ($obligation) {
@@ -289,13 +355,18 @@ class ServicePaymentService
                 $reversal->update(['cash_movement_id' => $movement->id]);
             }
             $payment->update(['status' => 'reversed']);
-            $installment = Schema::hasTable('service_payment_plan_installments')
-                ? ServicePaymentPlanInstallment::query()->where('tenant_id', $payment->tenant_id)->where('service_payment_event_id', $payment->id)->lockForUpdate()->first()
-                : null;
-            if ($installment) {
-                $installment->update(['status' => 'scheduled', 'service_payment_event_id' => null, 'paid_at' => null]);
-                $installment->plan()->update(['status' => 'active']);
+            if ($plan && in_array($plan->status, ['active', 'completed'], true)) {
+                $ids = array_keys(data_get($payment->metadata, 'installments', [])) ?: [
+                    (int) (data_get($payment->metadata, 'payment_plan_installment_id') ?? $legacy?->id),
+                ];
+                $events = $plan->receiptEvents()->orderBy('id')->get();
+                foreach ($plan->installments()->whereIn('id', $ids)->lockForUpdate()->get() as $installment) {
+                    $this->refreshInstallment($installment, $events);
+                }
+                $plan->update(['status' => 'active']);
             }
+            activity('service_payment')->performedOn($reversal)->causedBy($actor)
+                ->withProperties(['reversal_of_id' => $payment->id, 'reason' => $reason])->log('Recebimento de serviço estornado');
 
             return $reversal->fresh(['allocations', 'cashMovement']);
         }, 3);
@@ -304,8 +375,8 @@ class ServicePaymentService
     private function refreshStatus(ServiceObligation $obligation): void
     {
         $obligation->refresh();
-        $paid = $obligation->paid_amount;
-        $status = $paid <= 0 ? 'open' : ($paid + 0.0001 >= $obligation->total_amount ? 'paid' : 'partially_paid');
+        $paid = $obligation->paidCents();
+        $status = $paid <= 0 ? 'open' : ($paid >= $obligation->totalCents() ? 'paid' : 'partially_paid');
         $obligation->update(['status' => $status]);
     }
 }

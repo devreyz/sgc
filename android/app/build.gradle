@@ -1,5 +1,16 @@
 apply plugin: 'com.android.application'
 
+def providerOfflineAssets = layout.buildDirectory.dir('generated/providerOfflineAssets')
+def packageProviderOffline = tasks.register('packageProviderOffline', Sync) {
+    from(rootProject.file('../public')) {
+        include 'provider-offline.html', 'assets/provider-offline.css', 'assets/provider-offline*.js',
+            'assets/icons/campo-dark-192.png'
+    }
+    into(providerOfflineAssets.map { it.dir('provider-offline') })
+}
+android.sourceSets.main.assets.srcDir(providerOfflineAssets)
+tasks.named('preBuild').configure { dependsOn(packageProviderOffline) }
+
 def googleWebClientId = (project.findProperty('GOOGLE_WEB_CLIENT_ID')
         ?: System.getenv('GOOGLE_WEB_CLIENT_ID')
         ?: '').toString().trim()

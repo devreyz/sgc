@@ -6,6 +6,7 @@ use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Validation\ValidationException;
 
 class ServicePaymentEvent extends Model
@@ -19,4 +20,6 @@ class ServicePaymentEvent extends Model
     public function bankAccount(): BelongsTo { return $this->belongsTo(BankAccount::class)->withTrashed(); }
     public function reversalOf(): BelongsTo { return $this->belongsTo(self::class, 'reversal_of_id'); }
     public function document(): BelongsTo { return $this->belongsTo(Document::class); }
+    public function registrar(): BelongsTo { return $this->belongsTo(User::class, 'registered_by'); }
+    public function receiptProof(): MorphOne { return $this->morphOne(Document::class, 'documentable')->where('category', 'comprovante'); }
 }

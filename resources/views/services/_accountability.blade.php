@@ -54,6 +54,9 @@
     </div>
     @endif
     <div class="accountability-equation"><strong>Leitura do período:</strong> entrou {{ $money($summary['cash_received_period']) }}, saiu {{ $money($summary['cash_paid_period']) }} para prestadores e {{ $money($summary['service_expense_paid'] ?? 0) }} em despesas de serviços.</div>
+    @if(($summary['active_negotiated_balance'] ?? 0) > 0)
+        <p class="accountability-equation">Saldo atual das ordens deste relatório incluído em acordos ativos <strong>{{ $money($summary['active_negotiated_balance']) }}</strong></p>
+    @endif
     @if($summary['payments_without_cash'])<p role="alert" style="padding:.65rem;background:#fef2f2;color:#991b1b">Atenção: {{ $summary['payments_without_cash'] }} pagamento(s) ainda não possuem movimento de caixa vinculado.</p>@endif
 
     @endif

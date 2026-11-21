@@ -7,19 +7,35 @@ use App\Models\ServiceObligation;
 use App\Models\ServicePaymentPlan;
 use App\Models\User;
 use App\Services\FinancialDocumentIdentityService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ServiceNegotiationService
 {
+    public function eligible(int $tenantId, ?int $includedPlanId = null): Builder
+    {
+        return ServiceObligation::query()->where('tenant_id', $tenantId)->where('direction', 'receivable')
+            ->whereIn('status', ['open', 'partially_paid'])
+            ->whereHas('execution', fn ($execution) => $execution->where('tenant_id', $tenantId)->where('status', 'validated')
+                ->whereHas('order', fn ($order) => $order->where('tenant_id', $tenantId)->where('status', '!=', 'cancelled')
+                    ->where(fn ($state) => $state->whereNull('operational_status')->orWhere('operational_status', '!=', 'cancelled'))))
+            ->whereNotIn('id', DB::table('service_payment_plan_obligations as link')
+                ->join('service_payment_plans as plan', 'plan.id', '=', 'link.service_payment_plan_id')
+                ->where('plan.tenant_id', $tenantId)->where('plan.status', 'active')
+                ->when($includedPlanId, fn ($query) => $query->where('plan.id', '!=', $includedPlanId))
+                ->select('link.service_obligation_id'));
+    }
+
     public function cancel(ServiceNegotiation $agreement, string $reason, User $actor): void
     {
         DB::transaction(function () use ($agreement, $reason, $actor): void {
             $agreement = ServiceNegotiation::query()->where('tenant_id', $agreement->tenant_id)->lockForUpdate()->findOrFail($agreement->id);
-            $plan = $agreement->plan()->firstOrFail();
+            $plan = $agreement->plan()->lockForUpdate()->firstOrFail();
             $installments = $plan->installments()->orderBy('id')->lockForUpdate()->get();
-            if ($agreement->status !== 'active' || $agreement->plan()->lockForUpdate()->value('status') !== 'active'
+            if ($agreement->status !== 'active' || $plan->status !== 'active'
+                || $plan->receiptEvents()->where('status', 'confirmed')->exists()
                 || $installments->contains(fn ($item) => $item->status !== 'scheduled' || $item->service_payment_event_id)) {
                 throw ValidationException::withMessages(['reason' => 'Somente acordos ativos sem parcelas recebidas podem ser cancelados.']);
             }
@@ -33,54 +49,74 @@ class ServiceNegotiationService
         }, 3);
     }
 
-    public function create(int $tenantId, array $obligationIds, array $installments, User $actor, ?ServiceNegotiation $supersedes = null): ServiceNegotiation
+    public function create(int $tenantId, array $obligationIds, array $installments, User $actor, ?ServiceNegotiation $supersedes = null, ?string $operationKey = null): ServiceNegotiation
     {
-        return DB::transaction(function () use ($tenantId, $obligationIds, $installments, $actor, $supersedes) {
+        $obligationIds = array_map('intval', $obligationIds);
+        sort($obligationIds);
+        $operationHash = hash('sha256', json_encode([$obligationIds, $installments, $supersedes?->id], JSON_THROW_ON_ERROR));
+
+        return DB::transaction(function () use ($tenantId, $obligationIds, $installments, $actor, $supersedes, $operationKey, $operationHash) {
             if ($installments === [] || count($installments) > 120) {
                 throw ValidationException::withMessages(['installments' => 'Quantidade de parcelas inválida.']);
             }
-            $obligations = ServiceObligation::query()
-                ->where('tenant_id', $tenantId)
-                ->where('direction', 'receivable')
+            $year = (int) now()->format('Y');
+            DB::table('service_negotiation_sequences')->insertOrIgnore(['tenant_id' => $tenantId, 'year' => $year, 'last_number' => 0, 'created_at' => now(), 'updated_at' => now()]);
+            $sequence = DB::table('service_negotiation_sequences')->where('tenant_id', $tenantId)->where('year', $year);
+            $counter = (clone $sequence)->lockForUpdate()->first();
+            if ($operationKey) {
+                $existing = ServiceNegotiation::query()->where('tenant_id', $tenantId)->where('operation_key', $operationKey)->lockForUpdate()->first();
+                if ($existing) {
+                    if (data_get($existing->terms_snapshot, 'operation_hash') !== $operationHash) {
+                        throw ValidationException::withMessages(['operation_key' => 'Esta operação já foi usada com outras condições.']);
+                    }
+
+                    return $existing->load('plan.installments');
+                }
+            }
+            $previousPlan = null;
+            if ($supersedes) {
+                $supersedes = ServiceNegotiation::query()->where('tenant_id', $tenantId)->lockForUpdate()->findOrFail($supersedes->id);
+                $previousPlan = $supersedes->plan()->lockForUpdate()->firstOrFail();
+                if ($supersedes->status !== 'active' || $previousPlan->status !== 'active') {
+                    throw ValidationException::withMessages(['supersedes' => 'Somente acordos ativos com saldo podem ser renegociados.']);
+                }
+            }
+            $obligations = ServiceObligation::query()->where('tenant_id', $tenantId)
                 ->whereIn('id', $obligationIds)
-                ->with(['execution.order.service'])
                 ->orderBy('id')
                 ->lockForUpdate()
                 ->get();
-            if ($obligations->count() !== count(array_unique($obligationIds))) {
-                throw ValidationException::withMessages(['obligations' => 'Uma ou mais obrigações não pertencem à organização.']);
+            $eligible = $this->eligible($tenantId, $previousPlan?->id)->whereIn('id', $obligationIds)->pluck('id');
+            if ($eligible->count() !== count($obligationIds) || $obligations->count() !== count($obligationIds)) {
+                throw ValidationException::withMessages(['obligation_ids' => 'Selecione somente saldos disponíveis para negociação nesta organização.']);
             }
-            if ($obligations->contains(fn (ServiceObligation $item) => ! in_array($item->status, ['open', 'partially_paid'], true) || $item->balance <= 0)) {
+            $obligations->load(['execution.order.service', 'associate']);
+            $balances = $obligations->mapWithKeys(fn (ServiceObligation $item) => [$item->id => $item->balanceCents()]);
+            if ($balances->contains(fn (int $balance) => $balance <= 0)) {
                 throw ValidationException::withMessages(['obligation_ids' => 'Uma obrigação mudou de situação. Atualize a lista e selecione somente saldos em aberto.']);
             }
-            $parties = $obligations->map(fn (ServiceObligation $obligation): string => implode(':', [
-                (string) data_get($obligation->party_snapshot, 'type', 'party'),
-                (string) (data_get($obligation->party_snapshot, 'id') ?: (str(data_get($obligation->party_snapshot, 'name', ''))->ascii()->lower()->squish()->toString() ?: 'unknown-'.$obligation->id)),
-            ]))->unique();
-            if ($parties->count() !== 1) {
+            $parties = $obligations->pluck('associate_id')->unique();
+            $previousIds = $previousPlan?->obligations()->pluck('service_obligations.id')->all() ?? [];
+            $keepsLegacyGroup = $previousPlan && ! array_diff($obligationIds, $previousIds);
+            if ($parties->count() !== 1 || ($obligations->count() > 1 && ! $parties->first() && ! $keepsLegacyGroup)
+                || $obligations->contains(fn (ServiceObligation $item) => $item->associate_id
+                    && (int) $item->associate?->tenant_id !== $tenantId)) {
                 throw ValidationException::withMessages(['obligation_ids' => 'Um termo só pode reunir obrigações da mesma pessoa. Crie um termo separado para cada beneficiário.']);
             }
-            $alreadyNegotiatedQuery = DB::table('service_payment_plan_obligations as link')
-                ->join('service_payment_plans as plans', 'plans.id', '=', 'link.service_payment_plan_id')
-                ->where('plans.tenant_id', $tenantId)->where('plans.status', 'active')
-                ->whereIn('link.service_obligation_id', $obligations->pluck('id'));
-            if ($supersedes?->payment_plan_id) {
-                $alreadyNegotiatedQuery->where('plans.id', '!=', $supersedes->payment_plan_id);
+            if ($previousPlan) {
+                $pendingIds = $this->eligible($tenantId, $previousPlan->id)
+                    ->whereIn('id', $previousIds)->pluck('id')->all();
+                if ($pendingIds === [] || array_diff($pendingIds, $obligationIds)) {
+                    throw ValidationException::withMessages(['obligation_ids' => 'Inclua todos os saldos pendentes do acordo anterior.']);
+                }
             }
-            $alreadyNegotiated = $alreadyNegotiatedQuery->exists();
-            if ($alreadyNegotiated) {
-                throw ValidationException::withMessages(['obligation_ids' => 'Uma das obrigações já pertence a um termo ativo. Conclua ou substitua o termo existente antes de negociar novamente.']);
-            }
-            $total = round((float) $obligations->sum('balance'), 2);
-            if ($total <= 0) {
-                throw ValidationException::withMessages(['obligations' => 'As obrigações selecionadas não possuem saldo.']);
-            }
+            $total = ServiceMoney::decimal($balances->sum());
             $schedule = $this->normalizeSchedule($total, $installments);
             $plan = new ServicePaymentPlan(['status' => 'active', 'description' => 'Termo de negociação de serviços', 'created_by' => $actor->id]);
             $plan->tenant_id = $tenantId;
             $plan->save();
             foreach ($obligations as $obligation) {
-                $plan->obligations()->attach($obligation->id, ['included_amount' => $obligation->balance]);
+                $plan->obligations()->attach($obligation->id, ['included_amount' => ServiceMoney::decimal($balances[$obligation->id])]);
             }
             foreach ($schedule as $index => $scheduled) {
                 $item = $plan->installments()->make([
@@ -94,11 +130,8 @@ class ServiceNegotiationService
                 $item->save();
                 app(FinancialDocumentIdentityService::class)->ensure($item, $actor);
             }
-            $year = (int) now()->format('Y');
-            DB::table('service_negotiation_sequences')->insertOrIgnore(['tenant_id' => $tenantId, 'year' => $year, 'last_number' => 0, 'created_at' => now(), 'updated_at' => now()]);
-            $counter = DB::table('service_negotiation_sequences')->where('tenant_id', $tenantId)->where('year', $year)->lockForUpdate()->first();
             $number = ((int) $counter->last_number) + 1;
-            DB::table('service_negotiation_sequences')->where('tenant_id', $tenantId)->where('year', $year)->update(['last_number' => $number, 'updated_at' => now()]);
+            $sequence->update(['last_number' => $number, 'updated_at' => now()]);
             $negotiation = new ServiceNegotiation([
                 'number' => sprintf('TN-%d-%06d', $year, $number),
                 'status' => 'active',
@@ -108,15 +141,18 @@ class ServiceNegotiationService
                 'negotiated_amount' => $total,
                 'terms_snapshot' => [
                     'created_at' => now()->toIso8601String(),
-                    'created_by' => ['id' => $actor->id, 'name' => $actor->name],
-                    'party' => $obligations->pluck('party_snapshot')->filter()->first(),
+                    'created_by' => ['id' => $actor->id, 'name' => $actor->getAttributes()['name'] ?? null],
+                    'party' => array_replace((array) $obligations->first()->party_snapshot, array_filter([
+                        'name' => data_get($obligations->first()->execution?->order?->beneficiary_snapshot, 'name'),
+                        'document' => $obligations->first()->associate?->cpf_cnpj,
+                    ])),
                     'obligations' => $obligations->map(fn (ServiceObligation $obligation) => [
                         'id' => $obligation->id,
                         'number' => $obligation->number,
                         'order_number' => $obligation->execution?->order?->number,
                         'service' => $obligation->execution?->order?->service?->name,
                         'due_date' => $obligation->due_date?->toDateString(),
-                        'included_amount' => $obligation->balance,
+                        'included_amount' => ServiceMoney::decimal($balances[$obligation->id]),
                     ])->all(),
                     'installments' => $plan->installments->map(fn ($item) => [
                         'number' => $item->number,
@@ -128,23 +164,31 @@ class ServiceNegotiationService
                 'created_by' => $actor->id,
             ]);
             $negotiation->tenant_id = $tenantId;
+            if ($operationKey) {
+                $negotiation->operation_key = $operationKey;
+                $negotiation->terms_snapshot = $negotiation->terms_snapshot + ['operation_hash' => $operationHash];
+            }
             $negotiation->save();
             if ($supersedes) {
-                $supersedes = ServiceNegotiation::query()->where('tenant_id', $tenantId)->whereKey($supersedes->id)->lockForUpdate()->firstOrFail();
+                $previousPlan->installments()->where('status', '!=', 'paid')->update(['status' => 'cancelled']);
+                $previousPlan->update(['status' => 'superseded']);
                 $supersedes->update(['status' => 'superseded']);
             }
+            activity('service_negotiation')->performedOn($negotiation)->causedBy($actor)
+                ->withProperties(['obligation_ids' => $obligationIds, 'supersedes_id' => $supersedes?->id])
+                ->log($supersedes ? 'Acordo de serviço renegociado' : 'Acordo de serviço criado');
 
             return $negotiation->fresh('plan.installments');
         }, 3);
     }
 
-    public function normalizeSchedule(float $total, array $installments): array
+    public function normalizeSchedule(string|int|float $total, array $installments): array
     {
         $entryCount = 0;
         $schedule = collect($installments)->values()->map(function (array $item, int $index) use (&$entryCount): array {
             $kind = ($item['kind'] ?? 'installment') === 'entry' ? 'entry' : 'installment';
             $entryCount += $kind === 'entry' ? 1 : 0;
-            $amount = round((float) ($item['amount'] ?? 0), 2);
+            $amount = ServiceMoney::cents($item['amount'] ?? 0);
             if ($amount <= 0) {
                 throw ValidationException::withMessages(["installments.{$index}.amount" => 'Informe um valor maior que zero.']);
             }
@@ -166,13 +210,12 @@ class ServiceNegotiationService
             throw ValidationException::withMessages(['installments' => 'O plano pode possuir somente uma entrada.']);
         }
         $schedule = collect($schedule)->sortBy(fn (array $item): int => $item['kind'] === 'entry' ? 0 : 1)->values()->all();
-        $scheduledTotal = round((float) collect($schedule)->sum('amount'), 2);
-        if (abs($scheduledTotal - round($total, 2)) > 0.009) {
+        if (array_sum(array_column($schedule, 'amount')) !== ServiceMoney::cents($total)) {
             throw ValidationException::withMessages([
-                'installments' => 'A soma da entrada e das parcelas deve ser exatamente R$ '.number_format($total, 2, ',', '.').'.',
+                'installments' => 'A soma da entrada e das parcelas deve ser exatamente R$ '.number_format((float) $total, 2, ',', '.').'.',
             ]);
         }
 
-        return $schedule;
+        return array_map(fn (array $item) => array_replace($item, ['amount' => ServiceMoney::decimal($item['amount'])]), $schedule);
     }
 }

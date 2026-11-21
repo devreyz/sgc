@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Traits\BelongsToTenant;
+use App\Services\Services\ServiceMoney;
+use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
@@ -27,6 +29,52 @@ class ServicePaymentPlanInstallment extends Model
     public function paymentEvent(): BelongsTo
     {
         return $this->belongsTo(ServicePaymentEvent::class, 'service_payment_event_id');
+    }
+
+    public function receivedCents(?Collection $events = null): int
+    {
+        $events ??= $this->plan?->receiptEvents()->get() ?? collect();
+
+        $received = $events->where('status', 'confirmed')->sum(fn (ServicePaymentEvent $event) => $this->eventCents($event));
+        if ($this->service_payment_event_id && ! $events->contains('id', $this->service_payment_event_id)) {
+            $legacy = $this->paymentEvent;
+            $received += $legacy?->status === 'confirmed' ? ServiceMoney::cents($legacy->amount) : 0;
+        }
+
+        return $received;
+    }
+
+    public function eventCents(ServicePaymentEvent $event): int
+    {
+        if (isset($event->metadata['installments'][$this->id])) {
+            return (int) $event->metadata['installments'][$this->id]['cents'];
+        }
+
+        $matches = (int) ($event->metadata['payment_plan_installment_id'] ?? 0) === (int) $this->id
+            || (int) $this->service_payment_event_id === (int) $event->id;
+
+        return $matches ? ServiceMoney::cents($event->amount) : 0;
+    }
+
+    public function balanceCents(?Collection $events = null): int
+    {
+        return max(0, ServiceMoney::cents($this->amount) - $this->receivedCents($events));
+    }
+
+    public function financialLabel(Collection $events): string
+    {
+        if ($this->status === 'cancelled') {
+            return 'Cancelada';
+        }
+        $received = $this->receivedCents($events);
+        if ($received >= ServiceMoney::cents($this->amount)) {
+            return 'Quitada';
+        }
+        if ($this->due_date->lt(today())) {
+            return $received > 0 ? 'Vencida · parcial' : 'Vencida';
+        }
+
+        return $received > 0 ? 'Parcialmente paga' : 'Pendente';
     }
 
     public function verificationIdentity(): MorphOne

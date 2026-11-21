@@ -1886,8 +1886,8 @@
                 <button class="ds-button secondary" type="submit"><i class="ph-duotone ph-share-network" aria-hidden="true"></i>Via do beneficiário</button>
                 <small data-sgc-pdf-error role="alert"></small>
             </form>
-            @if($order->execution?->obligations?->where('direction', 'receivable')->isNotEmpty())
-                <a class="ds-button" href="{{ route('services.management.agreements', ['tenant' => $tenantSlug]) }}"><i class="ph-duotone ph-handshake"></i>Negociar cobrança</a>
+            @if(auth()->user()->checkPermissionTo('manage_service_agreements') && $order->execution?->obligations?->contains(fn ($debt) => $debt->direction === 'receivable' && $debt->balance > 0))
+                <a class="ds-button" href="{{ route('services.management.agreements.create', ['tenant' => $tenantSlug, 'origin' => $order->id]) }}"><i class="ph-duotone ph-handshake"></i>Negociar cobrança</a>
             @endif
         </div>
 
@@ -2512,6 +2512,10 @@
                                                     </small>
                                                 </span>
 
+                                                @if($obligation->direction === 'receivable' && $allocation->paymentEvent?->event_type === 'payment'
+                                                    && $allocation->paymentEvent?->id && auth()->user()->checkPermissionTo('manage_service_receivables'))
+                                                    <a class="ds-button" target="_blank" rel="noopener" data-sgc-pdf href="{{ route('services.management.payments.receipt', [$tenantSlug, $allocation->paymentEvent, 'inline' => 1]) }}">Recibo</a>
+                                                @endif
                                                 @if(
                                                     $allocation
                                                         ->paymentEvent

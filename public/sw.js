@@ -2,11 +2,11 @@
 
 const OFFLINE_CACHE = 'sgc-offline-2';
 const ASSET_CACHE = 'sgc-static-3';
-const PROVIDER_CACHE = 'sgc-provider-shell-2';
+const PROVIDER_CACHE = 'sgc-provider-shell-3';
 const OFFLINE_URL = '/offline';
 const PROVIDER_PAGE = '/provider-offline.html';
 const PROVIDER_ASSETS = [PROVIDER_PAGE, '/assets/provider-offline.css', '/assets/provider-offline.js',
-    '/assets/provider-offline-store.js', '/assets/provider-offline-document.js'];
+    '/assets/provider-offline-store.js', '/assets/provider-offline-document.js', '/assets/icons/campo-dark-192.png'];
 const PUBLIC_ASSET = /^(?:\/(?:assets|icons)\/.*|\/favicon[^/]*)\.(?:png|jpe?g|webp|gif|svg|ico|woff2?|ttf|otf)$/i;
 const REFRESH_INTERVAL = 10 * 60 * 1000;
 let providerRefresh;
@@ -79,10 +79,15 @@ self.addEventListener('fetch', event => {
         if (url.pathname === PROVIDER_PAGE) event.waitUntil(refreshProviderShell().catch(() => {}));
         return;
     }
-    if (event.request.mode === 'navigate' && (url.pathname === '/app' || /^\/[^/]+\/provider\/(dashboard|orders(?:\/.*)?)$/.test(url.pathname))) {
-        const create = url.pathname.match(/^\/([a-z0-9_-]+)\/provider\/orders\/create\/?$/i);
-        const offlineCreate = create && new URL(PROVIDER_PAGE + '?' + new URLSearchParams({tenant: create[1], new: '1'}), url.origin);
-        event.respondWith(networkFirst(event.request, PROVIDER_CACHE, PROVIDER_PAGE, false, offlineCreate?.href));
+    const provider = url.pathname.match(/^\/([a-z0-9_-]+)\/provider\/(?:dashboard|orders(?:\/(create|\d+))?)\/?$/i);
+    if (event.request.mode === 'navigate' && (url.pathname === '/app' || provider)) {
+        const fallback = new URL(PROVIDER_PAGE, url.origin);
+        if (provider) {
+            fallback.searchParams.set('tenant', provider[1]);
+            if (provider[2] === 'create') fallback.searchParams.set('new', '1');
+            else if (provider[2]) fallback.searchParams.set('os', provider[2]);
+        }
+        event.respondWith(networkFirst(event.request, PROVIDER_CACHE, PROVIDER_PAGE, false, fallback.href));
         return;
     }
     if (url.pathname === OFFLINE_URL) {

@@ -8,6 +8,7 @@ use App\Models\ServiceExecutionEvidence;
 use App\Models\ServiceExecutionResource;
 use App\Models\ServiceObligation;
 use App\Models\ServiceNegotiation;
+use App\Models\ServiceOrder;
 use App\Models\ServicePaymentEvent;
 use App\Models\ServicePaymentPlan;
 use App\Models\ServicePaymentPlanInstallment;
@@ -15,6 +16,10 @@ use App\Models\ServiceProvider;
 use App\Models\ServiceProviderVersionRate;
 use App\Models\ServiceVersion;
 use App\Models\User;
+use App\Models\Tenant;
+use App\Http\Controllers\Services\ServiceManagementController;
+use App\Services\TemplatedPdfService;
+use App\Services\Services\ServiceReportService;
 use App\Services\Services\ServiceCatalogService;
 use App\Services\Services\ServiceCompositionCalculator;
 use App\Services\Services\ServiceExecutionWorkflow;
@@ -22,7 +27,12 @@ use App\Services\Services\ServiceFieldValidator;
 use App\Services\Services\ServicePaymentService;
 use App\Services\Services\ServiceNegotiationService;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Routing\Route;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -546,6 +556,234 @@ class ServiceProviderCompensationTest extends TestCase
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('Este acordo não aceita novos recebimentos.');
         app(ServicePaymentService::class)->recordInstallment($installment, 'pix', '2026-11-20', 1, (string) Str::uuid(), $actor);
+    }
+
+    public function test_negotiation_uses_origin_and_beneficiary_then_keeps_the_financial_trail_on_renegotiation(): void
+    {
+        $this->negotiationSchema();
+        [$execution] = $this->execution(1, 100, null);
+        DB::table('associates')->insert([
+            ['id' => 10, 'tenant_id' => 1, 'nickname' => 'Ana'],
+            ['id' => 20, 'tenant_id' => 1, 'nickname' => 'Outra Ana'],
+        ]);
+        $origin = $execution->order;
+        $origin->update(['beneficiary_snapshot' => ['name' => 'Ana'], 'execution_date' => '2026-11-20']);
+        $otherOrder = $origin->replicate();
+        $otherOrder->number = 'OS-2026-000002';
+        $otherOrder->save();
+        $otherExecution = $execution->replicate();
+        $otherExecution->service_order_id = $otherOrder->id;
+        $otherExecution->save();
+        $first = $this->receivableObligation($execution, 'REC-01', 60, 10);
+        $second = $this->receivableObligation($otherExecution, 'REC-02', 60, 10);
+        $unrelated = $this->receivableObligation($execution, 'REC-03', 100, 20);
+        $foreign = $this->receivableObligation($execution, 'REC-04', 100, 10, 2);
+        $actor = new class extends User {
+            public function checkPermissionTo($permission, $guardName = null): bool { return true; }
+        };
+        $actor->name = 'Operador';
+        $account = new BankAccount(['name' => 'Caixa', 'status' => true, 'initial_balance' => 0, 'current_balance' => 0]);
+        $account->tenant_id = 1;
+        $account->save();
+        $tenant = new Tenant(['name' => 'Associação']);
+        $tenant->id = 1;
+        $tenant->slug = 'associacao';
+        $negotiations = app(ServiceNegotiationService::class);
+        $controller = app(ServiceManagementController::class);
+        $payments = app(ServicePaymentService::class);
+        $payments->record($first, 10, 'pix', '2026-11-20', $account->id, (string) Str::uuid(), $actor);
+
+        $route = (new Route('GET', '/', []))->name('services.management.agreements.create');
+        $fromOrder = Request::create('/', 'GET', ['origin' => $origin->id]);
+        $route->bind($fromOrder);
+        $fromOrder->setUserResolver(fn () => $actor)->setRouteResolver(fn () => $route);
+        $orderForm = $controller->agreements($fromOrder, $tenant, $negotiations)->getData();
+        $this->assertSame([$first->id], $orderForm['requiredIds']);
+        $this->assertEqualsCanonicalizing([$first->id, $second->id], $orderForm['obligations']->pluck('id')->all());
+        $this->assertSame(5000, $orderForm['obligations']->firstWhere('id', $first->id)->balanceCents());
+        $wizard = view('services._agreement-create', $orderForm + [
+            'createUrl' => route('services.management.agreements.create', $tenant->slug),
+            'tenantSlug' => $tenant->slug, 'canPay' => true,
+            'money' => fn ($amount) => 'R$ '.number_format($amount, 2, ',', '.'),
+            'uuid' => fn () => (string) Str::uuid(),
+        ])->render();
+        $this->assertStringContainsString('Ordem de origem', $wizard);
+        $this->assertStringContainsString('Personalizar parcelas', $wizard);
+        $this->assertStringNotContainsString($unrelated->number, $wizard);
+
+        $fromFinance = Request::create('/', 'GET', ['beneficiary' => 10]);
+        $fromFinance->setUserResolver(fn () => $actor)->setRouteResolver(fn () => $route);
+        $financeForm = $controller->agreements($fromFinance, $tenant, $negotiations)->getData();
+        $this->assertSame([], $financeForm['requiredIds']);
+        $this->assertEqualsCanonicalizing([$first->id, $second->id], $financeForm['obligations']->pluck('id')->all());
+
+        $schedule = [
+            ['kind' => 'entry', 'amount' => '20.00', 'due_date' => '2026-11-25'],
+            ['kind' => 'installment', 'amount' => '90.00', 'due_date' => '2026-12-25'],
+        ];
+        foreach ([$unrelated, $foreign] as $invalid) {
+            try {
+                $negotiations->create(1, [$first->id, $invalid->id], $schedule, $actor);
+                $this->fail('A cobrança inválida foi incluída.');
+            } catch (ValidationException $exception) {
+                $this->assertArrayHasKey('obligation_ids', $exception->errors());
+            }
+        }
+        $key = (string) Str::uuid();
+        $agreement = $negotiations->create(1, [$first->id, $second->id], $schedule, $actor, operationKey: $key);
+        $this->assertSame($agreement->id, $negotiations->create(1, [$second->id, $first->id], $schedule, $actor, operationKey: $key)->id);
+        $this->assertSame(1, ServiceNegotiation::count());
+        $this->assertEquals(10, $account->fresh()->current_balance);
+        [$entry, $installment] = $agreement->plan->installments;
+        $this->assertSame(2000, $entry->balanceCents());
+
+        $partial = $payments->recordInstallments($agreement->plan, [$entry->id => '5.00'], 'pix', '2026-11-20', $account->id, (string) Str::uuid(), $actor);
+        $this->assertSame(1500, $entry->fresh()->balanceCents());
+        $operation = (string) Str::uuid();
+        $split = [$entry->id => '15.00', $installment->id => '40.00'];
+        Storage::fake('local');
+        $proof = UploadedFile::fake()->createWithContent('transferencia.pdf', "%PDF-1.4\n");
+        $groupedRequest = Request::create('/', 'POST', [
+            'operation_key' => $operation, 'amounts' => $split, 'payment_method' => 'pix',
+            'payment_date' => '2026-11-20', 'bank_account_id' => $account->id, 'reference' => 'PIX 001',
+        ], files: ['proof' => $proof]);
+        $groupedRequest->setUserResolver(fn () => $actor);
+        $this->travelTo(now()->parse('2026-11-21'));
+        $controller->payAgreement($groupedRequest, $tenant, $agreement->id, $payments);
+        $controller->payAgreement($groupedRequest, $tenant, $agreement->id, $payments);
+        $this->travelBack();
+        $this->assertSame(1, ServicePaymentEvent::where('operation_key', $operation)->count());
+        $grouped = ServicePaymentEvent::where('operation_key', $operation)->with('allocations')->firstOrFail();
+        $this->assertSame(1, $grouped->receiptProof()->count());
+        Storage::disk('local')->assertExists($grouped->receiptProof->path);
+        $download = $controller->paymentProof($groupedRequest, $tenant, $grouped->id);
+        $this->assertStringContainsString('attachment', $download->headers->get('Content-Disposition'));
+        $this->assertSame('55.00', $grouped->amount);
+        $this->assertSame(2, $grouped->allocations->count());
+        $this->assertSame(1500, data_get($grouped->metadata, "installments.{$entry->id}.obligations.{$first->id}"));
+        $this->assertSame(1000, data_get($grouped->metadata, "installments.{$installment->id}.obligations.{$second->id}"));
+        $this->assertEquals(70, $account->fresh()->current_balance);
+
+        $report = app(ServiceReportService::class)->summary(1, now()->parse('2026-11-01'), now()->parse('2026-11-30'));
+        $this->assertEquals(70, $report['cash_received_period']);
+        $this->assertEquals(50, $report['active_negotiated_balance']);
+
+        foreach (['inline' => 1, 'download' => 0] as $copy => $inline) {
+            $request = Request::create('/', 'GET', ['inline' => $inline]);
+            $request->setUserResolver(fn () => $actor);
+            $receipt = $controller->paymentReceipt($request, $tenant, $grouped->id, app(TemplatedPdfService::class));
+            $this->assertStringStartsWith('%PDF', $receipt->getContent(), $copy);
+            $this->assertStringContainsString('recibo-de-pagamento-rec-svc-', $receipt->headers->get('Content-Disposition'));
+        }
+
+        $payments->reverse($grouped, 'Conferência da transferência', (string) Str::uuid(), $actor, '2026-11-20');
+        $this->assertSame(1500, $entry->fresh()->balanceCents());
+        $this->assertSame(9000, $installment->fresh()->balanceCents());
+        $newAgreement = $negotiations->create(1, [$first->id, $second->id], [
+            ['kind' => 'installment', 'amount' => '105.00', 'due_date' => '2027-01-31'],
+        ], $actor, $agreement);
+        $this->assertSame($agreement->id, $newAgreement->supersedes_id);
+        $this->assertSame('superseded', $agreement->plan->fresh()->status);
+        $this->assertSame('cancelled', $entry->fresh()->status);
+        $this->assertSame('confirmed', $partial->fresh()->status);
+        $this->assertSame(500, $entry->fresh()->receivedCents());
+        $this->assertEquals(15, $account->fresh()->current_balance);
+    }
+
+    public function test_offline_fieldwork_lists_only_editable_orders_inside_the_calendar_window(): void
+    {
+        [$template] = $this->execution(1, 100, null);
+        $templateOrder = $template->order;
+        $outside = [];
+        $inside = [];
+        foreach ([
+            ['2026-10-23', null, 'scheduled', 'draft', false],
+            ['2026-10-24', null, 'scheduled', 'draft', true],
+            ['2026-09-01', '2026-10-31', 'in_progress', 'in_progress', true],
+            ['2026-11-30', null, 'scheduled', 'draft', true],
+            ['2026-12-01', null, 'scheduled', 'draft', false],
+            ['2026-11-03', null, 'submitted', 'submitted', false],
+            ['2026-11-03', null, 'validated', 'validated', false],
+            ['2026-11-03', null, 'cancelled', 'cancelled', false],
+            [null, null, 'scheduled', 'draft', false],
+        ] as $index => [$scheduled, $executed, $operational, $state, $expected]) {
+            $order = $templateOrder->replicate()->fill([
+                'number' => 'OS-CAMPO-'.$index, 'scheduled_date' => $scheduled,
+                'execution_date' => $executed, 'operational_status' => $operational,
+            ]);
+            $order->save();
+            $template->replicate()->fill(['service_order_id' => $order->id, 'status' => $state])->save();
+            if ($expected) {
+                $inside[] = $order->id;
+            } else {
+                $outside[] = $order->id;
+            }
+        }
+
+        $eligible = ServiceOrder::query()->where('tenant_id', 1)->forOfflineFieldwork(now()->parse('2026-10-31'))->pluck('id')->all();
+        $this->assertEqualsCanonicalizing($inside, $eligible);
+        $this->assertSame([], array_intersect($outside, $eligible));
+    }
+
+    private function negotiationSchema(): void
+    {
+        Schema::create('associates', function (Blueprint $table): void {
+            $this->base($table);
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('user_id')->nullable();
+            $table->string('nickname')->nullable();
+            $table->string('cpf_cnpj')->nullable();
+            $table->softDeletes();
+        });
+        Schema::create('users', function (Blueprint $table): void {
+            $this->base($table);
+            $table->string('name');
+        });
+        Schema::create('expenses', function (Blueprint $table): void {
+            $this->base($table);
+            $table->unsignedBigInteger('tenant_id');
+            $table->string('origin_module');
+            $table->date('date');
+            $table->softDeletes();
+        });
+        Schema::create('documents', function (Blueprint $table): void {
+            $this->base($table);
+            $table->unsignedBigInteger('tenant_id');
+            $table->morphs('documentable');
+            foreach (['name', 'original_name', 'path', 'disk', 'mime_type', 'extension', 'category'] as $field) {
+                $table->string($field);
+            }
+            $table->unsignedBigInteger('size');
+            $table->unsignedBigInteger('uploaded_by')->nullable();
+            $table->softDeletes();
+        });
+        Schema::create('service_obligation_adjustments', function (Blueprint $table): void {
+            $this->base($table);
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('service_obligation_id');
+            $table->decimal('amount', 14, 2);
+        });
+        Schema::create('service_negotiations', function (Blueprint $table): void {
+            $this->base($table);
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('payment_plan_id');
+            $table->unsignedBigInteger('supersedes_id')->nullable();
+            $table->unsignedBigInteger('generated_document_id')->nullable();
+            $table->unsignedBigInteger('created_by')->nullable();
+            $table->string('number');
+            $table->string('status');
+            $table->json('terms_snapshot');
+            $table->decimal('original_amount', 14, 2);
+            $table->decimal('negotiated_amount', 14, 2);
+        });
+        (require database_path('migrations/2026_11_21_210000_add_operation_key_to_service_negotiations.php'))->up();
+        Schema::create('service_negotiation_sequences', function (Blueprint $table): void {
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedInteger('year');
+            $table->unsignedInteger('last_number');
+            $table->timestamps();
+            $table->primary(['tenant_id', 'year']);
+        });
     }
 
     public function test_batch_rejects_all_rows_when_one_service_order_is_invalid(): void
@@ -1316,12 +1554,13 @@ class ServiceProviderCompensationTest extends TestCase
         return [$obligation, $account, $actor];
     }
 
-    private function receivableObligation(ServiceExecution $execution, string $number, float $amount): ServiceObligation
+    private function receivableObligation(ServiceExecution $execution, string $number, float $amount, ?int $associateId = null, int $tenantId = 1): ServiceObligation
     {
         $obligation = new ServiceObligation([
             'number' => $number,
             'service_execution_id' => $execution->id,
             'direction' => 'receivable',
+            'associate_id' => $associateId,
             'principal_amount' => $amount,
             'adjustment_amount' => 0,
             'status' => 'open',
@@ -1331,7 +1570,7 @@ class ServiceProviderCompensationTest extends TestCase
             'operation_key' => (string) Str::uuid(),
             'frozen_at' => now(),
         ]);
-        $obligation->tenant_id = 1;
+        $obligation->tenant_id = $tenantId;
         $obligation->save();
 
         return $obligation;

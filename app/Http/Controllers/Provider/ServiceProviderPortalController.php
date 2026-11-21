@@ -88,6 +88,7 @@ class ServiceProviderPortalController extends Controller
     public function offlineData(Request $request, Tenant $tenant): JsonResponse
     {
         [$provider, $operator] = $this->access($request, $tenant);
+        $issued = now();
         $providers = $operator ? ServiceProvider::query()->where('tenant_id', $tenant->id)->where('status', true)
             ->with('services')->orderBy('name')->get() : collect([$provider]);
         $catalog = $this->availableVersions($tenant, $provider, $operator)->with('providerRates')->get()
@@ -118,16 +119,14 @@ class ServiceProviderPortalController extends Controller
             })->values();
         $orders = ServiceOrder::query()->where('tenant_id', $tenant->id)
             ->when(! $operator, fn ($query) => $query->where('service_provider_id', $provider->id))
-            ->whereHas('execution')->where(fn ($query) => $query->whereIn('operational_status', ['scheduled', 'in_progress', 'rejected', 'submitted'])
-                ->orWhere('updated_at', '>=', now()->subDays(30)))
-            ->with(['service', 'serviceProvider', 'execution.evidences', 'execution.obligations', 'execution.resources'])->orderByDesc('scheduled_at')->get()
+            ->forOfflineFieldwork($issued)
+            ->with(['service', 'serviceProvider', 'execution.evidences', 'execution.obligations', 'execution.resources'])
+            ->orderByRaw(ServiceOrder::FIELDWORK_DATE)->orderBy('scheduled_at')->orderBy('id')->get()
             ->map(fn (ServiceOrder $order) => $this->offlineOrder($order, $operator))->values();
         $members = $catalog->contains('membersOnly', true)
             ? Associate::query()->where('tenant_id', $tenant->id)->active()->get()
                 ->map(fn (Associate $member) => ['id' => $member->id, 'name' => $member->nickname ?: $member->display_name])->values()
             : [];
-        $issued = now();
-
         return response()->json([
             'scope' => $this->offlineScope($request, $tenant, $provider),
             'user' => (string) $request->user()->id, 'tenant' => $tenant->slug, 'organization' => $tenant->name,
@@ -136,6 +135,7 @@ class ServiceProviderPortalController extends Controller
             'providers' => $providers->map(fn (ServiceProvider $candidate) => ['id' => $candidate->id, 'name' => $candidate->name])->values(),
             'catalog' => $catalog, 'orders' => $orders, 'members' => $members,
             'issuedAt' => $issued->toIso8601String(),
+            'timezone' => config('app.timezone'),
             'expiresAt' => $issued->copy()->addMinutes(min(720, max(1, (int) config('session.lifetime'))))->toIso8601String(),
             'syncUrl' => route('provider.offline.sync', $tenant->slug), 'portalUrl' => route('provider.dashboard', $tenant->slug),
             'csrf' => csrf_token(),
@@ -234,7 +234,10 @@ class ServiceProviderPortalController extends Controller
             throw $error;
         }
 
-        return response()->json(['order' => $this->offlineOrder($order, $operator)])->header('Cache-Control', 'private, no-store');
+        $available = ServiceOrder::query()->where('tenant_id', $tenant->id)->whereKey($order->id)->forOfflineFieldwork(now())->exists();
+
+        return response()->json(['order' => $available ? $this->offlineOrder($order, $operator) : ['id' => $order->id], 'available' => $available])
+            ->header('Cache-Control', 'private, no-store');
     }
 
     private function offlineScope(Request $request, Tenant $tenant, ?ServiceProvider $provider): string
@@ -300,8 +303,9 @@ class ServiceProviderPortalController extends Controller
             'provider' => $order->serviceProvider?->name ?? data_get($order->provider_snapshot, 'name'),
             'beneficiary' => data_get($order->beneficiary_snapshot, 'name'), 'whatsapp' => data_get($order->beneficiary_snapshot, 'whatsapp'),
             'location' => $order->location, 'scheduled' => ($order->scheduled_at ?? $order->scheduled_date)?->format('Y-m-d\TH:i'),
+            'executionDate' => $order->execution_date?->toDateString(),
             'status' => app(\App\Services\Services\ServiceHumanStatusResolver::class)->resolve($order),
-            'state' => $order->operational_status, 'execution' => $execution->status, 'lockVersion' => $execution->lock_version,
+            'state' => $order->operational_status ?? $order->status?->value, 'execution' => $execution->status, 'lockVersion' => $execution->lock_version,
             'unit' => $execution->unit, 'quantity' => $execution->quantity, 'catalog' => $catalog,
             'totals' => $execution->isFrozen() ? [
                 'quantity' => $execution->quantity, 'receivable' => $order->final_price, 'payable' => $order->provider_payment,

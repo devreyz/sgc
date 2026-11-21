@@ -78,7 +78,7 @@ class FinancialDocumentPaymentService
         return match ($document?->getMorphClass()) {
             AssociateReceipt::class, CustomerBillingReceipt::class => (float) $document->remaining_amount,
             ServiceObligation::class => (float) $document->balance,
-            ServicePaymentPlanInstallment::class => $document->status === 'scheduled' && $document->plan?->status === 'active' ? (float) $document->amount : 0.0,
+            ServicePaymentPlanInstallment::class => $document->status === 'scheduled' && $document->plan?->status === 'active' ? $document->balanceCents() / 100 : 0.0,
             FinancialReceipt::class => 0.0,
             default => 0.0,
         };
@@ -99,17 +99,15 @@ class FinancialDocumentPaymentService
 
     private function payInstallment(ServicePaymentPlanInstallment $installment, array $payload, User $actor): mixed
     {
-        if (abs((float) $payload['amount'] - (float) $installment->amount) > .009) {
-            throw ValidationException::withMessages(['amount' => 'Para dar baixa nesta parcela, informe exatamente o valor do documento.']);
-        }
-
-        return app(ServicePaymentService::class)->recordInstallment(
-            $installment,
+        return app(ServicePaymentService::class)->recordInstallments(
+            $installment->plan,
+            [$installment->id => $payload['amount']],
             $payload['payment_method'],
             $payload['payment_date'],
             (int) $payload['bank_account_id'],
             $payload['operation_key'],
             $actor,
+            ['document_number' => $payload['document_number'] ?? null, 'notes' => $payload['notes'] ?? null],
         );
     }
 }

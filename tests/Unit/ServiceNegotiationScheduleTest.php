@@ -17,8 +17,8 @@ class ServiceNegotiationScheduleTest extends TestCase
         ]);
 
         $this->assertSame('entry', $schedule[0]['kind']);
-        $this->assertSame(150.0, $schedule[0]['amount']);
-        $this->assertSame(550.0, $schedule[2]['amount']);
+        $this->assertSame('150.00', $schedule[0]['amount']);
+        $this->assertSame('550.00', $schedule[2]['amount']);
     }
 
     public function test_schedule_rejects_a_total_different_from_the_negotiated_balance(): void
@@ -50,5 +50,16 @@ class ServiceNegotiationScheduleTest extends TestCase
 
         $this->assertSame('entry', $schedule[0]['kind']);
         $this->assertSame('installment', $schedule[1]['kind']);
+    }
+
+    public function test_schedule_adds_decimals_in_cents_without_an_entry(): void
+    {
+        $schedule = (new ServiceNegotiationService)->normalizeSchedule('100.00', [
+            ['due_date' => '2026-10-31', 'amount' => '33.34'],
+            ['due_date' => '2026-11-30', 'amount' => '33.33'],
+            ['due_date' => '2026-12-31', 'amount' => '33.33'],
+        ]);
+
+        $this->assertSame(['33.34', '33.33', '33.33'], array_column($schedule, 'amount'));
     }
 }

@@ -3778,6 +3778,7 @@
             action="{{ route('logout') }}"
             method="POST"
             class="user-menu-logout-form"
+            onsubmit="try { localStorage.setItem('sgc-provider-offline-signed-out', '1') } catch {}"
         >
             @csrf
 

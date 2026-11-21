@@ -36,7 +36,7 @@ class FinancialDocumentPresenter
                 ? $actionIdentity->checks()->latest('id')->first()
                 : null);
         [$technicalStatus, $humanStatus, $tone] = match (true) {
-            $isCurrent => $this->status($document, $latestCheck),
+            $isCurrent => $this->inTenant((int) $identity->tenant_id, fn () => $this->status($document, $latestCheck)),
             $isEquivalent => ['equivalent', 'Versão anterior equivalente à vigente', 'success'],
             default => ['obsolete', 'Versão substituída · não utilizar', 'danger'],
         };
@@ -45,13 +45,14 @@ class FinancialDocumentPresenter
         $details = $canView ? $this->inTenant((int) $identity->tenant_id, fn (): array => [
             'total' => $this->payments->total($actionIdentity),
             'balance' => $this->payments->balance($actionIdentity),
+            'paid' => $document instanceof ServicePaymentPlanInstallment ? $document->receivedCents() / 100 : null,
             'party' => $this->party($document),
             'project' => $this->project($document),
             'payments' => $this->paymentHistory($document),
         ]) : ['total' => 0.0, 'balance' => 0.0, 'party' => null, 'project' => null, 'payments' => collect()];
         $total = $details['total'];
         $balance = $details['balance'];
-        $paid = max(0, round($total - $balance, 2));
+        $paid = $details['paid'] ?? max(0, round($total - $balance, 2));
         $pendingCheck = $latestCheck?->status === 'issued' ? $latestCheck : null;
         $canLiquidate = $canPay && $balance > 0 && ! in_array($technicalStatus, ['draft', 'obsolete', 'cancelled', 'paid'], true);
 
@@ -184,6 +185,16 @@ class FinancialDocumentPresenter
         if ($check?->status === 'issued') {
             return ['check_issued', 'Cheque emitido · aguardando entrega', 'warning'];
         }
+        if ($document instanceof ServicePaymentPlanInstallment && $document->status === 'scheduled') {
+            $pastDue = $document->due_date->lt(today());
+            $partial = $document->receivedCents() > 0;
+
+            return [
+                $partial ? 'partially_paid' : 'pending_payment',
+                $pastDue ? ($partial ? 'Vencida · recebida em parte' : 'Parcela vencida') : ($partial ? 'Recebida em parte' : 'Aguardando recebimento'),
+                $pastDue || ! $partial ? 'warning' : 'info',
+            ];
+        }
         $status = $document?->status?->value ?? (string) ($document?->status ?? 'unknown');
 
         return match ($status) {
@@ -266,12 +277,17 @@ class FinancialDocumentPresenter
                 ]);
         }
         if ($document instanceof ServicePaymentPlanInstallment) {
-            return $document->paymentEvent ? collect([(object) [
-                'amount' => $document->paymentEvent->amount,
-                'payment_date' => $document->paymentEvent->payment_date,
-                'payment_method' => $document->paymentEvent->payment_method,
-                'document_number' => 'NEG-'.$document->service_payment_plan_id.'-'.$document->number,
-            ]]) : collect();
+            $events = $document->plan->receiptEvents()->where('status', 'confirmed')->latest('id')->get();
+            if ($document->paymentEvent?->status === 'confirmed' && ! $events->contains('id', $document->service_payment_event_id)) {
+                $events->push($document->paymentEvent);
+            }
+
+            return $events->filter(fn ($event) => $document->eventCents($event) > 0)->map(fn ($event) => (object) [
+                'amount' => $document->eventCents($event) / 100,
+                'payment_date' => $event->payment_date,
+                'payment_method' => $event->payment_method,
+                'document_number' => data_get($event->metadata, 'document_number') ?: 'REC-SVC-'.$event->id,
+            ]);
         }
 
         return collect();

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Services;
 
 use App\Http\Controllers\Controller;
 use App\Enums\ServiceOrderStatus;
+use App\Enums\DocumentCategory;
+use App\Enums\PaymentMethod;
 use App\Models\Asset;
 use App\Models\Associate;
 use App\Models\BankAccount;
@@ -27,6 +29,7 @@ use App\Services\Services\ServiceEvidenceService;
 use App\Services\Services\ServiceExecutionWorkflow;
 use App\Services\Services\ServiceHumanStatusResolver;
 use App\Services\Services\ServiceNegotiationService;
+use App\Services\Services\ServiceMoney;
 use App\Services\Services\ServiceObligationAdjustmentService;
 use App\Services\Services\ServicePaymentService;
 use App\Services\Services\ServiceOrderNumberService;
@@ -39,6 +42,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -567,55 +572,112 @@ class ServiceManagementController extends Controller
         ])->download('prestacao-servicos.pdf');
     }
 
-    public function agreements(Request $request, Tenant $tenant, FinancialDocumentIdentityService $identities): View
-    {
-        $this->allow($request, 'manage_service_agreements');
-        $creating = $request->routeIs('services.management.agreements.create');
-        $obligations = $creating ? ServiceObligation::query()->where('tenant_id', $tenant->id)->where('direction', 'receivable')
-            ->whereIn('status', ['open', 'partially_paid'])->whereNotIn('id', DB::table('service_payment_plan_obligations as link')
-                ->join('service_payment_plans as plans', 'plans.id', '=', 'link.service_payment_plan_id')
-                ->where('plans.tenant_id', $tenant->id)->where('plans.status', 'active')->select('link.service_obligation_id'))
-            ->with(['execution.order.service', 'allocations.paymentEvent'])->orderBy('due_date')->get() : collect();
-        $agreements = $creating ? collect() : ServiceNegotiation::query()->where('tenant_id', $tenant->id)
-            ->with(['plan.installments.paymentEvent', 'plan.installments.verificationIdentity', 'plan.obligations', 'generatedDocument', 'creator'])
-            ->latest()->get();
-        $agreements->flatMap(fn (ServiceNegotiation $agreement) => $agreement->plan?->installments ?? collect())
-            ->each(function (ServicePaymentPlanInstallment $installment) use ($identities, $request): void {
-                if ($installment->status !== 'cancelled' && ! $installment->verificationIdentity) {
-                    $installment->setRelation('verificationIdentity', $identities->ensure($installment, $request->user()));
-                }
-            });
-        $accounts = BankAccount::query()->where('tenant_id', $tenant->id)->active()->orderBy('name')->get();
-
-        return view('services.agreements', compact('obligations', 'agreements', 'accounts', 'creating'));
-    }
-
-    public function negotiate(Request $request, Tenant $tenant, ServiceNegotiationService $negotiations, ServiceDocumentService $documents): RedirectResponse
+    public function agreements(Request $request, Tenant $tenant, ServiceNegotiationService $negotiations): View
     {
         $this->allow($request, 'manage_service_agreements');
         $data = $request->validate([
-            'obligation_ids' => 'required|array|min:1',
-            'obligation_ids.*' => 'integer',
+            'origin' => 'nullable|integer|min:1', 'beneficiary' => 'nullable|integer|min:1',
+            'supersedes' => 'nullable|integer|min:1', 'q' => 'nullable|string|max:100',
+        ]);
+        $creating = $request->routeIs('services.management.agreements.create');
+        $agreementQuery = ServiceNegotiation::query()->where('tenant_id', $tenant->id);
+        $agreement = $request->route('agreement')
+            ? (clone $agreementQuery)->with(['plan.installments.paymentEvent', 'plan.installments.verificationIdentity', 'plan.obligations.execution.order.service', 'generatedDocument', 'supersedes'])->findOrFail($request->route('agreement'))
+            : null;
+        $agreements = $creating || $agreement ? null : $agreementQuery->with('plan')->latest('id')->paginate(20);
+        $previous = $creating && isset($data['supersedes'])
+            ? (clone $agreementQuery)->where('status', 'active')->with('plan.obligations')->findOrFail($data['supersedes'])
+            : null;
+        abort_if($previous && $previous->plan?->status !== 'active', 404);
+
+        $origin = isset($data['origin']) ? $this->order($tenant, $data['origin']) : null;
+        $originDebt = $origin?->execution?->obligations->firstWhere('direction', 'receivable');
+        $previousDebts = $previous?->plan->obligations ?? collect();
+        $beneficiaryId = $origin ? $originDebt?->associate_id : ($previous ? $previousDebts->first()?->associate_id : ($data['beneficiary'] ?? null));
+        $beneficiary = $beneficiaryId
+            ? Associate::withTrashed()->where('tenant_id', $tenant->id)->with('user')->findOrFail($beneficiaryId)
+            : null;
+        $eligible = $negotiations->eligible($tenant->id, $previous?->plan?->id);
+        $obligations = collect();
+        $matches = collect();
+        if ($creating && ($beneficiary || $originDebt || $previous)) {
+            $obligations = (clone $eligible)
+                ->when($beneficiary, fn ($query) => $query->where('associate_id', $beneficiary->id),
+                    fn ($query) => $query->whereIn('id', $previous ? $previousDebts->modelKeys() : [$originDebt?->id]))
+                ->with('execution.order.service')->withSum([
+                    'allocations as settled_amount' => fn ($query) => $query->whereHas('paymentEvent', fn ($events) => $events->whereIn('status', ['confirmed', 'reversed'])),
+                ], 'amount')->orderBy('due_date')->orderBy('id')->get()->filter(fn (ServiceObligation $debt) => $debt->balanceCents() > 0);
+        } elseif ($creating && ! $origin && filled($data['q'] ?? null)) {
+            $search = '%'.addcslashes(trim($data['q']), '%_\\').'%';
+            $matches = (clone $eligible)->where(function ($query) use ($search) {
+                $query->where('party_snapshot->name', 'like', $search)
+                    ->orWhereHas('associate', fn ($person) => $person->where('nickname', 'like', $search)
+                        ->orWhereHas('user', fn ($user) => $user->where('name', 'like', $search)))
+                    ->orWhereHas('execution.order', fn ($order) => $order->where('number', 'like', $search));
+            })->with(['associate.user', 'execution.order'])->latest('id')->limit(100)->get()
+                ->unique(fn (ServiceObligation $debt) => $debt->associate_id ? 'associate-'.$debt->associate_id : 'debt-'.$debt->id)
+                ->take(25);
+        }
+        $activeAgreement = $originDebt && ! $obligations->contains('id', $originDebt->id)
+            ? (clone $agreementQuery)->whereHas('plan', fn ($plan) => $plan->where('status', 'active')
+                ->whereHas('obligations', fn ($debt) => $debt->whereKey($originDebt->id)))->first()
+            : null;
+        $requiredIds = $previous ? $obligations->whereIn('id', $previousDebts->modelKeys())->pluck('id')->all() : [];
+        if ($originDebt && $obligations->contains('id', $originDebt->id)) {
+            $requiredIds[] = $originDebt->id;
+        }
+        if ($origin && ! $obligations->contains('id', $originDebt?->id)) {
+            $obligations = collect();
+        }
+
+        $events = $agreement?->plan ? $agreement->plan->receiptEvents()->with(['allocations.obligation.execution.order', 'registrar', 'receiptProof'])
+            ->orderByDesc('id')->get() : collect();
+        foreach ($agreement?->plan?->installments ?? [] as $item) {
+            if ($item->paymentEvent && ! $events->contains('id', $item->paymentEvent->id)) {
+                $events->push($item->paymentEvent->loadMissing(['allocations.obligation.execution.order', 'registrar', 'receiptProof']));
+            }
+        }
+        $accounts = $agreement?->plan?->status === 'active' && $request->user()->checkPermissionTo('manage_service_receivables')
+            ? BankAccount::query()->where('tenant_id', $tenant->id)->active()->orderBy('name')->get() : collect();
+
+        return view('services.agreements', compact('tenant', 'creating', 'agreement', 'agreements', 'previous', 'origin',
+            'originDebt', 'activeAgreement', 'beneficiary', 'obligations', 'matches', 'requiredIds', 'events', 'accounts'));
+    }
+
+    public function negotiate(Request $request, Tenant $tenant, ServiceNegotiationService $negotiations): RedirectResponse
+    {
+        $this->allow($request, 'manage_service_agreements');
+        $data = $request->validate([
+            'operation_key' => 'required|uuid',
+            'origin' => 'nullable|integer|min:1',
+            'supersedes' => 'nullable|integer|min:1',
+            'received_entry' => 'nullable|boolean',
+            'obligation_ids' => 'required|array|min:1|max:120',
+            'obligation_ids.*' => 'required|integer|distinct|min:1',
             'installments' => 'required|array|min:1|max:120',
             'installments.*.kind' => 'required|in:entry,installment',
-            'installments.*.due_date' => 'required|date',
-            'installments.*.amount' => 'required|numeric|min:0.01',
+            'installments.*.due_date' => 'required|date_format:Y-m-d',
+            'installments.*.amount' => 'required|decimal:0,2|min:0.01|max:999999999999.99',
         ]);
-        $agreement = DB::transaction(function () use ($tenant, $data, $request, $negotiations, $documents): ServiceNegotiation {
-            $agreement = $negotiations->create($tenant->id, $data['obligation_ids'], $data['installments'], $request->user());
-            $document = $documents->generate($agreement, 'service_negotiation', 'Termo '.$agreement->number, $this->negotiationDocumentVariables($tenant, $agreement), $request->user());
-            $agreement->update(['generated_document_id' => $document->id]);
+        if (isset($data['origin'])) {
+            $origin = $this->order($tenant, $data['origin']);
+            $originDebt = $origin->execution?->obligations->firstWhere('direction', 'receivable');
+            if (! $originDebt || ! in_array($originDebt->id, $data['obligation_ids'])) {
+                throw ValidationException::withMessages(['obligation_ids' => 'Inclua a ordem de origem na negociação.']);
+            }
+        }
+        $previous = isset($data['supersedes'])
+            ? ServiceNegotiation::query()->where('tenant_id', $tenant->id)->findOrFail($data['supersedes']) : null;
+        $agreement = $negotiations->create($tenant->id, $data['obligation_ids'], $data['installments'], $request->user(), $previous, $data['operation_key']);
 
-            return $agreement;
-        });
-
-        return redirect()->route('services.management.agreements', [$tenant->slug])
-            ->with('success', 'Termo criado. Ele já aparece na lista abaixo e está pronto para impressão.')
-            ->with('agreement_document_id', $agreement->generated_document_id);
+        return redirect()->route('services.management.agreements.show', [$tenant->slug, $agreement, 'origin' => $data['origin'] ?? null])
+            ->with('receive_agreement_entry', ($data['received_entry'] ?? false) ? $agreement->id : null)
+            ->with('success', $previous ? 'Saldo renegociado.' : 'Negociação criada. Registre os recebimentos quando forem confirmados.');
     }
 
     public function payAgreementInstallment(Request $request, Tenant $tenant, int $agreement, int $installment, ServicePaymentService $payments): RedirectResponse
     {
+        $this->allow($request, 'manage_service_agreements');
         $this->allow($request, 'manage_service_receivables');
         $agreement = ServiceNegotiation::query()->where('tenant_id', $tenant->id)->whereKey($agreement)->firstOrFail();
         $installment = ServicePaymentPlanInstallment::query()->where('tenant_id', $tenant->id)
@@ -629,6 +691,130 @@ class ServiceManagementController extends Controller
         $payments->recordInstallment($installment, $data['payment_method'], $data['payment_date'], (int) $data['bank_account_id'], $data['operation_key'], $request->user());
 
         return back()->with('success', ($installment->kind === 'entry' ? 'Entrada' : 'Parcela').' recebida e conciliada com as obrigações.');
+    }
+
+    public function payAgreement(Request $request, Tenant $tenant, int $agreement, ServicePaymentService $payments): RedirectResponse
+    {
+        $this->allow($request, 'manage_service_agreements');
+        $this->allow($request, 'manage_service_receivables');
+        $agreement = ServiceNegotiation::query()->where('tenant_id', $tenant->id)->with('plan')->findOrFail($agreement);
+        abort_unless($agreement->plan, 404);
+        $data = $request->validate([
+            'operation_key' => 'required|uuid',
+            'amounts' => 'required|array|max:120',
+            'amounts.*' => 'nullable|decimal:0,2|min:0.01|max:999999999999.99',
+            'payment_method' => ['required', Rule::enum(PaymentMethod::class)->except(PaymentMethod::CHEQUE)],
+            'payment_date' => 'required|date_format:Y-m-d|before_or_equal:today',
+            'bank_account_id' => 'required|integer|min:1',
+            'reference' => 'nullable|string|max:100',
+            'notes' => 'nullable|string|max:500',
+            'proof' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp|max:10240',
+        ]);
+        $amounts = array_filter($data['amounts'], fn ($amount) => $amount !== null);
+        if ($amounts === [] || array_filter(array_keys($amounts), fn ($id) => ! is_int($id) || $id < 1)) {
+            throw ValidationException::withMessages(['amounts' => 'Informe o valor recebido em pelo menos uma parcela.']);
+        }
+        $file = $request->file('proof');
+        $details = ['document_number' => $data['reference'] ?? null, 'notes' => $data['notes'] ?? null];
+        if ($file) {
+            $details['proof_hash'] = hash_file('sha256', $file->getPathname());
+        }
+
+        $path = null;
+        try {
+            $event = DB::transaction(function () use ($tenant, $agreement, $data, $amounts, $details, $file, $payments, $request, &$path) {
+                if ($path) {
+                    Storage::disk('local')->delete($path);
+                    $path = null;
+                }
+                $event = $payments->recordInstallments($agreement->plan, $amounts, $data['payment_method'], $data['payment_date'],
+                    (int) $data['bank_account_id'], $data['operation_key'], $request->user(), $details);
+                if ($file && ! $event->receiptProof()->exists()) {
+                    $path = $file->store('service-payment-proofs/'.$tenant->id, 'local');
+                    if (! $path) {
+                        throw ValidationException::withMessages(['proof' => 'O comprovante não pôde ser salvo. Tente novamente.']);
+                    }
+                    $document = $event->receiptProof()->make([
+                        'name' => 'Comprovante de recebimento '.$event->id, 'original_name' => $file->getClientOriginalName(),
+                        'path' => $path, 'disk' => 'local', 'mime_type' => $file->getMimeType(), 'size' => $file->getSize(),
+                        'extension' => $file->extension(), 'category' => DocumentCategory::COMPROVANTE, 'uploaded_by' => $request->user()->id,
+                    ]);
+                    $document->tenant_id = $tenant->id;
+                    $document->save();
+                }
+
+                return $event;
+            }, 3);
+        } catch (\Throwable $exception) {
+            if ($path) {
+                Storage::disk('local')->delete($path);
+            }
+            throw $exception;
+        }
+
+        return back()->with('success', 'Recebimento registrado.')->with('received_payment_id', $event->id);
+    }
+
+    public function rescheduleAgreementInstallment(Request $request, Tenant $tenant, int $agreement, int $installment, FinancialDocumentIdentityService $identities): RedirectResponse
+    {
+        $this->allow($request, 'manage_service_agreements');
+        $data = $request->validate(['due_date' => 'required|date_format:Y-m-d', 'reason' => 'required|string|min:5|max:500']);
+        DB::transaction(function () use ($tenant, $agreement, $installment, $data, $request, $identities): void {
+            $record = ServiceNegotiation::query()->where('tenant_id', $tenant->id)->lockForUpdate()->findOrFail($agreement);
+            $plan = $record->plan()->lockForUpdate()->firstOrFail();
+            $item = $plan->installments()->where('tenant_id', $tenant->id)->lockForUpdate()->findOrFail($installment);
+            if ($record->status !== 'active' || $plan->status !== 'active' || $item->status !== 'scheduled' || $item->receivedCents() !== 0) {
+                throw ValidationException::withMessages(['due_date' => 'Altere o vencimento apenas de uma parcela em aberto sem recebimento.']);
+            }
+            $before = $item->due_date->toDateString();
+            if ($before === $data['due_date']) {
+                return;
+            }
+            $item->update(['due_date' => $data['due_date']]);
+            $identities->ensure($item, $request->user());
+            activity('service_negotiation')->performedOn($item)->causedBy($request->user())->withProperties([
+                'agreement_id' => $record->id, 'previous_due_date' => $before, 'due_date' => $data['due_date'], 'reason' => $data['reason'],
+            ])->log('Vencimento alterado');
+        }, 3);
+
+        return back()->with('success', 'Vencimento atualizado.');
+    }
+
+    public function paymentReceipt(Request $request, Tenant $tenant, int $payment, TemplatedPdfService $pdf)
+    {
+        $event = $this->receivablePayment($request, $tenant, $payment);
+        $agreement = ServiceNegotiation::query()->where('tenant_id', $tenant->id)
+            ->where('payment_plan_id', data_get($event->metadata, 'payment_plan_id', 0))->with('plan.installments')->first();
+        $installments = $agreement?->plan?->installments?->filter(fn ($installment) => $installment->eventCents($event) > 0) ?? collect();
+        $title = 'Recibo de pagamento REC-SVC-'.str_pad((string) $event->id, 6, '0', STR_PAD_LEFT);
+        $document = $pdf->generateSystemPdf('pdf.service-payment-receipt', compact('tenant', 'event', 'agreement', 'installments', 'title'),
+            ['title' => $title, 'paper' => 'a4', 'prefer_runtime_layout' => true]);
+        $filename = str($title)->slug().'.pdf';
+        $response = $request->boolean('inline') ? $document->stream($filename) : $document->download($filename);
+        $response->headers->set('Cache-Control', 'no-store, private');
+
+        return $response;
+    }
+
+    public function paymentProof(Request $request, Tenant $tenant, int $payment)
+    {
+        $event = $this->receivablePayment($request, $tenant, $payment);
+        $document = $event->receiptProof()->where('tenant_id', $tenant->id)->firstOrFail();
+        abort_unless($document->disk === 'local' && Storage::disk('local')->exists($document->path), 404);
+
+        return Storage::disk('local')->download($document->path, 'comprovante-'.$event->id.'.'.$document->extension,
+            ['Cache-Control' => 'no-store, private']);
+    }
+
+    private function receivablePayment(Request $request, Tenant $tenant, int $payment): ServicePaymentEvent
+    {
+        $this->allow($request, 'manage_service_receivables');
+
+        return ServicePaymentEvent::query()->where('tenant_id', $tenant->id)->where('event_type', 'payment')
+            ->whereIn('status', ['confirmed', 'reversed'])
+            ->whereHas('allocations.obligation', fn ($query) => $query->where('tenant_id', $tenant->id)->where('direction', 'receivable'))
+            ->with(['allocations.obligation.execution.order' => fn ($order) => $order->withTrashed(), 'registrar'])
+            ->findOrFail($payment);
     }
 
     public function cancelAgreement(Request $request, Tenant $tenant, int $agreement, ServiceNegotiationService $negotiations): RedirectResponse
@@ -645,7 +831,7 @@ class ServiceManagementController extends Controller
     {
         $this->allow($request, 'manage_service_agreements');
         $agreement = ServiceNegotiation::query()->where('tenant_id', $tenant->id)->whereKey($agreement)->with('plan.installments')->firstOrFail();
-        $document = $documents->generate($agreement, 'service_negotiation', 'Termo '.$agreement->number, $this->negotiationDocumentVariables($tenant, $agreement), $request->user());
+        $document = $documents->generate($agreement, 'service_negotiation', 'Nota interna de cobrança '.$agreement->number, $this->negotiationDocumentVariables($tenant, $agreement), $request->user());
         $agreement->update(['generated_document_id' => $document->id]);
 
         return redirect()->route('services.management.documents.download', [$tenant->slug, $document, 'inline' => 1]);
@@ -699,8 +885,8 @@ class ServiceManagementController extends Controller
 
     public function document(Request $request, Tenant $tenant, int $document, TemplatedPdfService $pdf)
     {
-        $this->allow($request, 'view_service_management');
         $record = GeneratedDocument::query()->where('tenant_id', $tenant->id)->whereKey($document)->firstOrFail();
+        $this->allow($request, $record->documentable_type === ServiceNegotiation::class ? 'manage_service_agreements' : 'view_service_management');
         if (in_array($record->documentable_type, [ServiceOrder::class, ServiceExecution::class], true)) {
             $subject = $record->documentable;
             $documentOrder = $subject instanceof ServiceExecution ? $subject->order : $subject;
@@ -855,15 +1041,13 @@ class ServiceManagementController extends Controller
         }
         $obligationRows = $obligationItems->map(fn (array $item): string => '<tr><td>'.e($item['number'] ?? '—').'</td><td>'.e($item['order_number'] ?? '—').'</td><td>'.e($item['service'] ?? '—').'</td><td class="money">R$ '.number_format((float) ($item['included_amount'] ?? $item['balance'] ?? 0), 2, ',', '.').'</td></tr>')->implode('');
         $identityService = app(FinancialDocumentIdentityService::class);
-        $installmentRows = $agreement->plan?->installments?->map(function (ServicePaymentPlanInstallment $item) use ($identityService): string {
-            $kind = $item->kind === 'entry' ? 'Entrada' : 'Parcela '.$item->number;
-            $status = match ($item->status) {
-                'paid' => 'Recebida em '.$item->paid_at?->format('d/m/Y'),
-                'cancelled' => 'Cancelada',
-                default => 'Pendente',
-            };
-            $identity = $item->status === 'cancelled' ? null : ($item->verificationIdentity ?: $identityService->ensure($item, auth()->user()));
-            $qr = $identity ? '<img src="'.$identityService->qrDataUri($identity, 70).'" width="46" height="46" alt="QR"><br><small>'.e($identity->reference_code).'</small>' : '—';
+        $events = $agreement->plan?->receiptEvents()->get() ?? collect();
+        $hasEntry = $agreement->plan?->installments->first()?->kind === 'entry';
+        $installmentRows = $agreement->plan?->installments?->map(function (ServicePaymentPlanInstallment $item) use ($identityService, $events, $hasEntry): string {
+            $kind = $item->kind === 'entry' ? 'Entrada' : 'Parcela '.($item->number - (int) $hasEntry);
+            $status = $item->financialLabel($events);
+            $identity = $item->status === 'scheduled' ? ($item->verificationIdentity ?: $identityService->ensure($item, auth()->user())) : null;
+            $qr = $identity ? '<img src="'.$identityService->qrDataUri($identity, 70).'" width="44" height="44" alt="QR"><br><small>'.e($identity->reference_code).'</small>' : '';
 
             return '<tr><td>'.e($kind).'</td><td>'.e($item->due_date?->format('d/m/Y') ?? '—').'</td><td style="text-align:right">R$ '.number_format((float) $item->amount, 2, ',', '.').'</td><td>'.e($status).'</td><td style="text-align:center">'.$qr.'</td></tr>';
         })->implode('') ?: collect(data_get($snapshot, 'installments', []))->map(fn (array $item): string => '<tr><td>'.e(($item['kind'] ?? null) === 'entry' ? 'Entrada' : 'Parcela '.($item['number'] ?? '—')).'</td><td>'.e(filled($item['due_date'] ?? null) ? Carbon::parse($item['due_date'])->format('d/m/Y') : '—').'</td><td style="text-align:right">R$ '.number_format((float) ($item['amount'] ?? 0), 2, ',', '.').'</td><td>Pendente</td><td>—</td></tr>')->implode('');

@@ -44,6 +44,7 @@ function select(parent, label, name, options, value) {
 }
 
 const editableState = order => ['draft','in_progress','rejected'].includes(order.execution);
+const displayDate = value => value?.slice(0, 10).split('-').reverse().join('/');
 const localStatus = row => ({
     schedule: 'Agendamento salvo no aparelho', draft: 'Rascunho salvo no aparelho',
     start: 'Em execução no aparelho', finish: 'Finalizado no aparelho • Aguardando envio',
@@ -52,29 +53,56 @@ const localStatus = row => ({
 function renderList() {
     get('workspace').hidden = !bundle || !!active;
     get('editor').hidden = !bundle || !active;
-    const root = get('orders');
-    root.replaceChildren();
-    if (!bundle) return;
+    if (!bundle) {
+        get('organization').textContent = '';
+        get('orders').replaceChildren();
+        get('queue-orders').replaceChildren();
+        form.replaceChildren();
+        actions.replaceChildren();
+        get('portal').href = '/app';
+        return;
+    }
     get('organization').textContent = bundle.organization;
     get('portal').href = bundle.portalUrl;
-    get('updated').textContent = 'Dados de '+new Date(bundle.issuedAt).toLocaleString('pt-BR')+' • '+pending.length+' pendente(s)';
+    get('updated').textContent = 'Atualizado em '+new Date(bundle.issuedAt).toLocaleString('pt-BR');
+    get('agenda-period').textContent = displayDate(bundle.window.from)+' a '+displayDate(bundle.window.to);
     get('create').disabled = bundle.catalog.length === 0;
     get('catalog-status').hidden = bundle.catalog.length > 0;
+
+    const queue = get('queue-orders');
+    queue.replaceChildren();
+    queue.hidden = pending.length === 0;
+    if (pending.length) queue.append(element('h3', 'Aguardando sincronização'));
     for (const row of pending) {
-        const item = button(row.display.beneficiary || row.display.service || 'Nova ordem', () => openOrder(bundle.orders.find(order => order.id === row.payload.order_id),row));
+        const current = bundle.orders.find(order => order.id === row.payload.order_id);
+        const order = current || row.orderSnapshot;
+        const item = button(row.display.beneficiary || row.display.service || 'Nova ordem', () => {
+            if (!order && row.payload.order_id) {
+                message.textContent = 'Esta ordem está fora da agenda de campo. O registro salvo continua na fila de sincronização.';
+                return;
+            }
+            openOrder(order, row);
+        });
         item.className = 'order-row';
-        item.append(element('small', row.error || localStatus(row)));
-        root.append(item);
+        item.append(element('small', [order?.number, row.error || localStatus(row)].filter(Boolean).join(' · ')));
+        queue.append(item);
     }
+
+    const root = get('orders');
+    root.replaceChildren();
+    const queuedIds = new Set(pending.map(row => row.payload.order_id));
     for (const order of bundle.orders) {
-        if (pending.some(row => row.payload.order_id === order.id)) continue;
-        const label = [order.number, order.beneficiary].filter(Boolean).join(' · ');
-        const item = button(label, () => openOrder(order));
+        if (queuedIds.has(order.id)) continue;
+        const item = button(order.beneficiary || order.number, () => openOrder(order));
         item.className = 'order-row';
-        item.append(element('small', [order.service, order.scheduled?.slice(0,10).split('-').reverse().join('/'), order.status].filter(Boolean).join(' • ')));
+        item.append(element('small', [order.number, order.service, displayDate(order.executionDate || order.scheduled)].filter(Boolean).join(' · ')));
+        const status = element('span', order.state === 'in_progress' ? 'Em execução' : 'Agendada');
+        status.className = 'order-status';
+        status.dataset.state = order.state;
+        item.append(status);
         root.append(item);
     }
-    if (!root.childElementCount) root.append(element('p','Nenhuma ordem baixada.'));
+    if (!root.childElementCount) root.append(element('p', 'Nenhuma ordem agendada ou em execução neste período.'));
 }
 
 function chosenVersion() {
@@ -123,7 +151,7 @@ function renderFields(catalog, target, values, files, writable, isNew) {
             row.append(inputs, button('Remover pausa',() => {row.remove(); preview();}));
             pauses.insertBefore(row,add);
         }
-        const add = button('Adicionar pausa',() => addPause());
+        const add = button('Adicionar pausa',() => addPause(),true);
         pauses.append(add);
         try {JSON.parse(values['meter_pauses_'+startKey] || '[]').forEach(addPause);} catch {}
         target.append(pauses);
@@ -306,6 +334,7 @@ async function save(action) {
     const now = new Date().toISOString();
     const next = {id:row && !row.rejected ? row.id : crypto.randomUUID(),scope:bundle.scope,
         revision:crypto.randomUUID(),display:{beneficiary:model.beneficiary,service:model.service},files,
+        orderSnapshot: model.id ? model : null,
         payload:{order_id:model.id,lock_version:model.lockVersion,action,creation:model.id ? null : creation,
             values:currentValues,recorded_at:now,started_at:row?.payload.started_at || (action === 'start' ? now : null)}};
     saving = true;
@@ -327,6 +356,7 @@ async function redraw() {
     if (active && active.scope !== bundle?.scope) active = null;
     pending = bundle ? await queued(bundle.scope) : [];
     get('connection').textContent = navigator.onLine ? 'Online' : 'Sem internet';
+    get('connection').dataset.online = String(navigator.onLine);
     get('refresh').hidden = !bundle;
     if (!bundle) {
         active = null;
@@ -342,6 +372,11 @@ async function redraw() {
     if (requestedOrder) {
         requestedOrderId = null;
         openOrder(requestedOrder,pending.find(row => row.payload.order_id === requestedOrder.id));
+    } else if (bundle && requestedOrderId) {
+        const row = pending.find(item => String(item.payload.order_id) === requestedOrderId);
+        requestedOrderId = null;
+        if (row?.orderSnapshot) openOrder(row.orderSnapshot, row);
+        else message.textContent = 'Esta ordem não está na agenda de campo deste aparelho.';
     }
 }
 

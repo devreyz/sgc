@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Enums\ServiceOrderPaymentStatus;
 use App\Enums\ServiceOrderStatus;
 use App\Traits\BelongsToTenant;
+use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,6 +20,19 @@ use Spatie\Activitylog\Traits\LogsActivity;
 class ServiceOrder extends Model
 {
     use BelongsToTenant, HasFactory, LogsActivity, SoftDeletes;
+
+    public const FIELDWORK_DATE = 'COALESCE(DATE(execution_date), DATE(scheduled_date), DATE(scheduled_at))';
+
+    public function scopeForOfflineFieldwork(Builder $query, CarbonInterface $today): Builder
+    {
+        return $query->where(fn ($state) => $state
+            ->whereIn('operational_status', ['scheduled', 'in_progress'])
+            ->orWhere(fn ($legacy) => $legacy->whereNull('operational_status')->whereIn('status', ['scheduled', 'in_progress'])))
+            ->whereHas('execution', fn ($execution) => $execution->whereIn('status', ['draft', 'in_progress']))
+            ->whereRaw(self::FIELDWORK_DATE.' BETWEEN ? AND ?', [
+                $today->copy()->subDays(7)->toDateString(), $today->copy()->addMonthNoOverflow()->toDateString(),
+            ]);
+    }
 
     protected $fillable = [
         'number',

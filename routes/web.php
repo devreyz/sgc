@@ -539,6 +539,11 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/agreements', [ServiceManagementController::class, 'agreements'])->name('management.agreements');
         Route::get('/agreements/create', [ServiceManagementController::class, 'agreements'])->name('management.agreements.create');
         Route::post('/agreements', [ServiceManagementController::class, 'negotiate'])->middleware('throttle:10,1')->name('management.agreements.store');
+        Route::get('/agreements/{agreement}', [ServiceManagementController::class, 'agreements'])->whereNumber('agreement')->name('management.agreements.show');
+        Route::post('/agreements/{agreement}/payments', [ServiceManagementController::class, 'payAgreement'])->middleware('throttle:20,1')->whereNumber('agreement')->name('management.agreements.payments');
+        Route::patch('/agreements/{agreement}/installments/{installment}', [ServiceManagementController::class, 'rescheduleAgreementInstallment'])->middleware('throttle:20,1')->whereNumber(['agreement', 'installment'])->name('management.agreements.installments.update');
+        Route::get('/payments/{payment}/receipt', [ServiceManagementController::class, 'paymentReceipt'])->whereNumber('payment')->name('management.payments.receipt');
+        Route::get('/payments/{payment}/proof', [ServiceManagementController::class, 'paymentProof'])->whereNumber('payment')->name('management.payments.proof');
         Route::delete('/agreements/{agreement}', [ServiceManagementController::class, 'cancelAgreement'])->middleware('throttle:10,1')->whereNumber('agreement')->name('management.agreements.cancel');
         Route::post('/agreements/{agreement}/document', [ServiceManagementController::class, 'regenerateAgreementDocument'])->middleware('throttle:10,1')->whereNumber('agreement')->name('management.agreements.document');
         Route::post('/agreements/{agreement}/installments/{installment}/payment', [ServiceManagementController::class, 'payAgreementInstallment'])->middleware('throttle:20,1')->whereNumber('agreement')->whereNumber('installment')->name('management.agreements.installments.payment');

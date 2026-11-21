@@ -63,7 +63,7 @@ function setup() {
     }
     function release(version) {
         for (const url of ['/provider-offline.html', '/assets/provider-offline.css', '/assets/provider-offline.js',
-            '/assets/provider-offline-store.js', '/assets/provider-offline-document.js', '/offline']) onlineFile(url, version);
+            '/assets/provider-offline-store.js', '/assets/provider-offline-document.js', '/assets/icons/campo-dark-192.png', '/offline']) onlineFile(url, version);
     }
     return {run, fetchPath, onlineFile, release, source, cacheContents,
         network: online => { fail = !online; }, advanceTime: () => { now += 600001; }};
@@ -92,7 +92,7 @@ test('a partial update leaves the previous offline package usable', async () => 
     sw.source.delete('/assets/provider-offline-document.js');
     await sw.run('message', {data: {type: 'SGC_REFRESH_OFFLINE_SHELL'}}).pending;
     sw.network(false);
-    assert.equal((await sw.fetchPath('/sgc/provider/orders/1', 'navigate').response).release, 'old');
+    assert.equal((await sw.fetchPath('/sgc/provider/orders/1', 'navigate').response).location, 'https://sgc.test/provider-offline.html?tenant=sgc&os=1');
     assert.equal((await sw.fetchPath('/assets/provider-offline-store.js').response).release, 'old');
     sw.network(true);
     sw.release('new');
@@ -130,5 +130,32 @@ test('the provider create route opens the offline order form for the same organi
     sw.network(false);
     const offline = await sw.fetchPath(url, 'navigate').response;
     assert.equal(offline.location, 'https://sgc.test/provider-offline.html?tenant=minha-coop&new=1');
+});
+
+test('the provider offline link stays in the requested organization', async () => {
+    const sw = setup();
+    sw.release('current');
+    await sw.run('install').pending;
+    sw.network(false);
+    assert.equal((await sw.fetchPath('/coop/provider/dashboard', 'navigate').response).location, 'https://sgc.test/provider-offline.html?tenant=coop');
+    assert.equal(sw.fetchPath('/coop/provider/financial', 'navigate').response, undefined);
+});
+
+test('the cached fieldwork window excludes older, distant and completed orders', () => {
+    const source = readFileSync(path.join(__dirname, '../../public/assets/provider-offline-store.js'), 'utf8');
+    const start = source.indexOf('function fieldworkBundle(');
+    const end = source.indexOf('export function hasOfflineAccess', start);
+    const filter = vm.runInNewContext('(' + source.slice(start, end).trim() + ')');
+    const order = (id, scheduled, state = 'scheduled', execution = 'draft') => ({id, scheduled, state, execution});
+    const bundle = {orders: [
+        order(1, '2026-10-23'), order(2, '2026-10-24'),
+        {...order(3, '2026-10-01', 'in_progress', 'in_progress'), executionDate: '2026-10-25'},
+        order(4, '2026-11-30'), order(5, '2026-12-01'), order(6, '2026-11-02', 'validated', 'validated'),
+        order(7, null), order(8, '2026-11-01', 'scheduled', 'submitted'),
+    ]};
+    const filtered = filter(bundle, new Date('2026-11-01T00:30:00Z'));
+    assert.equal(filtered.window.from, '2026-10-24');
+    assert.equal(filtered.window.to, '2026-11-30');
+    assert.equal(filtered.orders.map(item => item.id).join(','), '2,3,4');
 });
 

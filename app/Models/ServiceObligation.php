@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\BelongsToTenant;
+use App\Services\Services\ServiceMoney;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -39,7 +40,7 @@ class ServiceObligation extends Model
 
     public function associate(): BelongsTo
     {
-        return $this->belongsTo(Associate::class);
+        return $this->belongsTo(Associate::class)->withTrashed();
     }
 
     public function provider(): BelongsTo
@@ -68,28 +69,41 @@ class ServiceObligation extends Model
 
     public function getTotalAmountAttribute(): float
     {
-        return round((float) $this->principal_amount + (float) $this->adjustment_amount, 2);
+        return $this->totalCents() / 100;
     }
 
     public function getPaidAmountAttribute(): float
     {
-        return round((float) $this->allocations()->whereHas('paymentEvent', fn ($q) => $q->whereIn('status', ['confirmed', 'reversed']))->sum('amount'), 2);
+        return $this->paidCents() / 100;
     }
 
     public function getBalanceAttribute(): float
     {
-        if ($this->status === 'cancelled') {
-            return 0.0;
-        }
-
-        return max(0, round($this->total_amount - $this->paid_amount, 2));
+        return $this->balanceCents() / 100;
     }
 
-    public function activePaymentPlan(): bool
+    public function totalCents(): int
+    {
+        return ServiceMoney::cents($this->principal_amount) + ServiceMoney::cents($this->adjustment_amount ?? 0);
+    }
+
+    public function paidCents(): int
+    {
+        return ServiceMoney::cents($this->getAttribute('settled_amount') ?? $this->allocations()
+            ->whereHas('paymentEvent', fn ($query) => $query->whereIn('status', ['confirmed', 'reversed']))->sum('amount'));
+    }
+
+    public function balanceCents(): int
+    {
+        return $this->status === 'cancelled' ? 0 : max(0, $this->totalCents() - $this->paidCents());
+    }
+
+    public function activePaymentPlan(?int $exceptPlan = null): bool
     {
         return \Illuminate\Support\Facades\DB::table('service_payment_plan_obligations as link')
             ->join('service_payment_plans as plan', 'plan.id', '=', 'link.service_payment_plan_id')
             ->where('link.service_obligation_id', $this->id)
+            ->when($exceptPlan, fn ($query) => $query->where('plan.id', '!=', $exceptPlan))
             ->where('plan.tenant_id', $this->tenant_id)->where('plan.status', 'active')->exists();
     }
 }
