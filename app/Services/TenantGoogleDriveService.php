@@ -34,24 +34,18 @@ class TenantGoogleDriveService
     public function prepareRootFolder(Drive $drive, Tenant $tenant, ?string $existingRoot = null, ?string $selectedFolder = null): string
     {
         if ($existingRoot) {
-            $this->validateDestination($drive, $existingRoot);
+            if (! $this->ownsDestination($drive, $existingRoot, $tenant)) {
+                throw new RuntimeException('A pasta vinculada não é uma pasta do SGC desta organização.');
+            }
 
             return $existingRoot;
         }
 
-        $query = "mimeType = 'application/vnd.google-apps.folder' and trashed = false and 'me' in owners and appProperties has { key='sgc_tenant' and value='".(int) $tenant->id."' } and appProperties has { key='sgc_type' and value='root' }";
         if ($selectedFolder) {
             $this->validateDestination($drive, $selectedFolder);
-            $query .= " and '{$selectedFolder}' in parents";
         }
-        $existing = $drive->files->listFiles([
-            'q' => $query,
-            'spaces' => 'drive',
-            'fields' => 'files(id,ownedByMe)',
-            'pageSize' => 1,
-        ]);
-        if ($existing->getFiles() && $existing->getFiles()[0]->getOwnedByMe()) {
-            return (string) $existing->getFiles()[0]->getId();
+        if ($root = $this->findOwnedRoot($drive, $tenant, $selectedFolder)) {
+            return $root;
         }
 
         $metadata = [
@@ -74,6 +68,37 @@ class TenantGoogleDriveService
         return (string) $folder->id;
     }
 
+    public function findOwnedRoot(Drive $drive, Tenant $tenant, ?string $parentId = null): ?string
+    {
+        $query = "mimeType = 'application/vnd.google-apps.folder' and trashed = false and 'me' in owners and appProperties has { key='sgc_tenant' and value='".(int) $tenant->id."' } and appProperties has { key='sgc_type' and value='root' }";
+        if ($parentId !== null) {
+            if (! preg_match('/\A[A-Za-z0-9_-]+\z/', $parentId)) {
+                throw new RuntimeException('Identificador de pasta inválido.');
+            }
+            $query .= " and '{$parentId}' in parents";
+        }
+
+        $pageToken = null;
+        do {
+            $existing = $drive->files->listFiles(array_filter([
+                'q' => $query,
+                'spaces' => 'drive',
+                'fields' => 'nextPageToken,files(id,ownedByMe,capabilities(canAddChildren))',
+                'orderBy' => 'createdTime',
+                'pageSize' => 25,
+                'pageToken' => $pageToken,
+            ]));
+            foreach ($existing->getFiles() ?? [] as $folder) {
+                if ($folder->getId() && $folder->getOwnedByMe() && $folder->getCapabilities()?->getCanAddChildren()) {
+                    return $folder->getId();
+                }
+            }
+            $pageToken = $existing->getNextPageToken();
+        } while ($pageToken);
+
+        return null;
+    }
+
     private function validateDestination(Drive $drive, string $folderId): void
     {
         if (! $this->ownsDestination($drive, $folderId)) {
@@ -81,26 +106,17 @@ class TenantGoogleDriveService
         }
     }
 
-    public function ownsDestination(Drive $drive, ?string $folderId): bool
+    public function ownsDestination(Drive $drive, ?string $folderId, ?Tenant $rootTenant = null): bool
     {
         if (! $folderId || ! preg_match('/\A[A-Za-z0-9_-]+\z/', $folderId)) {
             return false;
         }
 
-        try {
-            $folder = $drive->files->get($folderId, [
-                'fields' => 'mimeType,trashed,driveId,ownedByMe,capabilities(canAddChildren)',
-                'supportsAllDrives' => true,
-            ]);
-        } catch (DriveException $exception) {
-            if ((int) $exception->getCode() === 404) {
-                return false;
-            }
+        $folder = $this->getDriveFile($drive, $folderId, 'mimeType,trashed,driveId,ownedByMe,capabilities(canAddChildren),appProperties');
+        $properties = $folder?->getAppProperties() ?? [];
 
-            throw $exception;
-        }
-
-        return $folder->getMimeType() === 'application/vnd.google-apps.folder'
+        return $folder?->getMimeType() === 'application/vnd.google-apps.folder'
+            && (! $rootTenant || (($properties['sgc_type'] ?? null) === 'root' && ($properties['sgc_tenant'] ?? null) === (string) $rootTenant->id))
             && ! $folder->getTrashed() && ! $folder->getDriveId()
             && $folder->getOwnedByMe() === true && $folder->getCapabilities()?->getCanAddChildren() === true;
     }
@@ -158,16 +174,24 @@ class TenantGoogleDriveService
         }
 
         $checksum = hash('sha256', $contents);
-        if ($document->exists && ! $document->drive_archive_id && $document->checksum === $checksum && $document->status === 'synced') {
-            return $document;
-        }
-
         try {
             $drive = $this->clients->forConnection($connection);
-            $parentId = $this->ensureRootFolder($connection, $drive);
+            $rootId = $parentId = $this->ensureRootFolder($connection, $drive);
 
             foreach ($folders as $folder) {
                 $parentId = $this->findOrCreateFolder($drive, $parentId, $this->safeSegment($folder));
+            }
+
+            $actualParent = $document->remote_file_id && ! $document->drive_archive_id
+                ? $this->writableParentInRoot($drive, $document->remote_file_id, $rootId, $parentId)
+                : null;
+
+            if ($actualParent === $parentId && $document->checksum === $checksum && $document->status === 'synced') {
+                if ($document->remote_folder_id !== $parentId) {
+                    $document->forceFill(['remote_folder_id' => $parentId])->save();
+                }
+
+                return $document;
             }
 
             $safeFilename = $this->safeFilename($filename);
@@ -178,11 +202,10 @@ class TenantGoogleDriveService
                 'fields' => 'id,name,modifiedTime',
             ];
 
-            if ($document->remote_file_id && ! $document->drive_archive_id) {
-                if ($document->remote_folder_id
-                    && (string) $document->remote_folder_id !== (string) $parentId) {
+            if ($actualParent !== null) {
+                if ($actualParent !== $parentId) {
                     $options['addParents'] = $parentId;
-                    $options['removeParents'] = $document->remote_folder_id;
+                    $options['removeParents'] = $actualParent;
                 }
 
                 $file = $drive->files->update(
@@ -226,6 +249,49 @@ class TenantGoogleDriveService
             ])->save();
 
             return new RuntimeException($safeError, 0, $exception);
+        }
+    }
+
+    private function writableParentInRoot(Drive $drive, string $fileId, string $rootId, string $targetId): ?string
+    {
+        $file = $this->getDriveFile($drive, $fileId, 'mimeType,parents,trashed,ownedByMe,capabilities(canEdit)');
+        $parents = $file?->getParents() ?? [];
+        if (! $file || $file->getTrashed() || ! $file->getOwnedByMe() || ! $file->getCapabilities()?->getCanEdit()
+            || in_array($file->getMimeType(), ['application/vnd.google-apps.folder', 'application/vnd.google-apps.shortcut'], true)
+            || count($parents) !== 1) {
+            return null;
+        }
+
+        $parentId = $parents[0];
+        $ancestor = $parentId;
+        $visited = [];
+        while ($ancestor && ! isset($visited[$ancestor])) {
+            if ($ancestor === $rootId || $ancestor === $targetId) {
+                return $parentId;
+            }
+
+            $visited[$ancestor] = true;
+            $folder = $this->getDriveFile($drive, $ancestor, 'mimeType,parents,trashed,ownedByMe');
+            if ($folder?->getMimeType() !== 'application/vnd.google-apps.folder' || $folder->getTrashed() || ! $folder->getOwnedByMe()) {
+                return null;
+            }
+            $parents = $folder->getParents() ?? [];
+            $ancestor = count($parents) === 1 ? $parents[0] : null;
+        }
+
+        return null;
+    }
+
+    private function getDriveFile(Drive $drive, string $id, string $fields): ?DriveFile
+    {
+        try {
+            return $drive->files->get($id, ['fields' => $fields, 'supportsAllDrives' => true]);
+        } catch (DriveException $exception) {
+            if ((int) $exception->getCode() === 404) {
+                return null;
+            }
+
+            throw $exception;
         }
     }
 

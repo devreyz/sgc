@@ -94,6 +94,16 @@ class GoogleDriveOAuthController extends Controller
                 throw new RuntimeException('Conta do Google Drive não identificada.');
             }
 
+            $ownedRoot = null;
+            $requiredRoot = null;
+            if ($driveStorage->ownsDestination($drive, $connection->root_folder_id, $tenant)) {
+                $ownedRoot = $connection->root_folder_id;
+            } elseif ($connection->root_folder_id && $this->sameAccount($connection, $accountEmail)) {
+                $requiredRoot = $connection->root_folder_id;
+            } else {
+                $ownedRoot = $driveStorage->findOwnedRoot($drive, $tenant);
+            }
+
             $request->session()->put('google_drive_destination', Crypt::encrypt([
                 'tenant_id' => $tenant->id,
                 'user_id' => $request->user()->id,
@@ -102,7 +112,8 @@ class GoogleDriveOAuthController extends Controller
                 'token' => $token,
                 'scopes' => $scopes,
                 'account_email' => $accountEmail,
-                'owned_root' => $driveStorage->ownsDestination($drive, $connection->root_folder_id) ? $connection->root_folder_id : null,
+                'owned_root' => $ownedRoot,
+                'required_root' => $requiredRoot,
             ]));
 
             return redirect()->route('settings.google-drive.destination', ['tenant' => $tenant->slug]);
@@ -130,6 +141,7 @@ class GoogleDriveOAuthController extends Controller
         return response()->view('auth.google-drive-destination', [
             'tenant' => $tenant,
             'existingRoot' => $existingRoot,
+            'folderToReauthorize' => $grant['required_root'],
             'accountEmail' => $grant['account_email'],
             'picker' => $picker ? $picker + ['accessToken' => $grant['token']['access_token']] : null,
         ])->header('Cache-Control', 'private, no-store')
@@ -154,6 +166,9 @@ class GoogleDriveOAuthController extends Controller
             'folder_id' => ['exclude_unless:destination,selected', 'required', 'string', 'max:200', 'regex:/\A[A-Za-z0-9_-]+\z/'],
         ]);
         $selectedFolder = $data['folder_id'] ?? null;
+        if ($grant['required_root'] && $selectedFolder !== $grant['required_root']) {
+            return back()->withErrors(['folder_id' => 'Selecione a pasta já vinculada a esta organização.']);
+        }
 
         try {
             $activated = DB::transaction(function () use ($tenant, $request, $grant, $selectedFolder, $clients, $driveStorage): bool {
@@ -172,10 +187,13 @@ class GoogleDriveOAuthController extends Controller
                 }
 
                 $client->setAccessToken($grant['token']);
-                $rootFolder = $driveStorage->prepareRootFolder(new Drive($client), $tenant, $grant['owned_root'], $selectedFolder);
+                $rootFolder = $driveStorage->prepareRootFolder(
+                    new Drive($client), $tenant, $grant['owned_root'] ?? $grant['required_root'],
+                    $grant['required_root'] ? null : $selectedFolder,
+                );
                 if ($connection->exists && ($rootFolder !== $connection->root_folder_id
                     || $client->getClientId() !== $connection->oauth_client_id
-                    || ($connection->google_account_email && $grant['account_email'] !== $connection->google_account_email))) {
+                    || ($connection->google_account_email && ! $this->sameAccount($connection, $grant['account_email'])))) {
                     $driveStorage->archiveDocuments($connection);
                 }
 
@@ -195,9 +213,11 @@ class GoogleDriveOAuthController extends Controller
                 return true;
             });
         } catch (Throwable) {
-            $message = $selectedFolder
-                ? 'Escolha uma pasta que pertença à conta autorizada ou use a criação automática.'
-                : 'O Google Drive não permitiu preparar a pasta nesta conta. Tente novamente.';
+            $message = match (true) {
+                filled($grant['required_root']) => 'O Google Drive ainda não permite acessar a pasta já vinculada. Confira o acesso no Drive e tente novamente.',
+                filled($selectedFolder) => 'Escolha uma pasta que pertença à conta autorizada ou use a criação automática.',
+                default => 'O Google Drive não permitiu preparar a pasta nesta conta. Tente novamente.',
+            };
             return back()->withErrors(['folder_id' => $message]);
         }
 
@@ -238,6 +258,11 @@ class GoogleDriveOAuthController extends Controller
         ]));
     }
 
+    private function sameAccount(TenantCloudStorageConnection $connection, string $email): bool
+    {
+        return filled($connection->google_account_email) && strcasecmp($connection->google_account_email, $email) === 0;
+    }
+
     private function pendingGrant(Request $request, Tenant $tenant): ?array
     {
         $encrypted = $request->session()->get('google_drive_destination');
@@ -247,7 +272,7 @@ class GoogleDriveOAuthController extends Controller
 
         $grant = Crypt::decrypt($encrypted);
 
-        return isset($grant['account_email']) && array_key_exists('owned_root', $grant)
+        return isset($grant['account_email']) && array_key_exists('owned_root', $grant) && array_key_exists('required_root', $grant)
             && (int) $grant['tenant_id'] === (int) $tenant->id
             && (int) $grant['user_id'] === (int) $request->user()->id
             && (int) $grant['expires_at'] > now()->timestamp ? $grant : null;

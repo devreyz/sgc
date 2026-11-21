@@ -23,7 +23,13 @@ O cliente OAuth é compartilhado na configuração do servidor. Os tokens do Dri
 
 Em **Minha Organização → Google Drive**, um membro administrador seleciona **Conectar com Google** ou **Reconectar ou trocar conta**. Autorize o e-mail da organização e confira qual conta aparece na confirmação. O SGC cria `SGC - Nome da organização` no Meu Drive dessa conta ou dentro de uma pasta própria escolhida pelo usuário. Uma pasta compartilhada por outra conta não é usada como destino.
 
+A sessão do SGC serve para confirmar a permissão administrativa. O e-mail usado para armazenar os arquivos é o da conta escolhida na tela do Google, mesmo que seja diferente do e-mail de login do administrador.
+
 O cliente central é usado em todas as novas autorizações. Na troca de conta, os novos arquivos vão para a pasta da conta escolhida. Os arquivos anteriores ficam onde foram gravados e o SGC mantém a referência e o acesso histórico enquanto a autorização anterior estiver válida. O SGC não cria permissões de compartilhamento durante a conexão.
+
+Ao reconectar o mesmo e-mail depois de alterar o nome da organização, o SGC mantém a pasta pelo ID do Drive. Se o Google pedir acesso de novo, selecione a pasta já vinculada. Quando não houver um ID salvo, o SGC procura uma pasta identificada para a organização nessa conta antes de oferecer a criação de outra.
+
+O SGC não solicita a exclusão de arquivos no Drive. Antes de atualizar um arquivo já sincronizado, o SGC confere a pasta real dele. Se ele tiver sido movido para fora da pasta da organização, o envio gera uma cópia dentro da pasta do SGC e preserva o arquivo que está fora dela.
 
 O SGC cria a estrutura:
 

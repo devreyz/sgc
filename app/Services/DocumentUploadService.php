@@ -108,8 +108,10 @@ class DocumentUploadService
      */
     public function delete(Document $document): bool
     {
-        // Delete from storage
-        if ($document->path) {
+        $usesDrive = in_array($document->disk, ['google', 'google_drive'], true)
+            || config("filesystems.disks.{$document->disk}.driver") === 'google';
+
+        if ($document->path && ! $usesDrive) {
             Storage::disk($document->disk)->delete($document->path);
         }
 

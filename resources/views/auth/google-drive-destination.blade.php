@@ -4,14 +4,21 @@
 @section('referrer-policy', 'strict-origin-when-cross-origin')
 
 @section('heading')
-    <h1>{{ $existingRoot ? 'Confirmar reconexão' : 'Onde guardar os documentos?' }}</h1>
+    <h1>{{ $existingRoot || $folderToReauthorize ? 'Confirmar reconexão' : 'Onde guardar os documentos?' }}</h1>
     <p>{{ $tenant->name }}</p>
 @endsection
 
 @section('content')
-    <p>Conta Google autorizada <strong>{{ $accountEmail }}</strong></p>
+    <p>Conta Google que receberá os arquivos <strong>{{ $accountEmail }}</strong></p>
+    <p>Você pode usar uma conta Google diferente da que usa para entrar no SGC.</p>
     @if($existingRoot)
         <p>Os novos documentos vão para a pasta da organização que já pertence a esta conta.</p>
+    @elseif($folderToReauthorize)
+        <p>Autorize novamente o acesso à pasta já vinculada à organização para continuar usando o mesmo destino.</p>
+        <p><a target="_blank" rel="noopener noreferrer" href="https://drive.google.com/drive/folders/{{ rawurlencode($folderToReauthorize) }}">Abrir pasta atual no Drive</a></p>
+        @unless($picker)
+            <p>Confira se a pasta está disponível no Meu Drive antes de reconectar.</p>
+        @endunless
     @else
         <p>O SGC vai organizar os documentos em uma pasta própria no seu Drive.</p>
     @endif
@@ -20,7 +27,7 @@
         @csrf
         @if($picker)
             <input type="hidden" name="folder_id" id="drive-folder-id">
-            <button type="button" class="btn secondary" id="drive-picker-open">Escolher pasta do Meu Drive</button>
+            <button type="button" class="btn secondary" id="drive-picker-open">{{ $folderToReauthorize ? 'Autorizar pasta atual' : 'Escolher pasta do Meu Drive' }}</button>
             <p id="drive-picker-selection" role="status" hidden></p>
             <button type="submit" name="destination" value="selected" class="btn" id="drive-picker-confirm" hidden>Usar esta pasta</button>
         @endif
@@ -29,9 +36,11 @@
             <p class="status show error" role="alert">{{ $errors->first() }}</p>
         @endif
 
-        <button type="submit" name="destination" value="automatic" @class(['btn', 'secondary' => $picker])>
-            {{ $existingRoot ? 'Reconectar na pasta atual' : 'Criar pasta automaticamente' }}
-        </button>
+        @unless($folderToReauthorize)
+            <button type="submit" name="destination" value="automatic" @class(['btn', 'secondary' => $picker])>
+                {{ $existingRoot ? 'Reconectar na pasta atual' : 'Criar pasta automaticamente' }}
+            </button>
+        @endunless
     </form>
 
     <a class="btn outline" href="{{ route('filament.admin.pages.organization-settings-page', ['tab' => 'organization-settings-google-drive-tab']) }}">Voltar às configurações</a>
@@ -96,7 +105,7 @@
                             .setVisible(true);
                     } catch {
                         loading = null;
-                        selection.textContent = 'O seletor do Google está indisponível. Tente novamente ou crie a pasta automaticamente.';
+                        selection.textContent = 'O seletor do Google está indisponível. Tente novamente.';
                         selection.hidden = false;
                     } finally {
                         open.disabled = false;

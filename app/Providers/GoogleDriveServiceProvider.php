@@ -8,6 +8,7 @@ use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\ServiceProvider;
 use League\Flysystem\Filesystem;
+use League\Flysystem\UnableToDeleteFile;
 use Masbug\Flysystem\GoogleDriveAdapter;
 
 class GoogleDriveServiceProvider extends ServiceProvider
@@ -38,7 +39,13 @@ class GoogleDriveServiceProvider extends ServiceProvider
             $client->refreshToken($config['refreshToken']);
 
             $service = new Drive($client);
-            $adapter = new GoogleDriveAdapter($service, $config['folder'] ?? '/', $options);
+            $adapter = new class($service, $config['folder'] ?? '/', $options) extends GoogleDriveAdapter
+            {
+                protected function delete_by_id($ids)
+                {
+                    throw UnableToDeleteFile::atLocation((string) (((array) $ids)[0] ?? ''), 'A exclusão de arquivos no Google Drive está desativada.');
+                }
+            };
             $driver = new Filesystem($adapter);
 
             return new FilesystemAdapter($driver, $adapter, $config);
