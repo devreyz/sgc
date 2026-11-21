@@ -294,8 +294,9 @@ function ensureWebPdfViewer() {
         #sgc-web-pdf-viewer button i{font-size:1.05rem}
         #sgc-web-pdf-viewer [data-sgc-pdf-close]{min-width:44px;background:var(--sgc-accent);color:var(--sgc-on-accent)}
         .sgc-pdf-controls{justify-content:center;flex-wrap:wrap;column-gap:14px}
-        .sgc-pdf-controls label{font-size:.8rem;white-space:nowrap}
-        .sgc-pdf-controls input{width:3.2rem;height:40px;padding:.15rem;text-align:center;background:var(--ui-color-surface-soft,#eef4f0);border:1px solid var(--ui-color-border,#dce6df);border-radius:.5rem;color:inherit}
+        #sgc-web-pdf-viewer .sgc-pdf-controls label{display:inline-flex;align-items:center;gap:3px;margin:0;padding:0;font-size:.8rem;white-space:nowrap;font-variant-numeric:tabular-nums}
+        #sgc-web-pdf-viewer .sgc-pdf-controls input{width:2.25rem;height:44px;min-height:44px;margin:0;padding:0;text-align:center;background:var(--ui-color-surface-soft,#eef4f0);border:1px solid var(--ui-color-border,#dce6df);border-radius:.5rem;color:inherit;font:inherit;appearance:textfield}
+        #sgc-web-pdf-viewer .sgc-pdf-controls input::-webkit-inner-spin-button,#sgc-web-pdf-viewer .sgc-pdf-controls input::-webkit-outer-spin-button{appearance:none;margin:0}
         .sgc-pdf-progress{padding:.4rem .75rem;background:var(--ui-color-surface,#fff);font-size:.8rem}
         .sgc-pdf-progress progress{display:block;width:100%;height:.55rem;accent-color:var(--ui-color-primary-strong,#173d32)}
         .sgc-pdf-pages{grid-row:4;min-height:0;overflow:auto;padding:8px;background:var(--ui-color-canvas-deep,#dfe7e2);overscroll-behavior:contain;touch-action:pan-x pan-y;overflow-anchor:none}
@@ -303,6 +304,9 @@ function ensureWebPdfViewer() {
         .sgc-pdf-pages>p{padding:24px;font-size:.85rem}
         @media(max-width:759px){
             .sgc-pdf-heading{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal;overflow-wrap:anywhere;line-height:1.2}
+            .sgc-pdf-controls{justify-content:space-between;column-gap:5px}
+            #sgc-web-pdf-viewer .sgc-pdf-controls button{min-width:36px;padding-inline:.35rem}
+            #sgc-web-pdf-viewer .sgc-pdf-controls [data-sgc-pdf-fit]{min-width:44px;font-variant-numeric:tabular-nums}
         }
         @media(min-width:760px){
             #sgc-web-pdf-viewer{grid-template-columns:minmax(0,1fr) auto}

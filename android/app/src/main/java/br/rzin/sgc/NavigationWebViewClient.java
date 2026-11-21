@@ -11,6 +11,7 @@ import com.getcapacitor.BridgeWebViewClient;
 
 final class NavigationWebViewClient extends BridgeWebViewClient {
     private static final String OFFLINE_PAGE = "file:///android_asset/offline.html";
+    private static final String PROVIDER_OFFLINE_PAGE = "https://sgc.rzin.com.br/provider-offline.html";
     private final PathNavigationEngine navigationEngine;
     private final MainActivity activity;
 
@@ -76,7 +77,11 @@ final class NavigationWebViewClient extends BridgeWebViewClient {
 
         if (request.isForMainFrame() && !OFFLINE_PAGE.equals(request.getUrl().toString())) {
             activity.hideNavigationLoading();
-            view.loadUrl(OFFLINE_PAGE);
+            Uri failedUrl = request.getUrl();
+            String path = failedUrl.getPath();
+            boolean providerPortal = "https".equals(failedUrl.getScheme()) && "sgc.rzin.com.br".equals(failedUrl.getHost())
+                && path != null && (path.equals("/app") || path.matches("/[^/]+/provider/(dashboard|orders(?:/.*)?)"));
+            view.loadUrl(providerPortal ? PROVIDER_OFFLINE_PAGE : OFFLINE_PAGE);
         }
     }
 

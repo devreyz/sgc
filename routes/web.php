@@ -570,6 +570,8 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
     });
 
     Route::prefix('provider')->name('provider.')->group(function () {
+        Route::get('/offline/data', [ServiceProviderPortalController::class, 'offlineData'])->middleware('throttle:24,1')->name('offline.data');
+        Route::post('/offline/sync', [ServiceProviderPortalController::class, 'offlineSync'])->middleware('throttle:30,1')->name('offline.sync');
         Route::get('/dashboard', [ServiceProviderPortalController::class, 'index'])->name('dashboard');
         Route::get('/orders', [ServiceProviderPortalController::class, 'orders'])->name('orders');
         Route::get('/orders/create', [ServiceProviderPortalController::class, 'create'])->name('orders.create');

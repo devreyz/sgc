@@ -85,10 +85,208 @@ class ServiceProviderPortalController extends Controller
         return view('provider.services-create', compact('provider', 'operator', 'providers', 'versions', 'associates'));
     }
 
+    public function offlineData(Request $request, Tenant $tenant): JsonResponse
+    {
+        $provider = $this->provider($request, $tenant);
+        $catalog = $this->availableVersions($tenant, $provider, false)->with('providerRates')->get()
+            ->filter(fn (ServiceVersion $version) => ! $version->service->current_version_id || (int) $version->service->current_version_id === (int) $version->id)
+            ->map(function (ServiceVersion $version) use ($provider): array {
+                $snapshot = $version->snapshot();
+                $rate = $version->providerRates->first(fn ($rate) => (int) $rate->service_provider_id === (int) $provider->id && $rate->active);
+                if ($rate) {
+                    $snapshot['provider_compensation'] = [
+                        'method' => $version->provider_pricing_method,
+                        'rate' => $version->provider_pricing_method === 'fixed'
+                            ? ($rate->fixed_amount ?? $rate->rate ?? $version->default_provider_rate)
+                            : ($rate->rate ?? $rate->fixed_amount ?? $version->default_provider_rate),
+                        'percentage' => $rate->percentage ?? $version->provider_percentage,
+                    ];
+                }
+
+                return [
+                    'id' => $version->id, 'name' => $version->service->name, 'unit' => $version->unit,
+                    'membersOnly' => (bool) $version->members_only, 'catalog' => $this->offlineCatalog($snapshot),
+                ];
+            })->values();
+        $orders = ServiceOrder::query()->where('tenant_id', $tenant->id)->where('service_provider_id', $provider->id)
+            ->whereHas('execution')->where(fn ($query) => $query->whereIn('operational_status', ['scheduled', 'in_progress', 'rejected', 'submitted'])
+                ->orWhere('updated_at', '>=', now()->subDays(30)))
+            ->with(['service', 'execution.evidences', 'execution.obligations', 'execution.resources'])->orderByDesc('scheduled_at')->get()
+            ->map(fn (ServiceOrder $order) => $this->offlineOrder($order))->values();
+        $members = $catalog->contains('membersOnly', true)
+            ? Associate::query()->where('tenant_id', $tenant->id)->active()->get()
+                ->map(fn (Associate $member) => ['id' => $member->id, 'name' => $member->nickname ?: $member->display_name])->values()
+            : [];
+        $issued = now();
+
+        return response()->json([
+            'scope' => $this->offlineScope($request, $tenant, $provider),
+            'user' => (string) $request->user()->id, 'tenant' => $tenant->slug, 'organization' => $tenant->name,
+            'logo' => $this->offlineLogo($tenant),
+            'provider' => $provider->name, 'catalog' => $catalog, 'orders' => $orders, 'members' => $members,
+            'issuedAt' => $issued->toIso8601String(),
+            'expiresAt' => $issued->copy()->addMinutes(min(720, max(1, (int) config('session.lifetime'))))->toIso8601String(),
+            'syncUrl' => route('provider.offline.sync', $tenant->slug), 'portalUrl' => route('provider.dashboard', $tenant->slug),
+            'csrf' => csrf_token(),
+        ])->header('Cache-Control', 'private, no-store');
+    }
+
+    public function offlineSync(Request $request, Tenant $tenant, CreateServiceOrder $creator, ServiceExecutionWorkflow $workflow, ServiceEvidenceService $evidence): JsonResponse
+    {
+        $provider = $this->provider($request, $tenant);
+        $input = $request->validate([
+            'scope' => 'required|string|max:100', 'operation_key' => 'required|uuid', 'order_id' => 'nullable|integer|min:1',
+            'lock_version' => 'required_with:order_id|nullable|integer|min:0', 'action' => 'required|in:schedule,draft,start,finish',
+            'creation' => 'nullable|required_without:order_id|array:service_version_id,beneficiary_name,beneficiary_whatsapp,associate_id,scheduled_at,location,order_data',
+            'creation.service_version_id' => 'required_without:order_id|integer|min:1',
+            'creation.beneficiary_name' => 'required_without:order_id|string|max:191',
+            'creation.beneficiary_whatsapp' => ['nullable', 'regex:/\A\+?[0-9 ()-]{10,25}\z/'],
+            'creation.associate_id' => 'nullable|integer|min:1',
+            'creation.scheduled_at' => 'required_without:order_id|date',
+            'creation.location' => 'nullable|string|max:191',
+            'creation.order_data' => 'array|max:120',
+            'creation.order_data.*' => 'nullable|string|max:10000',
+            'values' => 'array|max:120', 'values.*' => 'nullable|string|max:10000',
+            'recorded_at' => 'nullable|date|before_or_equal:now',
+            'started_at' => 'nullable|date|before_or_equal:recorded_at',
+            'evidences' => 'array|max:12', 'evidences.*' => 'file|max:12288',
+        ]);
+        abort_unless(hash_equals($this->offlineScope($request, $tenant, $provider), $input['scope']), 403);
+        $identity = ['tenant_id' => $tenant->id, 'provider_id' => $provider->id,
+            'user_id' => $request->user()->id, 'operation_key' => $input['operation_key']];
+        $localFiles = [];
+        try {
+            $order = DB::transaction(function () use ($request, $tenant, $provider, $input, $identity, $creator, $workflow, $evidence, &$localFiles) {
+                ServiceProvider::query()->where('tenant_id', $tenant->id)->where('status', true)
+                    ->where('user_id', $request->user()->id)->lockForUpdate()->findOrFail($provider->id);
+                $previous = DB::table('service_offline_operations')->where($identity)->value('result');
+                if ($previous) {
+                    return $this->order($tenant, $provider, false, json_decode($previous, true, flags: JSON_THROW_ON_ERROR)['order_id']);
+                }
+                if (! empty($input['order_id'])) {
+                    $order = $this->order($tenant, $provider, false, $input['order_id']);
+                    $execution = $order->execution()->lockForUpdate()->firstOrFail();
+                    abort_if((int) $execution->service_provider_id !== (int) $provider->id
+                        || (int) $execution->lock_version !== (int) $input['lock_version']
+                        || ! in_array($execution->status, ['draft', 'in_progress', 'rejected'], true), 409,
+                        'A ordem foi alterada no servidor. Confira os dados antes de reenviar.');
+                    abort_if($input['action'] === 'schedule', 422);
+                    $order->setRelation('execution', $execution);
+                } else {
+                    $creation = $input['creation'];
+                    $version = $this->availableVersions($tenant, $provider, false)->findOrFail($creation['service_version_id']);
+                    $allowedKeys = $version->fields->filter(fn ($field) => $field->phase === 'order'
+                        && $field->visible_to_provider && $field->editable_by_provider)->pluck('key')->all();
+                    $creation['order_data'] = array_intersect_key($creation['order_data'] ?? [], array_flip($allowedKeys));
+                    $order = $creator->handle($tenant->id, $version, $creation + ['service_provider_id' => $provider->id], $request->user());
+                    $execution = $order->execution;
+                }
+                if ($input['action'] !== 'schedule') {
+                    $values = $this->portalValues($order, $input['values'] ?? [], self::EXECUTION_EDIT_PHASES, false);
+                    $this->uploadSubmittedEvidences($request, $order, false, self::EXECUTION_EDIT_PHASES, $evidence,
+                        function (string $path) use (&$localFiles): void { $localFiles[] = $path; });
+                    $recordedAt = isset($input['recorded_at']) ? \Illuminate\Support\Carbon::parse($input['recorded_at'])->timezone(config('app.timezone')) : null;
+                    if (in_array($input['action'], ['start', 'finish'], true) && $execution->status !== 'in_progress') {
+                        $startedAt = isset($input['started_at']) ? \Illuminate\Support\Carbon::parse($input['started_at'])->timezone(config('app.timezone')) : $recordedAt;
+                        $execution = $workflow->start($execution, $this->portalValues($order, $values, ['start'], false),
+                            $input['operation_key'], $request->user(), $startedAt);
+                    }
+                    if ($input['action'] === 'finish') {
+                        $workflow->submit($execution, $values, $input['operation_key'], $request->user(), $recordedAt);
+                    } else {
+                        $workflow->saveDraft($execution, $values, $request->user());
+                    }
+                }
+                DB::table('service_offline_operations')->insert($identity + [
+                    'result' => json_encode(['order_id' => $order->id], JSON_THROW_ON_ERROR), 'created_at' => now(),
+                ]);
+
+                return $order->fresh(['service', 'execution.evidences', 'execution.obligations', 'execution.resources']);
+            });
+        } catch (\Throwable $error) {
+            \Illuminate\Support\Facades\Storage::disk('local')->delete($localFiles);
+            throw $error;
+        }
+
+        return response()->json(['order' => $this->offlineOrder($order)])->header('Cache-Control', 'private, no-store');
+    }
+
+    private function offlineScope(Request $request, Tenant $tenant, ServiceProvider $provider): string
+    {
+        return implode(':', [$request->user()->id, $tenant->id, $provider->id]);
+    }
+
+    private function offlineCatalog(array $snapshot): array
+    {
+        $snapshot['meter_pair'] = \App\Services\Services\ServiceCalculationRules::meterPair($snapshot);
+        $snapshot['fields'] = collect($snapshot['fields'] ?? [])->filter(fn (array $field) => $field['visible_to_provider'] ?? false)->values()->all();
+
+        return $snapshot;
+    }
+
+    private function offlineLogo(Tenant $tenant): ?string
+    {
+        $root = realpath(public_path('storage'));
+        $name = ltrim((string) $tenant->logo, '/');
+        if (! $root || $name === '' || ! function_exists('imagejpeg')) {
+            return null;
+        }
+        $file = realpath($root.DIRECTORY_SEPARATOR.$name);
+        if (! $file || ! str_starts_with($file, $root.DIRECTORY_SEPARATOR) || ! is_file($file) || filesize($file) > 2_000_000) {
+            return null;
+        }
+        $size = @getimagesize($file);
+        if (! $size || $size[0] * $size[1] > 4_000_000) {
+            return null;
+        }
+        $image = @imagecreatefromstring((string) file_get_contents($file));
+        if (! $image) {
+            return null;
+        }
+        $side = 72;
+        $ratio = $side / max($size[0], $size[1]);
+        $width = max(1, (int) round($size[0] * $ratio));
+        $height = max(1, (int) round($size[1] * $ratio));
+        $canvas = imagecreatetruecolor($side, $side);
+        imagefill($canvas, 0, 0, imagecolorallocate($canvas, 255, 255, 255));
+        imagecopyresampled($canvas, $image, intdiv($side - $width, 2), intdiv($side - $height, 2), 0, 0,
+            $width, $height, $size[0], $size[1]);
+        ob_start();
+        imagejpeg($canvas, null, 85);
+
+        return base64_encode((string) ob_get_clean());
+    }
+
+    private function offlineOrder(ServiceOrder $order): array
+    {
+        $execution = $order->execution;
+        $catalog = $this->offlineCatalog((array) $execution->catalog_snapshot);
+        $keys = array_column($catalog['fields'], 'key');
+        foreach (array_filter($catalog['meter_pair']) as $field) {
+            $keys[] = 'meter_pauses_'.$field;
+        }
+
+        return [
+            'id' => $order->id, 'number' => $order->number, 'service' => $order->service?->name,
+            'beneficiary' => data_get($order->beneficiary_snapshot, 'name'), 'whatsapp' => data_get($order->beneficiary_snapshot, 'whatsapp'),
+            'location' => $order->location, 'scheduled' => ($order->scheduled_at ?? $order->scheduled_date)?->format('Y-m-d\TH:i'),
+            'status' => app(\App\Services\Services\ServiceHumanStatusResolver::class)->resolve($order),
+            'state' => $order->operational_status, 'execution' => $execution->status, 'lockVersion' => $execution->lock_version,
+            'unit' => $execution->unit, 'quantity' => $execution->quantity, 'catalog' => $catalog,
+            'totals' => $execution->isFrozen() ? [
+                'quantity' => $execution->quantity, 'receivable' => $order->final_price, 'payable' => $order->provider_payment,
+            ] : null,
+            'resources' => $execution->resources->map(fn ($resource) => ['effect' => $resource->effect, 'amount' => $resource->amount])->values(),
+            'values' => array_intersect_key($execution->values ?? [], array_flip($keys)),
+            'evidences' => $execution->evidences->whereIn('field_key', $keys)->pluck('field_key')->unique()->values(),
+        ];
+    }
+
+
     public function store(Request $request, Tenant $tenant, CreateServiceOrder $creator): RedirectResponse
     {
         [$provider, $operator] = $this->access($request, $tenant);
-        $data = $request->validate(['service_version_id' => 'required|integer', 'service_provider_id' => $operator ? 'required|integer' : 'nullable', 'associate_id' => 'nullable|integer', 'beneficiary_name' => 'nullable|string|max:191', 'asset_id' => 'nullable|integer', 'scheduled_at' => 'required|date', 'location' => 'nullable|string|max:191', 'order_data' => 'array']);
+        $data = $request->validate(['service_version_id' => 'required|integer', 'service_provider_id' => $operator ? 'required|integer' : 'nullable', 'associate_id' => 'nullable|integer', 'beneficiary_name' => 'nullable|string|max:191', 'beneficiary_whatsapp' => ['nullable', 'regex:/\A\+?[0-9 ()-]{10,25}\z/'], 'asset_id' => 'nullable|integer', 'scheduled_at' => 'required|date', 'location' => 'nullable|string|max:191', 'order_data' => 'array']);
         if ($operator) {
             $provider = ServiceProvider::query()->where('tenant_id', $tenant->id)->where('status', true)->whereKey($data['service_provider_id'])->firstOrFail();
         }
@@ -479,7 +677,7 @@ class ServiceProviderPortalController extends Controller
         return array_intersect_key($values, array_flip($keys));
     }
 
-    private function uploadSubmittedEvidences(Request $request, ServiceOrder $order, bool $operator, array $phases, ServiceEvidenceService $service): void
+    private function uploadSubmittedEvidences(Request $request, ServiceOrder $order, bool $operator, array $phases, ServiceEvidenceService $service, ?callable $trackLocalFile = null): void
     {
         $fields = collect(data_get($order->execution->catalog_snapshot, 'fields', []))->keyBy('key');
         foreach ((array) $request->file('evidences', []) as $key => $file) {
@@ -492,7 +690,7 @@ class ServiceProviderPortalController extends Controller
                 && in_array($field['phase'] ?? null, $phases, true)
                 && ($operator ? ($field['visible_to_management'] ?? true) : (($field['visible_to_provider'] ?? false) && ($field['editable_by_provider'] ?? false)));
             abort_unless($allowed, 422, 'Esta evidência não pode ser enviada neste momento.');
-            $service->upload($order->execution, (string) $key, $file, $request->user());
+            $service->upload($order->execution, (string) $key, $file, $request->user(), $trackLocalFile);
         }
     }
 

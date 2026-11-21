@@ -686,6 +686,11 @@
                             Digite o nome de quem vai receber o serviço, mesmo que não seja membro.
                         </small>
                     </label>
+                    <label class="svc-field">
+                        <span>WhatsApp do beneficiário</span>
+                        <input type="tel" name="beneficiary_whatsapp" autocomplete="tel" maxlength="25"
+                            value="{{ old('beneficiary_whatsapp') }}" placeholder="(00) 00000-0000">
+                    </label>
                 </div>
             </div>
 

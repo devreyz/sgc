@@ -11,16 +11,16 @@ class ServiceExecutionWorkflow
 {
     public function __construct(private ServiceFieldValidator $validator, private ServiceCompositionCalculator $calculator, private GenerateServiceObligations $obligations, private CanonicalServiceSnapshot $snapshots) {}
 
-    public function start(ServiceExecution $execution, array $values, string $operationKey, User $actor): ServiceExecution
+    public function start(ServiceExecution $execution, array $values, string $operationKey, User $actor, ?\DateTimeInterface $recordedAt = null): ServiceExecution
     {
-        return DB::transaction(function () use ($execution, $values, $operationKey, $actor) {
+        return DB::transaction(function () use ($execution, $values, $operationKey, $actor, $recordedAt) {
             $execution = $this->lock($execution);
             if ($execution->start_operation_key === $operationKey) {
                 return $execution;
             }if (! in_array($execution->status, ['draft', 'rejected'], true)) {
                 throw ValidationException::withMessages(['status' => 'A execução não pode ser iniciada neste estado.']);
             }$this->validator->validate($execution, 'start', $values);
-            $execution->forceFill(['values' => array_replace($execution->values ?? [], $values), 'status' => 'in_progress', 'started_at' => $execution->started_at ?? now(), 'started_by' => $actor->id, 'start_operation_key' => $operationKey, 'lock_version' => $execution->lock_version + 1])->save();
+            $execution->forceFill(['values' => array_replace($execution->values ?? [], $values), 'status' => 'in_progress', 'started_at' => $execution->started_at ?? $recordedAt ?? now(), 'started_by' => $actor->id, 'start_operation_key' => $operationKey, 'lock_version' => $execution->lock_version + 1])->save();
             $execution->order->update(['operational_status' => 'in_progress']);
 
             return $execution->fresh();
@@ -90,9 +90,9 @@ class ServiceExecutionWorkflow
         }, 3);
     }
 
-    public function submit(ServiceExecution $execution, array $values, string $operationKey, User $actor): ServiceExecution
+    public function submit(ServiceExecution $execution, array $values, string $operationKey, User $actor, ?\DateTimeInterface $recordedAt = null): ServiceExecution
     {
-        return DB::transaction(function () use ($execution, $values, $operationKey, $actor) {
+        return DB::transaction(function () use ($execution, $values, $operationKey, $actor, $recordedAt) {
             $execution = $this->lock($execution);
             if ($execution->submit_operation_key === $operationKey) {
                 return $execution;
@@ -111,8 +111,10 @@ class ServiceExecutionWorkflow
             $derived = $this->quantities($execution, $values);
             $quantity = $derived['primary_quantity'];
             $this->validateFinancialQuantities($execution, $derived);
-            $execution->forceFill(['values' => $values, 'derived_values' => $derived, 'quantity' => $quantity, 'submitted_at' => now(), 'submitted_by' => $actor->id, 'submit_operation_key' => $operationKey, 'status' => 'submitted', 'lock_version' => $execution->lock_version + 1])->save();
-            $execution->order->update(['operational_status' => 'submitted']);
+            $submittedAt = $recordedAt && (! $execution->started_at || $recordedAt >= $execution->started_at) ? $recordedAt : now();
+            $execution->forceFill(['values' => $values, 'derived_values' => $derived, 'quantity' => $quantity, 'submitted_at' => $submittedAt, 'submitted_by' => $actor->id, 'submit_operation_key' => $operationKey, 'status' => 'submitted', 'lock_version' => $execution->lock_version + 1])->save();
+            $execution->order->update(['operational_status' => 'submitted'] + ($recordedAt && ! $execution->order->execution_date
+                ? ['execution_date' => $submittedAt->format('Y-m-d')] : []));
             if (data_get($execution->catalog_snapshot, 'review_mode') === 'automatic') {
                 return $this->validateLocked($execution, $actor, $operationKey);
             }

@@ -92,6 +92,14 @@ class CreateServiceOrder
             if ($beneficiaryName === '' || mb_strlen($beneficiaryName) > 191) {
                 throw ValidationException::withMessages(['beneficiary_name' => 'Informe o nome ou apelido do beneficiário (até 191 caracteres), mesmo que não seja associado.']);
             }
+            $whatsapp = data_get($existing?->beneficiary_snapshot, 'whatsapp');
+            if (array_key_exists('beneficiary_whatsapp', $data)) {
+                $rawPhone = trim((string) $data['beneficiary_whatsapp']);
+                $whatsapp = $rawPhone === '' ? null : preg_replace('/\D+/', '', $rawPhone);
+                if ($whatsapp !== null && ! preg_match('/\A\d{10,15}\z/', $whatsapp)) {
+                    throw ValidationException::withMessages(['beneficiary_whatsapp' => 'Informe o WhatsApp com DDD.']);
+                }
+            }
             if ($provider && ! $provider->status) {
                 throw ValidationException::withMessages(['service_provider_id' => 'O prestador está inativo.']);
             }
@@ -126,7 +134,8 @@ class CreateServiceOrder
                 'scheduled_date' => $scheduled?->toDateString(), 'execution_date' => $executionDate, 'location' => $data['location'] ?? null,
                 'unit' => $version->unit,
                 'order_data' => $orderData,
-                'beneficiary_snapshot' => ['id' => $associate?->id, 'name' => $beneficiaryName, 'document' => $associate?->cpf_cnpj],
+                'beneficiary_snapshot' => ['id' => $associate?->id, 'name' => $beneficiaryName, 'document' => $associate?->cpf_cnpj,
+                    'whatsapp' => $whatsapp],
                 'provider_snapshot' => $provider ? ['id' => $provider->id, 'name' => $provider->name, 'document' => $provider->cpf] : null,
             ]);
             if (! $existing) {

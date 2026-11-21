@@ -8,6 +8,9 @@
         $copies['association'] = 'Via da associação · Prestação de contas';
     }
 @endphp
+@if($variables['beneficiary_only'] ?? false)
+    @include('pdf.partials.service-order-beneficiary')
+@else
 @foreach($copies as $copy => $copyLabel)
     <div class="service-order-copy{{ $loop->first ? '' : ' service-order-copy-next' }}">
         <p class="service-order-copy-label">@unless($loop->first){{ $read('order_number') }} · @endunless{{ $copyLabel }}</p>
@@ -58,3 +61,4 @@
         </div>
     </div>
 @endforeach
+@endif

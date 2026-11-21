@@ -21,9 +21,9 @@ class ServiceEvidenceService
 {
     private const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 
-    public function upload(ServiceExecution $execution, string $fieldKey, UploadedFile $file, User $actor): ServiceExecutionEvidence
+    public function upload(ServiceExecution $execution, string $fieldKey, UploadedFile $file, User $actor, ?callable $trackLocalFile = null): ServiceExecutionEvidence
     {
-        return DB::transaction(function () use ($execution, $fieldKey, $file, $actor) {
+        return DB::transaction(function () use ($execution, $fieldKey, $file, $actor, $trackLocalFile) {
             $provider = $execution->service_provider_id;
             $version = $execution->service_version_id;
             $execution = ServiceExecution::query()->whereKey($execution->id)->where('tenant_id', $execution->tenant_id)->lockForUpdate()->firstOrFail();
@@ -53,7 +53,7 @@ class ServiceEvidenceService
             [$bytes, $mime, $extension] = (new ServiceEvidenceImageOptimizer)->optimize($bytes, $mime, 'file');
             $hash = hash('sha256', $bytes);
             $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME).'.'.$extension;
-            $drive = Schema::hasTable('tenant_cloud_storage_connections')
+            $drive = $trackLocalFile === null && Schema::hasTable('tenant_cloud_storage_connections')
                 && TenantCloudStorageConnection::query()
                     ->where('tenant_id', $execution->tenant_id)
                     ->where('provider', 'google_drive')
@@ -74,7 +74,10 @@ class ServiceEvidenceService
                 $disk = 'google_drive';
             } else {
                 $path = 'services/'.$execution->tenant_id.'/'.$execution->id.'/'.Str::uuid().'.'.$extension;
-                Storage::disk('local')->put($path, $bytes);
+                if (! Storage::disk('local')->put($path, $bytes)) {
+                    throw new \RuntimeException('Não foi possível armazenar a evidência.');
+                }
+                $trackLocalFile?->__invoke($path);
                 $disk = 'local';
             }
             $document = new Document(['name' => $field['label'] ?? $filename, 'original_name' => $filename, 'path' => $path, 'disk' => $disk, 'mime_type' => $mime, 'size' => strlen($bytes), 'extension' => $extension, 'category' => $mime === 'application/pdf' ? 'comprovante' : 'foto', 'documentable_type' => ServiceExecution::class, 'documentable_id' => $execution->id, 'document_date' => now()->toDateString(), 'uploaded_by' => $actor->id]);

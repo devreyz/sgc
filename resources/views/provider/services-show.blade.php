@@ -1224,6 +1224,9 @@
                         <span class="svc-hero-number">{{ $order->number }}</span>
                     </div>
                     <h1>{{ $order->service->name }}</h1>
+                    @if($provider && !($managementExecution ?? false))
+                        <a href="{{ url('/provider-offline.html').'?'.http_build_query(['tenant' => $tenantSlug, 'os' => $order->id]) }}">Via do beneficiário e modo offline</a>
+                    @endif
                     <div class="svc-meta">
                         <span>
                             <i class="ph ph-user-circle" aria-hidden="true"></i>

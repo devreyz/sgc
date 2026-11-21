@@ -4047,6 +4047,13 @@
             paint();
         }());
     </script>
+    @auth
+        @if($currentTenantSlug)
+            <script type="module" src="{{ asset('assets/provider-offline-store.js') }}?v={{ filemtime(public_path('assets/provider-offline-store.js')) }}"
+                data-provider-offline-user="{{ auth()->id() }}"
+                data-provider-offline-url="{{ route('provider.offline.data', ['tenant' => $currentTenantSlug]) }}"></script>
+        @endif
+    @endauth
     @stack('scripts')
 </body>
 </html>

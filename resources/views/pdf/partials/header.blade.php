@@ -51,17 +51,17 @@
 
         /* ── Header with branding ── */
         .pdf-header {
-            display: table;
             width: 100%;
             table-layout: fixed;
             margin-bottom: 16px;
             border-bottom: 3px solid {{ $primaryColor }};
             padding-bottom: 12px;
+            border-collapse: separate;
+            border-spacing: 0;
         }
         .pdf-header-logo {
-            display: table-cell;
-            width: 66px;
-            padding-right: 10px;
+            width: 64px;
+            padding: 0 10px 0 0;
             vertical-align: top;
         }
         .pdf-header-logo img {
@@ -69,9 +69,10 @@
             max-height: 60px;
         }
         .pdf-header-info {
-            display: table-cell;
             vertical-align: top;
             word-wrap: break-word;
+            text-align: left;
+            padding-left: 0;
         }
         .pdf-header-info .org-name {
             font-size: 16px;
@@ -89,7 +90,6 @@
             margin-top: 2px;
         }
         .pdf-header-title-cell {
-            display: table-cell;
             width: 34%;
             padding-left: 16px;
             text-align: right;
@@ -363,13 +363,13 @@
 <body>
     {{-- ═══ HEADER ═══ --}}
     @unless($suppress_internal_header)
-    <div class="pdf-header">
+    <table class="pdf-header" role="presentation"><tr>
         @if($hasLogo)
-        <div class="pdf-header-logo">
+        <td class="pdf-header-logo">
             <img src="{{ $logoPath }}" alt="Logo">
-        </div>
+        </td>
         @endif
-        <div class="pdf-header-info">
+        <td class="pdf-header-info">
             <div class="org-name">{{ $tenant->name ?? 'Organização' }}</div>
             @if($tenant)
                 @if($tenant->cnpj)
@@ -384,15 +384,15 @@
                     @endif
                 </div>
             @endif
-        </div>
-        <div class="pdf-header-title-cell">
+        </td>
+        <td class="pdf-header-title-cell">
             <div class="doc-title">{{ $title ?? 'Relatório' }}</div>
             @if(isset($subtitle))
                 <div class="doc-subtitle">{{ $subtitle }}</div>
             @endif
             @unless($suppress_generation_timestamp ?? false)<div class="doc-date">Gerado em: {{ $generated_at ?? now()->format('d/m/Y H:i') }}</div>@endunless
-        </div>
-    </div>
+        </td>
+    </tr></table>
     @endunless
 
     @yield('content')
