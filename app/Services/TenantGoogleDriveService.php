@@ -2,12 +2,15 @@
 
 namespace App\Services;
 
+use App\Models\ArchivedGoogleDriveConnection;
 use App\Models\CloudDocument;
 use App\Models\Tenant;
 use App\Models\TenantCloudStorageConnection;
 use Google\Service\Drive;
 use Google\Service\Drive\DriveFile;
+use Google\Service\Exception as DriveException;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Throwable;
 
@@ -17,14 +20,13 @@ class TenantGoogleDriveService
     {
     }
 
-    public function ensureRootFolder(TenantCloudStorageConnection $connection): string
+    public function ensureRootFolder(TenantCloudStorageConnection $connection, ?Drive $drive = null): string
     {
-        if ($connection->root_folder_id) {
-            return $connection->root_folder_id;
+        $drive ??= $this->clients->forConnection($connection);
+        $folderId = $this->prepareRootFolder($drive, $connection->tenant, $connection->root_folder_id);
+        if ($folderId !== $connection->root_folder_id) {
+            $connection->forceFill(['root_folder_id' => $folderId])->save();
         }
-
-        $folderId = $this->prepareRootFolder($this->clients->forConnection($connection), $connection->tenant);
-        $connection->forceFill(['root_folder_id' => $folderId])->save();
 
         return $folderId;
     }
@@ -37,7 +39,7 @@ class TenantGoogleDriveService
             return $existingRoot;
         }
 
-        $query = "mimeType = 'application/vnd.google-apps.folder' and trashed = false and appProperties has { key='sgc_tenant' and value='".(int) $tenant->id."' } and appProperties has { key='sgc_type' and value='root' }";
+        $query = "mimeType = 'application/vnd.google-apps.folder' and trashed = false and 'me' in owners and appProperties has { key='sgc_tenant' and value='".(int) $tenant->id."' } and appProperties has { key='sgc_type' and value='root' }";
         if ($selectedFolder) {
             $this->validateDestination($drive, $selectedFolder);
             $query .= " and '{$selectedFolder}' in parents";
@@ -45,11 +47,11 @@ class TenantGoogleDriveService
         $existing = $drive->files->listFiles([
             'q' => $query,
             'spaces' => 'drive',
-            'fields' => 'files(id)',
+            'fields' => 'files(id,ownedByMe)',
             'pageSize' => 1,
         ]);
-        if ($existing->getFiles()) {
-            return (string) $existing->getFiles()[0]->id;
+        if ($existing->getFiles() && $existing->getFiles()[0]->getOwnedByMe()) {
+            return (string) $existing->getFiles()[0]->getId();
         }
 
         $metadata = [
@@ -64,25 +66,43 @@ class TenantGoogleDriveService
             $metadata['parents'] = [$selectedFolder];
         }
 
-        $folder = $drive->files->create(new DriveFile($metadata), ['fields' => 'id']);
+        $folder = $drive->files->create(new DriveFile($metadata), ['fields' => 'id,ownedByMe']);
+        if (! $folder->getId() || ! $folder->getOwnedByMe()) {
+            throw new RuntimeException('Não foi possível criar uma pasta própria na conta autorizada.');
+        }
 
         return (string) $folder->id;
     }
 
     private function validateDestination(Drive $drive, string $folderId): void
     {
-        if (! preg_match('/\A[A-Za-z0-9_-]+\z/', $folderId)) {
-            throw new RuntimeException('Identificador da pasta inválido.');
+        if (! $this->ownsDestination($drive, $folderId)) {
+            throw new RuntimeException('Escolha uma pasta própria da conta autorizada.');
+        }
+    }
+
+    public function ownsDestination(Drive $drive, ?string $folderId): bool
+    {
+        if (! $folderId || ! preg_match('/\A[A-Za-z0-9_-]+\z/', $folderId)) {
+            return false;
         }
 
-        $folder = $drive->files->get($folderId, [
-            'fields' => 'mimeType,trashed,driveId,capabilities(canAddChildren)',
-            'supportsAllDrives' => true,
-        ]);
-        if ($folder->getMimeType() !== 'application/vnd.google-apps.folder'
-            || $folder->getTrashed() || $folder->getDriveId() || ! $folder->getCapabilities()?->getCanAddChildren()) {
-            throw new RuntimeException('A pasta do Meu Drive precisa permitir adicionar arquivos.');
+        try {
+            $folder = $drive->files->get($folderId, [
+                'fields' => 'mimeType,trashed,driveId,ownedByMe,capabilities(canAddChildren)',
+                'supportsAllDrives' => true,
+            ]);
+        } catch (DriveException $exception) {
+            if ((int) $exception->getCode() === 404) {
+                return false;
+            }
+
+            throw $exception;
         }
+
+        return $folder->getMimeType() === 'application/vnd.google-apps.folder'
+            && ! $folder->getTrashed() && ! $folder->getDriveId()
+            && $folder->getOwnedByMe() === true && $folder->getCapabilities()?->getCanAddChildren() === true;
     }
 
     public function putDocument(
@@ -94,18 +114,39 @@ class TenantGoogleDriveService
         string $contents,
         string $mimeType = 'application/pdf',
     ): CloudDocument {
-        $connection = TenantCloudStorageConnection::query()
-            ->where('tenant_id', $tenant->id)
-            ->where('provider', 'google_drive')
-            ->where('status', 'active')
-            ->first();
+        $result = DB::transaction(function () use ($tenant, $owner, $documentType, $folders, $filename, $contents, $mimeType) {
+            $connection = TenantCloudStorageConnection::query()
+                ->where('tenant_id', $tenant->id)
+                ->where('provider', 'google_drive')
+                ->where('status', 'active')
+                ->lockForUpdate()
+                ->first();
 
-        if (! $connection) {
-            throw new RuntimeException('Esta organizacao nao possui Google Drive conectado.');
+            if (! $connection) {
+                throw new RuntimeException('Esta organização não possui Google Drive conectado.');
+            }
+
+            return $this->writeDocument($connection, $owner, $documentType, $folders, $filename, $contents, $mimeType);
+        });
+
+        if ($result instanceof RuntimeException) {
+            throw $result;
         }
 
+        return $result;
+    }
+
+    private function writeDocument(
+        TenantCloudStorageConnection $connection,
+        Model $owner,
+        string $documentType,
+        array $folders,
+        string $filename,
+        string $contents,
+        string $mimeType,
+    ): CloudDocument|RuntimeException {
         $identity = [
-            'tenant_id' => $tenant->id,
+            'tenant_id' => $connection->tenant_id,
             'provider' => 'google_drive',
             'document_type' => $documentType,
             'documentable_type' => $owner->getMorphClass(),
@@ -117,13 +158,13 @@ class TenantGoogleDriveService
         }
 
         $checksum = hash('sha256', $contents);
-        if ($document->exists && $document->checksum === $checksum && $document->status === 'synced') {
+        if ($document->exists && ! $document->drive_archive_id && $document->checksum === $checksum && $document->status === 'synced') {
             return $document;
         }
 
         try {
             $drive = $this->clients->forConnection($connection);
-            $parentId = $this->ensureRootFolder($connection);
+            $parentId = $this->ensureRootFolder($connection, $drive);
 
             foreach ($folders as $folder) {
                 $parentId = $this->findOrCreateFolder($drive, $parentId, $this->safeSegment($folder));
@@ -137,7 +178,7 @@ class TenantGoogleDriveService
                 'fields' => 'id,name,modifiedTime',
             ];
 
-            if ($document->remote_file_id) {
+            if ($document->remote_file_id && ! $document->drive_archive_id) {
                 if ($document->remote_folder_id
                     && (string) $document->remote_folder_id !== (string) $parentId) {
                     $options['addParents'] = $parentId;
@@ -157,6 +198,7 @@ class TenantGoogleDriveService
             }
 
             $document->forceFill([
+                'drive_archive_id' => null,
                 'remote_file_id' => $file->id,
                 'remote_folder_id' => $parentId,
                 'remote_path' => implode('/', [...$folders, $safeFilename]),
@@ -172,17 +214,39 @@ class TenantGoogleDriveService
             return $document;
         } catch (Throwable $exception) {
             $safeError = $this->safeConnectionError($exception);
-            $document->forceFill([
-                'remote_path' => implode('/', [...$folders, $filename]),
-                'status' => 'failed',
-                'last_error' => $safeError,
-            ])->save();
+            if (! $document->drive_archive_id) {
+                $document->forceFill([
+                    'remote_path' => implode('/', [...$folders, $filename]),
+                    'status' => 'failed',
+                    'last_error' => $safeError,
+                ])->save();
+            }
             $connection->forceFill([
                 'last_error' => $safeError,
             ])->save();
 
-            throw new RuntimeException($safeError, 0, $exception);
+            return new RuntimeException($safeError, 0, $exception);
         }
+    }
+
+    public function archiveDocuments(TenantCloudStorageConnection $connection): void
+    {
+        $documents = CloudDocument::query()->where('tenant_id', $connection->tenant_id)
+            ->where('provider', 'google_drive')->whereNotNull('remote_file_id')->whereNull('drive_archive_id');
+
+        if (! $documents->exists()) {
+            return;
+        }
+
+        $archive = new ArchivedGoogleDriveConnection;
+        $archive->forceFill([
+            'tenant_id' => $connection->tenant_id,
+            'oauth_client_id' => $connection->oauth_client_id,
+            'oauth_client_secret' => $connection->oauth_client_secret,
+            'refresh_token' => $connection->refresh_token,
+        ])->save();
+
+        $documents->update(['drive_archive_id' => $archive->id]);
     }
 
     public function disconnect(TenantCloudStorageConnection $connection): void
@@ -203,7 +267,7 @@ class TenantGoogleDriveService
     public function contents(CloudDocument $document): ?string
     {
         if ($document->provider !== 'google_drive'
-            || $document->status !== 'synced'
+            || ($document->status !== 'synced' && ! $document->drive_archive_id)
             || ! $document->remote_file_id) {
             return null;
         }
@@ -217,6 +281,18 @@ class TenantGoogleDriveService
             return null;
         }
 
+        if ($document->drive_archive_id) {
+            $archive = ArchivedGoogleDriveConnection::query()->where('tenant_id', $document->tenant_id)->find($document->drive_archive_id);
+            if ($archive && ($contents = $this->readDocument($archive, $document)) !== null) {
+                return $contents;
+            }
+        }
+
+        return $this->readDocument($connection, $document);
+    }
+
+    private function readDocument(TenantCloudStorageConnection $connection, CloudDocument $document): ?string
+    {
         try {
             $response = $this->clients->forConnection($connection)
                 ->files

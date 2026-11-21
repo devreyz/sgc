@@ -14,6 +14,7 @@ class TenantCloudStorageConnection extends Model
         'oauth_client_secret',
         'refresh_token',
         'granted_scopes',
+        'google_account_email',
         'last_error',
     ];
 
@@ -24,6 +25,7 @@ class TenantCloudStorageConnection extends Model
             'oauth_client_secret' => 'encrypted',
             'refresh_token' => 'encrypted',
             'granted_scopes' => 'encrypted:array',
+            'google_account_email' => 'encrypted',
             'last_error' => 'encrypted',
             'connected_at' => 'datetime',
             'last_sync_at' => 'datetime',

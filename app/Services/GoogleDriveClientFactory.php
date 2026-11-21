@@ -14,9 +14,9 @@ class GoogleDriveClientFactory
         return filled(config('services.google_drive.client_id')) && filled(config('services.google_drive.client_secret'));
     }
 
-    public function canConnect(?TenantCloudStorageConnection $connection): bool
+    public function managedClient(): Client
     {
-        return ($connection?->hasOAuthConfiguration() ?? false) || $this->hasManagedCredentials();
+        return $this->baseClient(new TenantCloudStorageConnection);
     }
 
     public function pickerConfiguration(Client $client): ?array

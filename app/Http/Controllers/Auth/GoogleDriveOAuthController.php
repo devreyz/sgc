@@ -27,13 +27,13 @@ class GoogleDriveOAuthController extends Controller
     {
         $this->authorizeTenantAdmin($request, $tenant);
         $connection = $this->connection($tenant);
-        if (! $clients->canConnect($connection)) {
-            Notification::make()->danger()->title('Configure as credenciais do Google Drive')->send();
+        if (! $clients->hasManagedCredentials()) {
+            Notification::make()->danger()->title('A conexão com o Google Drive ainda precisa ser ativada no servidor do SGC')->send();
 
             return $this->settings();
         }
 
-        $client = $clients->baseClient($connection);
+        $client = $clients->managedClient();
         $state = Str::random(80);
         $verifier = $client->getOAuth2Service()->generateCodeVerifier();
         $request->session()->forget('google_drive_destination');
@@ -52,7 +52,7 @@ class GoogleDriveOAuthController extends Controller
         return redirect()->away($client->createAuthUrl());
     }
 
-    public function callback(Request $request, GoogleDriveClientFactory $clients): RedirectResponse
+    public function callback(Request $request, GoogleDriveClientFactory $clients, TenantGoogleDriveService $driveStorage): RedirectResponse
     {
         abort_if(app()->environment('production') && ! $request->isSecure(), 400);
         $oauth = (array) $request->session()->pull('google_drive_oauth', []);
@@ -74,7 +74,7 @@ class GoogleDriveOAuthController extends Controller
 
         try {
             $connection = $this->connection($tenant);
-            $client = $clients->baseClient($connection);
+            $client = $clients->managedClient();
             if (! hash_equals($oauth['connection_hash'], $this->fingerprint($connection, $client))
                 || ! is_string($request->query('code')) || ! $request->filled('code')) {
                 throw new RuntimeException('Configuração OAuth alterada ou código inválido.');
@@ -87,6 +87,13 @@ class GoogleDriveOAuthController extends Controller
                 throw new RuntimeException('Autorização persistente indisponível.');
             }
 
+            $client->setAccessToken($token);
+            $drive = new Drive($client);
+            $accountEmail = $drive->about->get(['fields' => 'user(emailAddress)'])->getUser()?->getEmailAddress();
+            if (! filled($accountEmail)) {
+                throw new RuntimeException('Conta do Google Drive não identificada.');
+            }
+
             $request->session()->put('google_drive_destination', Crypt::encrypt([
                 'tenant_id' => $tenant->id,
                 'user_id' => $request->user()->id,
@@ -94,6 +101,8 @@ class GoogleDriveOAuthController extends Controller
                 'expires_at' => now()->addSeconds(min(600, (int) ($token['expires_in'] ?? 0)))->timestamp,
                 'token' => $token,
                 'scopes' => $scopes,
+                'account_email' => $accountEmail,
+                'owned_root' => $driveStorage->ownsDestination($drive, $connection->root_folder_id) ? $connection->root_folder_id : null,
             ]));
 
             return redirect()->route('settings.google-drive.destination', ['tenant' => $tenant->slug]);
@@ -110,17 +119,18 @@ class GoogleDriveOAuthController extends Controller
         $this->authorizeTenantAdmin($request, $tenant);
         $grant = $this->pendingGrant($request, $tenant);
         $connection = $this->connection($tenant);
-        $client = $clients->canConnect($connection) ? $clients->baseClient($connection) : null;
+        $client = $clients->hasManagedCredentials() ? $clients->managedClient() : null;
         if (! $grant || ! $client || ! hash_equals($grant['connection_hash'], $this->fingerprint($connection, $client))) {
             return $this->expired();
         }
 
-        $existingRoot = filled($connection->root_folder_id);
+        $existingRoot = filled($grant['owned_root']);
         $picker = $existingRoot ? null : $clients->pickerConfiguration($client);
 
         return response()->view('auth.google-drive-destination', [
             'tenant' => $tenant,
             'existingRoot' => $existingRoot,
+            'accountEmail' => $grant['account_email'],
             'picker' => $picker ? $picker + ['accessToken' => $grant['token']['access_token']] : null,
         ])->header('Cache-Control', 'private, no-store')
             ->header('X-Frame-Options', 'DENY')
@@ -150,25 +160,32 @@ class GoogleDriveOAuthController extends Controller
                 // Serializa as confirmações inclusive antes de existir uma linha de conexão.
                 Tenant::query()->whereKey($tenant->id)->lockForUpdate()->firstOrFail();
                 $connection = $this->connection($tenant, lock: true);
-                if (! $clients->canConnect($connection)) {
+                if (! $clients->hasManagedCredentials()) {
                     return false;
                 }
-                $client = $clients->baseClient($connection);
+                $client = $clients->managedClient();
                 if (! hash_equals($grant['connection_hash'], $this->fingerprint($connection, $client))) {
                     return false;
                 }
-                if ($selectedFolder && ($connection->root_folder_id || ! $clients->pickerConfiguration($client))) {
+                if ($selectedFolder && ($grant['owned_root'] || ! $clients->pickerConfiguration($client))) {
                     throw new RuntimeException('Seleção de pasta indisponível.');
                 }
 
                 $client->setAccessToken($grant['token']);
-                $rootFolder = $driveStorage->prepareRootFolder(new Drive($client), $tenant, $connection->root_folder_id, $selectedFolder);
+                $rootFolder = $driveStorage->prepareRootFolder(new Drive($client), $tenant, $grant['owned_root'], $selectedFolder);
+                if ($connection->exists && ($rootFolder !== $connection->root_folder_id
+                    || $client->getClientId() !== $connection->oauth_client_id
+                    || ($connection->google_account_email && $grant['account_email'] !== $connection->google_account_email))) {
+                    $driveStorage->archiveDocuments($connection);
+                }
+
                 $connection->forceFill([
                     'oauth_client_id' => $client->getClientId(),
                     'oauth_client_secret' => $client->getClientSecret(),
                     'refresh_token' => $grant['token']['refresh_token'],
                     'granted_scopes' => $grant['scopes'],
                     'root_folder_id' => $rootFolder,
+                    'google_account_email' => $grant['account_email'],
                     'status' => 'active',
                     'connected_by_user_id' => $request->user()->id,
                     'connected_at' => now(),
@@ -178,9 +195,9 @@ class GoogleDriveOAuthController extends Controller
                 return true;
             });
         } catch (Throwable) {
-            $message = $this->connection($tenant)->root_folder_id
-                ? 'A conta autorizada precisa ter acesso à pasta atual. Volte e reconecte com a conta usada anteriormente.'
-                : 'O Google Drive não permitiu preparar a pasta. Verifique se você pode adicionar arquivos nela ou use a pasta automática.';
+            $message = $selectedFolder
+                ? 'Escolha uma pasta que pertença à conta autorizada ou use a criação automática.'
+                : 'O Google Drive não permitiu preparar a pasta nesta conta. Tente novamente.';
             return back()->withErrors(['folder_id' => $message]);
         }
 
@@ -216,7 +233,7 @@ class GoogleDriveOAuthController extends Controller
     private function fingerprint(TenantCloudStorageConnection $connection, Client $client): string
     {
         return hash('sha256', serialize([
-            $connection->id, $connection->status, $connection->root_folder_id, $connection->refresh_token,
+            $connection->id, $connection->status, $connection->root_folder_id, $connection->refresh_token, $connection->google_account_email,
             $client->getClientId(), $client->getClientSecret(),
         ]));
     }
@@ -230,7 +247,8 @@ class GoogleDriveOAuthController extends Controller
 
         $grant = Crypt::decrypt($encrypted);
 
-        return (int) $grant['tenant_id'] === (int) $tenant->id
+        return isset($grant['account_email']) && array_key_exists('owned_root', $grant)
+            && (int) $grant['tenant_id'] === (int) $tenant->id
             && (int) $grant['user_id'] === (int) $request->user()->id
             && (int) $grant['expires_at'] > now()->timestamp ? $grant : null;
     }

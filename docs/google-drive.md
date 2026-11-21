@@ -21,9 +21,9 @@ O cliente OAuth é compartilhado na configuração do servidor. Os tokens do Dri
 
 ## Conexão de uma organização
 
-Em **Minha Organização → Google Drive**, um membro administrador seleciona **Conectar com Google** e autoriza a conta da organização. Em seguida, escolhe uma pasta no **Meu Drive** ou seleciona **Criar pasta automaticamente**. Ao escolher uma pasta, o SGC cria dentro dela a subpasta `SGC - Nome da organização`. Na reconexão, a conta precisa ter acesso à pasta usada anteriormente.
+Em **Minha Organização → Google Drive**, um membro administrador seleciona **Conectar com Google** ou **Reconectar ou trocar conta**. Autorize o e-mail da organização e confira qual conta aparece na confirmação. O SGC cria `SGC - Nome da organização` no Meu Drive dessa conta ou dentro de uma pasta própria escolhida pelo usuário. Uma pasta compartilhada por outra conta não é usada como destino.
 
-Organizações com um cliente próprio já salvo continuam usando essas credenciais. A seção **Credenciais próprias** permite a configuração manual quando o servidor ainda não possui um cliente central. Nesse caso, cadastre a URI exibida na seção no cliente OAuth, salve as credenciais e conecte a conta. O seletor visual usa o projeto central e a criação automática também funciona com credenciais próprias.
+O cliente central é usado em todas as novas autorizações. Na troca de conta, os novos arquivos vão para a pasta da conta escolhida. Os arquivos anteriores ficam onde foram gravados e o SGC mantém a referência e o acesso histórico enquanto a autorização anterior estiver válida. O SGC não cria permissões de compartilhamento durante a conexão.
 
 O SGC cria a estrutura:
 

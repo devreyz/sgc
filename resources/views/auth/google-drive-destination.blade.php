@@ -9,8 +9,9 @@
 @endsection
 
 @section('content')
+    <p>Conta Google autorizada <strong>{{ $accountEmail }}</strong></p>
     @if($existingRoot)
-        <p>Os documentos continuarão na pasta já usada pela organização.</p>
+        <p>Os novos documentos vão para a pasta da organização que já pertence a esta conta.</p>
     @else
         <p>O SGC vai organizar os documentos em uma pasta própria no seu Drive.</p>
     @endif
@@ -71,6 +72,7 @@
                         const folders = new picker.DocsView(picker.ViewId.FOLDERS)
                             .setIncludeFolders(true)
                             .setSelectFolderEnabled(true)
+                            .setOwnedByMe(true)
                             .setMimeTypes('application/vnd.google-apps.folder');
 
                         new picker.PickerBuilder()
