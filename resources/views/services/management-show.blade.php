@@ -1053,6 +1053,8 @@
         background: var(--ui-color-surface);
     }
 
+    .ds-allocation-actions { display: flex; gap: .35rem; align-items: start; flex-wrap: wrap; }
+
     .ds-allocation-icon {
         display: grid;
         width: 30px;
@@ -1681,6 +1683,8 @@
             grid-template-columns: 30px minmax(0, 1fr);
         }
 
+        .ds-allocation-actions { grid-column: 2 / -1; }
+
         .ds-reverse {
             grid-column: 1 / -1;
         }
@@ -2209,6 +2213,9 @@
                                 ds-obligation
                                 {{ $direction['class'] }}
                             "
+                            @if($obligation->allocations->contains(fn ($item) => in_array((int) $item->service_payment_event_id, [
+                                (int) old('account_correction_payment'), (int) session('service_receipt_account_corrected'),
+                            ], true))) open @endif
                         >
                             <summary>
                                 <span
@@ -2498,11 +2505,10 @@
                                                                 ?->format('d/m/Y')
                                                             ?? 'Sem data'
                                                         }}
-                                                        · {{
-                                                            $allocation
-                                                                ->paymentEvent
-                                                                ->status
-                                                        }}
+                                                        · {{ $allocation->paymentEvent?->bankAccount?->name ?? 'Sem conta vinculada' }}
+                                                        @if($allocation->paymentEvent?->status === 'reversed') · Estornado @endif
+                                                        @if($allocation->paymentEvent?->event_type === 'reversal') · Estorno @endif
+                                                        @if(data_get($allocation->paymentEvent?->metadata, 'account_correction_of')) · Conta corrigida @endif
                                                     </small>
                                                 </span>
 
@@ -2515,7 +2521,10 @@
                                                         ->paymentEvent
                                                         ->status
                                                         === 'confirmed'
+                                                    && auth()->user()->checkPermissionTo('reverse_service_payment')
                                                 )
+                                                    <div class="ds-allocation-actions">
+                                                        @include('services._correct-receipt-account')
                                                     <details class="ds-reverse">
                                                         <summary>
                                                             <i class="ph-duotone ph-arrow-counter-clockwise"></i>
@@ -2557,6 +2566,7 @@
                                                             </button>
                                                         </form>
                                                     </details>
+                                                    </div>
                                                 @endif
                                             </article>
                                         @endforeach

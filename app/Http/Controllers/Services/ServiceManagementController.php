@@ -344,6 +344,7 @@ class ServiceManagementController extends Controller
         $this->allow($request, 'view_service_management');
         $order = $this->order($tenant, $order);
         if ($request->user()->checkPermissionTo('view_service_financials')) $this->attachFinancialPreview($order);
+        $order->loadMissing(['execution.obligations.allocations.paymentEvent.bankAccount']);
         $accounts = BankAccount::query()->where('tenant_id', $tenant->id)->active()->orderBy('name')->get();
 
         $notes = $request->user()->checkPermissionTo('view_service_financials') && $order->execution
@@ -442,6 +443,22 @@ class ServiceManagementController extends Controller
         $payments->reverse($event, $data['reason'], $data['operation_key'], $request->user());
 
         return back()->with('success', 'Pagamento estornado com movimento inverso.');
+    }
+
+    public function correctReceiptAccount(Request $request, Tenant $tenant, int $payment, ServicePaymentService $payments): RedirectResponse
+    {
+        $this->allow($request, 'reverse_service_payment');
+        $this->allow($request, 'manage_service_receivables');
+        $event = ServicePaymentEvent::query()->where('tenant_id', $tenant->id)->whereKey($payment)->firstOrFail();
+        $data = $request->validate([
+            'operation_key' => 'required|uuid',
+            'bank_account_id' => 'required|integer|min:1',
+            'reason' => 'required|string|min:5|max:500',
+        ]);
+        $payments->correctReceiptAccount($event, (int) $data['bank_account_id'], $data['reason'], $data['operation_key'], $request->user());
+
+        return back()->with('success', 'Conta corrigida. O recebimento mantém o mesmo valor e a mesma data.')
+            ->with('service_receipt_account_corrected', $event->id);
     }
 
     public function resource(Request $request, Tenant $tenant, int $order, ServiceResourceService $resources): RedirectResponse

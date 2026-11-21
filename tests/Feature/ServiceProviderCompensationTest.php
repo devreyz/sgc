@@ -663,6 +663,42 @@ class ServiceProviderCompensationTest extends TestCase
         $this->assertSame('Falta pagar o prestador', $resolver->resolve($order->fresh()));
     }
 
+    public function test_correcting_receipt_account_preserves_the_payment_and_is_atomic(): void
+    {
+        [$payable, $originalAccount, $actor] = $this->payable();
+        $receivable = $this->receivableObligation($payable->execution, 'OB-ACCOUNT', 100);
+        $newAccount = new BankAccount(['name' => 'Conta correta', 'type' => 'corrente', 'initial_balance' => 0, 'current_balance' => 0, 'status' => true]);
+        $newAccount->tenant_id = $originalAccount->tenant_id;
+        $newAccount->save();
+        $payments = app(ServicePaymentService::class);
+        $original = $payments->record($receivable, 100, 'pix', '2026-09-09', $originalAccount->id, (string) Str::uuid(), $actor);
+
+        try {
+            $payments->correctReceiptAccount($original, 999999, 'Conta lançada por engano', (string) Str::uuid(), $actor);
+            $this->fail('A correção não deve aceitar conta inexistente.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('bank_account_id', $exception->errors());
+        }
+        $this->assertSame('confirmed', $original->fresh()->status);
+        $this->assertSame(1000.0, (float) $originalAccount->fresh()->current_balance);
+        $this->assertSame(1, ServicePaymentEvent::count());
+
+        $key = (string) Str::uuid();
+        $replacement = $payments->correctReceiptAccount($original, $newAccount->id, 'Conta lançada por engano', $key, $actor);
+        $retry = $payments->correctReceiptAccount($original, $newAccount->id, 'Conta lançada por engano', $key, $actor);
+        $this->assertSame($replacement->id, $retry->id);
+        $this->assertSame('reversed', $original->fresh()->status);
+        $this->assertEquals($newAccount->id, $replacement->bank_account_id);
+        $this->assertSame('2026-09-09', $replacement->payment_date->toDateString());
+        $reversal = ServicePaymentEvent::query()->where('reversal_of_id', $original->id)->sole();
+        $this->assertSame('2026-09-09', $reversal->payment_date->toDateString());
+        $this->assertSame(900.0, (float) $originalAccount->fresh()->current_balance);
+        $this->assertSame(100.0, (float) $newAccount->fresh()->current_balance);
+        $this->assertSame(100.0, $receivable->fresh()->paid_amount);
+        $this->assertSame('paid', $receivable->fresh()->status);
+        $this->assertSame(3, ServicePaymentEvent::count());
+    }
+
     public function test_automatic_review_freezes_execution_and_generates_independent_obligations_once(): void
     {
         [$execution] = $this->execution(3, 150, 300);

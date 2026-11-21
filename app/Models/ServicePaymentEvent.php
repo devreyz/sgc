@@ -16,6 +16,7 @@ class ServicePaymentEvent extends Model
     protected static function booted(): void { static::updating(function(self $event): void { $allowed=['status','cash_movement_id','updated_at'];if(array_diff(array_keys($event->getDirty()),$allowed))throw ValidationException::withMessages(['payment'=>'Evento financeiro confirmado é imutável.']);});static::deleting(fn()=>throw ValidationException::withMessages(['payment'=>'Pagamentos não são excluídos; use estorno.'])); }
     public function allocations(): HasMany { return $this->hasMany(ServicePaymentAllocation::class); }
     public function cashMovement(): BelongsTo { return $this->belongsTo(CashMovement::class); }
+    public function bankAccount(): BelongsTo { return $this->belongsTo(BankAccount::class)->withTrashed(); }
     public function reversalOf(): BelongsTo { return $this->belongsTo(self::class, 'reversal_of_id'); }
     public function document(): BelongsTo { return $this->belongsTo(Document::class); }
 }

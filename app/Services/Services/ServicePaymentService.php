@@ -187,9 +187,60 @@ class ServicePaymentService
         }, 3);
     }
 
-    public function reverse(ServicePaymentEvent $payment, string $reason, string $operationKey, User $actor): ServicePaymentEvent
+    public function correctReceiptAccount(ServicePaymentEvent $payment, int $accountId, string $reason, string $operationKey, User $actor): ServicePaymentEvent
     {
-        return DB::transaction(function () use ($payment, $reason, $operationKey, $actor): ServicePaymentEvent {
+        return DB::transaction(function () use ($payment, $accountId, $reason, $operationKey, $actor): ServicePaymentEvent {
+            $payment = ServicePaymentEvent::query()->where('tenant_id', $payment->tenant_id)
+                ->whereKey($payment->id)->lockForUpdate()->firstOrFail();
+            $existing = ServicePaymentEvent::query()->where('tenant_id', $payment->tenant_id)->where('operation_key', $operationKey)->first();
+            if ($existing) {
+                if ((int) data_get($existing->metadata, 'account_correction_of') !== (int) $payment->id
+                    || (int) $existing->bank_account_id !== $accountId
+                    || data_get($existing->metadata, 'account_correction_reason') !== $reason) {
+                    throw ValidationException::withMessages(['operation_key' => 'Esta operação já foi usada com outros dados.']);
+                }
+
+                return $existing;
+            }
+
+            if ($payment->event_type !== 'payment' || $payment->status !== 'confirmed' || $payment->reversal_of_id
+                || !$payment->bank_account_id || !$payment->cash_movement_id || data_get($payment->metadata, 'payment_plan_installment_id')) {
+                throw ValidationException::withMessages(['payment' => 'Selecione um recebimento direto, confirmado e vinculado a uma conta.']);
+            }
+            if ((int) $payment->bank_account_id === $accountId) {
+                throw ValidationException::withMessages(['bank_account_id' => 'Escolha uma conta diferente da atual.']);
+            }
+            if (Schema::hasTable('service_payment_plan_installments')
+                && ServicePaymentPlanInstallment::query()->where('tenant_id', $payment->tenant_id)->where('service_payment_event_id', $payment->id)->exists()) {
+                throw ValidationException::withMessages(['payment' => 'Este recebimento pertence a um acordo. Confira a parcela no histórico da negociação.']);
+            }
+
+            $allocations = $payment->allocations()->with('obligation')->get();
+            $allocation = $allocations->count() === 1 ? $allocations->first() : null;
+            $obligation = $allocation?->obligation;
+            if (!$obligation || $obligation->direction !== 'receivable' || (int) $obligation->tenant_id !== (int) $payment->tenant_id
+                || abs((float) $allocation->amount - (float) $payment->amount) > .0001) {
+                throw ValidationException::withMessages(['payment' => 'A correção de conta está disponível para recebimentos de uma única cobrança.']);
+            }
+            if (!$payment->cashMovement()->where('tenant_id', $payment->tenant_id)
+                ->where('bank_account_id', $payment->bank_account_id)->where('type', CashMovementType::INCOME->value)->exists()) {
+                throw ValidationException::withMessages(['payment' => 'O movimento original da conta não foi encontrado.']);
+            }
+
+            $date = $payment->payment_date->toDateString();
+            $reversal = $this->reverse($payment, 'Correção de conta: '.$reason, (string) \Illuminate\Support\Str::uuid(), $actor, $date);
+
+            return $this->record($obligation, (float) $payment->amount, $payment->payment_method, $date, $accountId, $operationKey, $actor, array_replace((array) $payment->metadata, [
+                'account_correction_of' => $payment->id,
+                'account_correction_reversal' => $reversal->id,
+                'account_correction_reason' => $reason,
+            ]));
+        }, 3);
+    }
+
+    public function reverse(ServicePaymentEvent $payment, string $reason, string $operationKey, User $actor, ?string $effectiveDate = null): ServicePaymentEvent
+    {
+        return DB::transaction(function () use ($payment, $reason, $operationKey, $actor, $effectiveDate): ServicePaymentEvent {
             $payment = ServicePaymentEvent::query()->whereKey($payment->id)->where('tenant_id', $payment->tenant_id)->lockForUpdate()->firstOrFail();
             if ($existing = ServicePaymentEvent::query()->where('tenant_id', $payment->tenant_id)->where('operation_key', $operationKey)->first()) {
                 if ($existing->reversal_of_id !== $payment->id) {
@@ -215,7 +266,8 @@ class ServicePaymentService
             if ($payment->bank_account_id) {
                 $account = BankAccount::query()->whereKey($payment->bank_account_id)->where('tenant_id', $payment->tenant_id)->lockForUpdate()->firstOrFail();
             }
-            $reversal = new ServicePaymentEvent(['operation_key' => $operationKey, 'event_type' => 'reversal', 'status' => 'confirmed', 'amount' => $payment->amount, 'payment_method' => $payment->payment_method, 'payment_date' => now()->toDateString(), 'bank_account_id' => $account?->id, 'reversal_of_id' => $payment->id, 'reason' => $reason, 'registered_by' => $actor->id]);
+            $date = $effectiveDate ?? now()->toDateString();
+            $reversal = new ServicePaymentEvent(['operation_key' => $operationKey, 'event_type' => 'reversal', 'status' => 'confirmed', 'amount' => $payment->amount, 'payment_method' => $payment->payment_method, 'payment_date' => $date, 'bank_account_id' => $account?->id, 'reversal_of_id' => $payment->id, 'reason' => $reason, 'registered_by' => $actor->id]);
             $reversal->tenant_id = $payment->tenant_id;
             $reversal->save();
             foreach ($allocations as $allocation) {
@@ -229,7 +281,7 @@ class ServicePaymentService
             }
             if ($account) {
                 $firstObligation = $obligations->first();
-                $movement = new CashMovement(['type' => $firstObligation?->direction === 'payable' ? CashMovementType::INCOME : CashMovementType::EXPENSE, 'amount' => $payment->amount, 'description' => 'Estorno '.($firstObligation?->number ?? 'negociação de serviços'), 'movement_date' => now()->toDateString(), 'bank_account_id' => $account->id, 'payment_method' => $payment->payment_method, 'document_number' => 'EST-'.($firstObligation?->number ?? $payment->id), 'notes' => $reason, 'created_by' => $actor->id]);
+                $movement = new CashMovement(['type' => $firstObligation?->direction === 'payable' ? CashMovementType::INCOME : CashMovementType::EXPENSE, 'amount' => $payment->amount, 'description' => 'Estorno '.($firstObligation?->number ?? 'negociação de serviços'), 'movement_date' => $date, 'bank_account_id' => $account->id, 'payment_method' => $payment->payment_method, 'document_number' => 'EST-'.($firstObligation?->number ?? $payment->id), 'notes' => $reason, 'created_by' => $actor->id]);
                 $movement->tenant_id = $payment->tenant_id;
                 $movement->reference_type = ServicePaymentEvent::class;
                 $movement->reference_id = $reversal->id;

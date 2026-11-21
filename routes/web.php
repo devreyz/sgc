@@ -513,6 +513,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::post('/orders/{order}/correction', [ServiceManagementController::class, 'correction'])->middleware('throttle:20,1')->whereNumber('order')->name('management.correction');
         Route::post('/obligations/{obligation}/payments', [ServiceManagementController::class, 'payment'])->middleware('throttle:20,1')->whereNumber('obligation')->name('management.payments.store');
         Route::post('/payments/{payment}/reverse', [ServiceManagementController::class, 'reverse'])->middleware('throttle:10,1')->whereNumber('payment')->name('management.payments.reverse');
+        Route::post('/payments/{payment}/correct-account', [ServiceManagementController::class, 'correctReceiptAccount'])->middleware('throttle:10,1')->whereNumber('payment')->name('management.payments.correct-account');
         Route::post('/orders/{order}/resources', [ServiceManagementController::class, 'resource'])->middleware('throttle:20,1')->whereNumber('order')->name('management.resources.store');
         Route::patch('/orders/{order}/beneficiary', [ServiceManagementController::class, 'updateBeneficiary'])->middleware('throttle:30,1')->whereNumber('order')->name('management.beneficiary.update');
         Route::post('/obligations/{obligation}/provider-rate', [ServiceManagementController::class, 'updateProviderRate'])->middleware('throttle:20,1')->whereNumber('obligation')->name('management.provider-rate.update');
