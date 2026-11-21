@@ -200,6 +200,11 @@
             )
             : null;
 
+    $quantityPreview = $financialPreview['primary_quantity'] ?? null;
+    $isHourly = static fn ($unit): bool => in_array(mb_strtolower(trim((string) $unit)), ['h', 'hora', 'horas'], true);
+    $formatReading = static fn ($value): string => rtrim(rtrim(number_format((float) $value, 4, ',', '.'), '0'), ',');
+    $quantityUnit = $isHourly($execution->unit) ? 'h' : trim((string) $execution->unit);
+
     $evidenceTotal =
         $execution->evidences->count();
 
@@ -227,10 +232,6 @@
         ]
     );
 
-    [$meterStartField, $meterEndField] = \App\Services\Services\ServiceCalculationRules::meterPair((array) $execution->catalog_snapshot);
-
-    $executionUnit = (string) ($execution->unit ?? '');
-
     $serviceLocalKey = implode(
         ':',
         [
@@ -247,6 +248,31 @@
             $value !== null
             && $value !== ''
     );
+    $savedPauses = collect();
+    foreach ($savedValues as $key => $value) {
+        if (!str_starts_with((string) $key, 'meter_pauses_')) {
+            continue;
+        }
+        $savedValues->forget($key);
+        $meterKey = substr($key, strlen('meter_pauses_'));
+        $meterField = $fields->firstWhere('key', $meterKey);
+        if ($meterField && !(($operator ?? false) ? ($meterField['visible_to_management'] ?? true) : ($meterField['visible_to_provider'] ?? false))) {
+            continue;
+        }
+
+        $decoded = is_string($value) ? json_decode($value, true) : $value;
+        $pauses = collect(is_array($decoded) ? $decoded : [])->filter(
+            fn ($pause) => is_array($pause) && (is_numeric($pause['stop'] ?? null) || is_numeric($pause['resume'] ?? null))
+        )->values();
+        if ($pauses->isNotEmpty()) {
+            $unit = $meterField['unit'] ?? $execution->unit;
+            $savedPauses->push([
+                'label' => $meterField['label'] ?? 'Leituras',
+                'unit' => $isHourly($unit) ? 'h' : $unit,
+                'pauses' => $pauses,
+            ]);
+        }
+    }
 @endphp
 
 @section('content')
@@ -386,6 +412,7 @@
 .service-execution .svc-action-panel .svc-panel-head {background:var(--svc-soft)}
 .service-execution .svc-form-body,.service-execution .svc-review-body {padding:18px 20px 20px;background:var(--svc-surface)}
 .service-execution .svc-form {display:grid;width:100%;min-width:0;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
+.service-execution .svc-field-section {grid-column:1/-1;margin:0;color:var(--svc-text);font:inherit;font-weight:750}
 .service-execution .svc-form .svc-field,.service-execution .svc-form .field-group,.service-execution .svc-form .form-group {display:block;width:100%;min-width:0;max-width:100%;margin:0;padding:13px 14px 14px;border:1px solid var(--svc-border);border-radius:9px;background:var(--svc-surface);vertical-align:top}
 .service-execution .svc-form .svc-field[hidden] {display:none!important}
 .service-execution .svc-field>label {display:block;color:var(--svc-text);font-size:13px;font-weight:750;line-height:1.4}
@@ -404,6 +431,8 @@
 .svc-live-totals dl {display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;margin:.5rem 0}
 .svc-live-totals dt,.svc-live-totals p {font-size:.8125rem;color:var(--svc-text-2)}
 .svc-live-totals dd {font-weight:750;font-variant-numeric:tabular-nums}
+.svc-saved-pauses {display:grid;gap:.5rem;margin:0;padding:0;list-style:none}
+.svc-saved-pauses li {display:flex;flex-wrap:wrap;gap:.125rem .75rem}
 .service-execution .svc-async-feedback {grid-column:1/-1}
 .svc-save-spinner {display:inline-block;animation:svc-spin .82s linear infinite}
 @media (prefers-reduced-motion: reduce) {
@@ -421,13 +450,7 @@
 .service-execution .svc-alert-icon {display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;border-radius:8px;background:var(--svc-surface);color:var(--svc-info);font-size:17px}
 .service-execution .svc-alert.danger .svc-alert-icon {color:var(--svc-danger)}
 .service-execution .svc-alert strong {color:var(--svc-text)}
-.service-execution .svc-preview {display:none;grid-template-columns:32px minmax(0,1fr) auto;grid-column:1/-1;gap:12px;align-items:center;padding:13px 15px;margin:0 0 14px;border:1px solid var(--svc-blue-border);border-radius:9px;background:var(--svc-blue-soft)}
-.service-execution .svc-preview-icon {display:grid;place-items:center;width:32px;height:32px;background:var(--svc-surface);color:var(--svc-info);border-radius:7px}
-.service-execution .svc-preview-copy span {color:var(--svc-text);font-size:13px;font-weight:800}
-.service-execution .svc-preview-copy small {display:block;color:var(--svc-text-2);font-size:11px}
-.service-execution .svc-preview-result {color:var(--svc-info);font-size:18px;font-weight:900;font-variant-numeric:tabular-nums}
-.service-execution .svc-preview.is-invalid {border-color:var(--svc-red-border);background:var(--svc-red-soft)}
-.service-execution .svc-preview.is-invalid .svc-preview-result {color:var(--svc-danger)}
+
 
 /* 03 / Sidebar: contexto conciso, sem cartões concorrentes com o formulário. */
 .service-execution .svc-quick-context {background:transparent;border-top:1px solid var(--svc-border)}
@@ -1154,9 +1177,6 @@
     class="service-execution ui-scope"
     data-draft-url="{{ $draftUrl }}"
     data-local-key="{{ $serviceLocalKey }}"
-    data-meter-start="{{ $meterStartField }}"
-    data-meter-end="{{ $meterEndField }}"
-    data-execution-unit="{{ $executionUnit }}"
     data-execution-status="{{ $executionStatus }}"
 >
     @if($errors->any())
@@ -1495,67 +1515,37 @@
                         value="{{ \Illuminate\Support\Str::uuid() }}"
                     >
 
-                    @include(
-                        'provider._service-fields',
-                        [
-                            'execution' => $execution,
-                            'phase' => 'execution',
-                            'operator' => $operator ?? false,
-                            'tenantSlug' => $tenantSlug,
-                        ]
-                    )
+                    @include('provider._service-fields', [
+                        'execution' => $execution,
+                        'phase' => 'start',
+                        'operator' => $operator ?? false,
+                        'tenantSlug' => $tenantSlug,
+                        'sectionTitle' => 'Dados do início',
+                    ])
 
-                    @include(
-                        'provider._service-fields',
-                        [
-                            'execution' => $execution,
-                            'phase' => 'finish',
-                            'operator' => $operator ?? false,
-                            'tenantSlug' => $tenantSlug,
-                        ]
-                    )
+                    @include('provider._service-fields', [
+                        'execution' => $execution,
+                        'phase' => 'execution',
+                        'operator' => $operator ?? false,
+                        'tenantSlug' => $tenantSlug,
+                        'sectionTitle' => 'Dados da execução',
+                    ])
 
-                    @if(
-                        data_get(
-                            $execution->catalog_snapshot,
-                            'execution_config.quantity_mode'
-                        ) === 'meter_difference'
-                    )
-                        <div
-                            class="svc-preview"
-                            id="meter-preview"
-                            aria-live="polite"
-                        >
-                            <span
-                                class="svc-preview-icon"
-                                aria-hidden="true"
-                            >
-                                <i class="ph-fill ph-gauge"></i>
-                            </span>
-
-                            <span class="svc-preview-copy">
-                                <span>
-                                    Quantidade calculada
-                                    pela diferença
-                                </span>
-
-                                <small>
-                                    Medição final − medição inicial
-                                </small>
-                            </span>
-
-                            <strong
-                                class="svc-preview-result"
-                                id="meter-result"
-                            >
-                                —
-                            </strong>
-                        </div>
-                    @endif
+                    @include('provider._service-fields', [
+                        'execution' => $execution,
+                        'phase' => 'finish',
+                        'operator' => $operator ?? false,
+                        'tenantSlug' => $tenantSlug,
+                        'sectionTitle' => 'Dados do término',
+                    ])
 
                     <section class="svc-live-totals" data-service-totals aria-labelledby="svc-live-totals-title">
-                        <h3 id="svc-live-totals-title"><strong>Valores estimados</strong></h3>
+                        <h3 id="svc-live-totals-title"><strong>Resumo da execução</strong></h3>
                         <dl>
+                            <div>
+                                <dt>{{ $isHourly($execution->unit) ? 'Horas trabalhadas' : 'Quantidade calculada' }}</dt>
+                                <dd data-total="quantity" data-unit="{{ $quantityUnit }}">{{ $quantityPreview === null ? 'A calcular' : trim($formatReading($quantityPreview).' '.$quantityUnit) }}</dd>
+                            </div>
                             <div><dt>Organização recebe</dt><dd data-total="receivable">{{ $receivablePreview === null ? 'A calcular' : $formatMoney($receivablePreview) }}</dd></div>
                             <div><dt>Prestador recebe</dt><dd data-total="payable">{{ $payablePreview === null ? 'A calcular' : $formatMoney($payablePreview) }}</dd></div>
                         </dl>
@@ -1585,7 +1575,7 @@
         </section>
     @endif
 
-    @if($savedValues->isNotEmpty())
+    @if($savedValues->isNotEmpty() || $savedPauses->isNotEmpty())
         <section class="svc-panel svc-recorded-panel">
             <header
                 class="svc-panel-head"
@@ -1650,6 +1640,25 @@
                                 @if($savedUnit)
                                     {{ $savedUnit }}
                                 @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                    @foreach($savedPauses as $group)
+                        <tr>
+                            <th scope="row">{{ $savedPauses->count() > 1 ? 'Pausas · '.$group['label'] : 'Pausas do horímetro' }}</th>
+                            <td>
+                                <ul class="svc-saved-pauses">
+                                    @foreach($group['pauses'] as $pause)
+                                        <li>
+                                            @if(is_numeric($pause['stop'] ?? null))
+                                                <span>Pausa <strong>{{ $formatReading($pause['stop']) }} {{ $group['unit'] }}</strong></span>
+                                            @endif
+                                            @if(is_numeric($pause['resume'] ?? null))
+                                                <span>Retorno <strong>{{ $formatReading($pause['resume']) }} {{ $group['unit'] }}</strong></span>
+                                            @endif
+                                        </li>
+                                    @endforeach
+                                </ul>
                             </td>
                         </tr>
                     @endforeach
@@ -2409,15 +2418,6 @@
     const serviceLocalKey =
         serviceWorkspace?.dataset.localKey || '';
 
-    const serviceMeterStartField =
-        serviceWorkspace?.dataset.meterStart || '';
-
-    const serviceMeterEndField =
-        serviceWorkspace?.dataset.meterEnd || '';
-
-    const serviceExecutionUnit =
-        serviceWorkspace?.dataset.executionUnit || '';
-
     const serviceExecutionStatus =
         serviceWorkspace?.dataset.executionStatus || '';
 
@@ -2426,8 +2426,21 @@
 
     if (totals) {
         const status = totals.querySelector('[data-total-status]');
-        const amounts = [...totals.querySelectorAll('[data-total]')];
+        const fields = [...totals.querySelectorAll('[data-total]')];
         const money = new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'});
+        const quantity = new Intl.NumberFormat('pt-BR', {maximumFractionDigits: 4});
+        const showTotals = (result = {}) => {
+            fields.forEach(field => {
+                const value = result[field.dataset.total];
+                if (value == null) {
+                    field.textContent = 'A calcular';
+                } else if (field.dataset.total === 'quantity') {
+                    field.textContent = [quantity.format(value), field.dataset.unit].filter(Boolean).join(' ');
+                } else {
+                    field.textContent = money.format(value);
+                }
+            });
+        };
         let timer;
         let pending;
 
@@ -2435,7 +2448,7 @@
             clearTimeout(timer);
             pending?.abort();
             const request = pending = new AbortController();
-            status.textContent = 'Calculando valores…';
+            status.textContent = 'Atualizando a estimativa…';
             timer = setTimeout(async () => {
                 const data = new URLSearchParams();
                 for (const [key, value] of new FormData(previewForm)) {
@@ -2449,18 +2462,18 @@
                     });
                     if (request.signal.aborted) return;
                     if (response.status === 422) {
-                        amounts.forEach(amount => amount.textContent = 'A calcular');
-                        status.textContent = 'Confira os dados do serviço para calcular os valores.';
+                        showTotals();
+                        status.textContent = 'Confira os dados do serviço para calcular a estimativa.';
                         return;
                     }
                     if (!response.ok) throw new Error('Preview unavailable');
                     const result = await response.json();
                     if (request.signal.aborted) return;
-                    amounts.forEach(amount => amount.textContent = money.format(result[amount.dataset.total]));
+                    showTotals(result);
                     status.textContent = 'Estimativa com os dados desta tela.';
                 } catch {
                     if (!request.signal.aborted) {
-                        amounts.forEach(amount => amount.textContent = 'A calcular');
+                        showTotals();
                         status.textContent = 'Prévia indisponível. Altere um campo para tentar novamente.';
                     }
                 }
@@ -4002,131 +4015,6 @@
                 });
             };
             document.addEventListener('input', syncConditions); document.addEventListener('change', syncConditions); syncConditions();
-
-            const startKey =
-                serviceMeterStartField;
-
-            const endKey =
-                serviceMeterEndField;
-
-            const preview =
-                document.getElementById(
-                    'meter-preview'
-                );
-
-            const result =
-                document.getElementById(
-                    'meter-result'
-                );
-
-            /*
-             * Mantém a lógica original da diferença de medidores,
-             * mas evita tratar campo vazio como zero.
-             */
-            if (
-                startKey
-                && endKey
-                && preview
-                && result
-            ) {
-                const start =
-                    document.querySelector(
-                        `[name="values[${startKey}]"]`
-                    );
-
-                const end =
-                    document.querySelector(
-                        `[name="values[${endKey}]"]`
-                    );
-
-                const syncMeterPreview = () => {
-                    const startRaw =
-                        String(
-                            start?.value ?? ''
-                        ).trim();
-
-                    const endRaw =
-                        String(
-                            end?.value ?? ''
-                        ).trim();
-
-                    if (!startRaw || !endRaw) {
-                        preview.style.display =
-                            'none';
-
-                        preview.classList.remove(
-                            'is-invalid'
-                        );
-
-                        result.textContent = '—';
-
-                        return;
-                    }
-
-                    const startValue =
-                        Number(startRaw);
-
-                    const endValue =
-                        Number(endRaw);
-
-                    const validNumbers =
-                        Number.isFinite(startValue)
-                        && Number.isFinite(endValue);
-
-                    preview.style.display =
-                        validNumbers
-                            ? 'grid'
-                            : 'none';
-
-                    if (!validNumbers) {
-                        return;
-                    }
-
-                    const pauses = JSON.parse(document.querySelector('[data-meter-pauses] input[type=hidden]')?.value || '[]');
-                    let previous = startValue;
-                    let idle = 0;
-                    const validDifference = endValue >= startValue && pauses.every(pause => {
-                        const stop = Number(pause.stop), resume = Number(pause.resume);
-                        const valid = pause.stop !== '' && pause.resume !== '' && stop >= previous && resume >= stop && resume <= endValue;
-                        previous = resume;
-                        idle += resume - stop;
-                        return valid;
-                    });
-
-                    preview.classList.toggle(
-                        'is-invalid',
-                        !validDifference
-                    );
-
-                    result.textContent =
-                        validDifference
-                            ? (
-                                endValue
-                                - startValue - idle
-                            ).toLocaleString(
-                                'pt-BR',
-                                {
-                                    maximumFractionDigits: 4,
-                                }
-                            )
-                            + ' '
-                            + serviceExecutionUnit
-                            : 'Medição final inválida';
-                };
-
-                document.querySelector('[data-meter-pauses]')?.addEventListener('input', syncMeterPreview);
-                start?.addEventListener(
-                    'input',
-                    syncMeterPreview
-                );
-
-                end?.addEventListener(
-                    'input',
-                    syncMeterPreview
-                );
-
-                syncMeterPreview();
-            }
 
             /*
              * Mantém a otimização local das imagens antes do

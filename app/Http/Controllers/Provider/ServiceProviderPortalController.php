@@ -29,6 +29,8 @@ use Illuminate\View\View;
 
 class ServiceProviderPortalController extends Controller
 {
+    private const EXECUTION_EDIT_PHASES = ['start', 'execution', 'finish'];
+
     public function index(Request $request, Tenant $tenant): View|\Illuminate\Http\Response
     {
         [$provider, $operator] = $this->access($request, $tenant);
@@ -130,10 +132,11 @@ class ServiceProviderPortalController extends Controller
         $order = $this->order($tenant, $provider, $operator, $order);
         abort_unless($order->execution?->status === 'in_progress', 409);
         $data = $request->validate(['values' => 'array|max:200', 'values.*' => 'nullable|string|max:10000']);
-        $values = $this->portalValues($order, $data['values'] ?? [], ['execution', 'finish'], $operator);
+        $values = $this->portalValues($order, $data['values'] ?? [], self::EXECUTION_EDIT_PHASES, $operator);
         $totals = $workflow->preview($order->execution, $values);
 
         return response()->json([
+            'quantity' => $totals['primary_quantity'],
             'receivable' => $totals['receivable_total'],
             'payable' => $totals['payable_total'],
         ]);
@@ -158,8 +161,8 @@ class ServiceProviderPortalController extends Controller
         $order = $this->order($tenant, $provider, $operator, $order);
         $data = $request->validate(['values' => 'array', 'evidences' => 'array', 'evidences.*' => 'nullable|file|max:12288']);
         DB::transaction(function () use ($request, $order, $operator, $data, $workflow, $evidence): void {
-            $this->uploadSubmittedEvidences($request, $order, $operator, ['start', 'execution', 'finish'], $evidence);
-            $workflow->saveDraft($order->execution, $this->portalValues($order, $data['values'] ?? [], ['start', 'execution', 'finish'], $operator), $request->user());
+            $workflow->saveDraft($order->execution, $this->portalValues($order, $data['values'] ?? [], self::EXECUTION_EDIT_PHASES, $operator), $request->user());
+            $this->uploadSubmittedEvidences($request, $order, $operator, self::EXECUTION_EDIT_PHASES, $evidence);
         }, 3);
 
         return $this->mutationResponse($request, $tenant, $order->fresh(['execution.evidences.document']), 'Rascunho salvo.', false);
@@ -171,9 +174,9 @@ class ServiceProviderPortalController extends Controller
         $order = $this->order($tenant, $provider, $operator, $order);
         $data = $request->validate(['operation_key' => 'required|uuid', 'values' => 'array', 'evidences' => 'array', 'evidences.*' => 'nullable|file|max:12288']);
         $execution = DB::transaction(function () use ($request, $order, $operator, $data, $workflow, $evidence) {
-            $this->uploadSubmittedEvidences($request, $order, $operator, ['execution', 'finish'], $evidence);
+            $this->uploadSubmittedEvidences($request, $order, $operator, self::EXECUTION_EDIT_PHASES, $evidence);
 
-            return $workflow->submit($order->execution, $this->portalValues($order, $data['values'] ?? [], ['execution', 'finish'], $operator), $data['operation_key'], $request->user());
+            return $workflow->submit($order->execution, $this->portalValues($order, $data['values'] ?? [], self::EXECUTION_EDIT_PHASES, $operator), $data['operation_key'], $request->user());
         }, 3);
 
         $message = $execution->status === 'validated' ? 'Serviço validado e obrigações geradas.' : 'Serviço enviado para conferência.';

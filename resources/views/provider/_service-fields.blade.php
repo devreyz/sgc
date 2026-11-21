@@ -140,6 +140,10 @@
         );
 @endphp
 
+@if(isset($sectionTitle) && $phaseFields->isNotEmpty())
+    <h3 class="svc-field-section">{{ $sectionTitle }}</h3>
+@endif
+
 @foreach($dataFields as $field)
     @php
         $fieldKey = (string) (

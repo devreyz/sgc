@@ -800,8 +800,9 @@ class ServiceProviderCompensationTest extends TestCase
         $actor->id = 1;
         $actor->exists = true;
         $workflow = app(ServiceExecutionWorkflow::class);
-        $started = $workflow->start($execution, ['meter_start' => 1000], (string) Str::uuid(), $actor);
+        $started = $workflow->start($execution, ['meter_start' => 999], (string) Str::uuid(), $actor);
         $measurements = [
+            'meter_start' => 1000,
             'meter_end' => 1017.4,
             'meter_pauses_meter_start' => json_encode([['stop' => 1005.6, 'resume' => 1010], ['stop' => 1012, 'resume' => 1014]]),
             'internal_note' => 'Informação do gestor',
@@ -812,11 +813,19 @@ class ServiceProviderCompensationTest extends TestCase
         $this->assertSame(330.0, $live['payable_total']);
         $draft = $workflow->saveDraft($started, $measurements, $actor);
         $this->assertSame('in_progress', $draft->status);
+        $this->assertSame(1000.0, (float) $draft->values['meter_start']);
         $this->assertSame(0, $draft->obligations()->count());
         $storedPreview = $workflow->preview($draft, []);
         $this->assertSame($live['receivable_total'], $storedPreview['receivable_total']);
         $this->assertSame($live['payable_total'], $storedPreview['payable_total']);
         $submitted = $workflow->submit($draft, [], (string) Str::uuid(), $actor);
+        try {
+            $workflow->saveDraft($draft, ['meter_start' => 999], $actor);
+            $this->fail('Um rascunho antigo não deve alterar os dados enviados.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('status', $exception->errors());
+        }
+        $this->assertSame(1000.0, (float) $submitted->fresh()->values['meter_start']);
         $preview = app(ServiceCompositionCalculator::class)->calculate($submitted, false);
 
         $this->assertSame('submitted', $submitted->status);

@@ -306,8 +306,39 @@
 .ow-empty-body strong { color: var(--ow-text); font-size: .97rem; font-weight: 780; }
 .ow-empty-body p { margin: 0; color: var(--ow-secondary); font-size: .81rem; line-height: 1.48; }
 .ow-empty-body .ow-new { margin-top: .35rem; }
-.ow-pagination { padding: .82rem .9rem; border-top: 1px solid var(--ow-border); background: var(--ow-surface); }
-.ow-pagination :is(nav, a) { max-width: 100%; }
+.ow-pagination {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: .4rem;
+    padding: .65rem .7rem;
+    border-top: 1px solid var(--ow-border);
+    background: var(--ow-surface);
+}
+.ow-page-link {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    min-height: 44px;
+    padding: 0 .62rem;
+    border: 1px solid var(--ow-border);
+    border-radius: 10px;
+    background: var(--ow-soft);
+    color: var(--ow-text);
+    font-size: .8125rem;
+    font-weight: 700;
+    line-height: 1.15;
+    text-decoration: none;
+    justify-self: start;
+}
+.ow-page-link.is-next { justify-self: end; }
+.ow-pagination svg.ow-icon { width: .94rem; height: .94rem; }
+.ow-page-link .ow-arrow-previous { transform: rotate(180deg); }
+.ow-pagination a:hover { border-color: var(--ow-border-strong); background: var(--ow-primary-soft); color: var(--ow-text); }
+.ow-pagination a:focus-visible { outline: 2px solid var(--ow-primary); outline-offset: 2px; }
+.ow-page-link[aria-disabled="true"] { background: transparent; color: var(--ow-secondary); opacity: .7; }
+.ow-page-current { text-align: center; color: var(--ow-secondary); font-size: .8125rem; line-height: 1.15; }
+.ow-page-current strong { color: var(--ow-text); font-variant-numeric: tabular-nums; }
 
 @media (max-width: 1140px) {
     .orders-page .ow-table-scroll { display: none; }
@@ -520,10 +551,36 @@
                     <button class="ow-clear" type="button" data-ow-reset>Limpar filtros</button>
                 </div>
             </div>
+        @endif
 
-            @if(method_exists($orders, 'hasPages') && $orders->hasPages())
-                <div class="ow-pagination">{{ $orders->links() }}</div>
-            @endif
+        @if(method_exists($orders, 'hasPages') && $orders->hasPages())
+            <nav class="ow-pagination" aria-label="Paginação do histórico de ordens">
+                @if($orders->onFirstPage())
+                    <span class="ow-page-link" aria-disabled="true">
+                        <svg class="ow-icon ow-arrow-previous" aria-hidden="true"><use href="#ow-arrow"/></svg>
+                        Anterior
+                    </span>
+                @else
+                    <a class="ow-page-link" href="{{ $orders->previousPageUrl() }}" rel="prev">
+                        <svg class="ow-icon ow-arrow-previous" aria-hidden="true"><use href="#ow-arrow"/></svg>
+                        Anterior
+                    </a>
+                @endif
+
+                <span class="ow-page-current" aria-current="page">Página <strong>{{ $currentPage }}</strong> de {{ $lastPage }}</span>
+
+                @if($orders->hasMorePages())
+                    <a class="ow-page-link is-next" href="{{ $orders->nextPageUrl() }}" rel="next">
+                        Próxima
+                        <svg class="ow-icon" aria-hidden="true"><use href="#ow-arrow"/></svg>
+                    </a>
+                @else
+                    <span class="ow-page-link is-next" aria-disabled="true">
+                        Próxima
+                        <svg class="ow-icon" aria-hidden="true"><use href="#ow-arrow"/></svg>
+                    </span>
+                @endif
+            </nav>
         @endif
     </section>
 </main>

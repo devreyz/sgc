@@ -31,9 +31,10 @@ class ServiceExecutionWorkflow
     {
         return DB::transaction(function () use ($execution, $values) {
             $execution = $this->lock($execution);
-            if ($execution->isFrozen()) {
-                throw ValidationException::withMessages(['status' => 'Execução validada é imutável.']);
-            }$execution->forceFill(['values' => array_replace($execution->values ?? [], $values), 'lock_version' => $execution->lock_version + 1])->save();
+            if (! in_array($execution->status, ['draft', 'in_progress', 'rejected'], true)) {
+                throw ValidationException::withMessages(['status' => 'Esta execução já foi enviada. Reabra a ordem para ver os dados atualizados.']);
+            }
+            $execution->forceFill(['values' => array_replace($execution->values ?? [], $values), 'lock_version' => $execution->lock_version + 1])->save();
 
             return $execution->fresh();
         }, 3);
