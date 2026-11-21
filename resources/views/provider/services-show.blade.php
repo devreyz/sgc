@@ -4175,20 +4175,20 @@
 
                                 canvas.toBlob(
                                     blob => {
-                                        if (!blob) {
+                                        const canUseWebp = (input.dataset.allowedMimes || '').split(',').includes('image/webp');
+                                        if (!canUseWebp || blob?.type !== 'image/webp' || blob.size >= file.size || blob.size > 230 * 1024) {
                                             renderOriginalFile(
                                                 box,
                                                 file
                                             );
+                                            input.dataset.evidenceSaved = '0';
+                                            saveServiceDraftEvidenceFile(input, file);
+                                            updateEvidenceSelection(input);
 
                                             return;
                                         }
 
                                         try {
-                                            if (!(input.dataset.allowedMimes || '').split(',').includes('image/webp')) {
-                                                renderOriginalFile(box, file);
-                                                return;
-                                            }
                                             const optimized =
                                                 new File(
                                                     [blob],

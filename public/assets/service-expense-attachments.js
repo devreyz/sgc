@@ -47,7 +47,6 @@ document.querySelectorAll('[data-expense-files]').forEach(picker => {
             image.src = url;
             await image.decode();
             const canvas = document.createElement('canvas');
-            let best = file;
             for (const edge of [1728, 1360, 1060, 800]) {
                 const scale = Math.min(1, edge / Math.max(image.naturalWidth, image.naturalHeight));
                 canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
@@ -55,13 +54,13 @@ document.querySelectorAll('[data-expense-files]').forEach(picker => {
                 canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
                 for (const quality of [.84, .71, .57]) {
                     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', quality));
-                    if (blob?.type === 'image/webp' && blob.size < best.size) {
-                        best = new File([blob], file.name.replace(/\.[^.]+$/, '') + '.webp', {type: blob.type});
+                    if (blob?.type === 'image/webp' && blob.size <= targetBytes) {
+                        return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.webp', {type: blob.type});
                     }
-                    if (best.size <= targetBytes) return best;
                 }
             }
-            return best;
+            // Keep the original when the server will need to optimize it again.
+            return file;
         } catch {
             return file;
         } finally {
