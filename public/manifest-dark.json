@@ -11,13 +11,13 @@
     {
       "purpose": "any maskable",
       "type": "image/png",
-      "src": "/assets/icons/campo-dark-192.png",
+      "src": "/assets/icons/campo-light-192.png",
       "sizes": "192x192"
     },
     {
       "purpose": "any maskable",
       "type": "image/png",
-      "src": "/assets/icons/campo-dark-512.png",
+      "src": "/assets/icons/campo-light-512.png",
       "sizes": "512x512"
     }
   ]

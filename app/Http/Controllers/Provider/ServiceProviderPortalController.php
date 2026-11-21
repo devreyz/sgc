@@ -322,7 +322,7 @@ class ServiceProviderPortalController extends Controller
     {
         [$management, $provider] = $this->expenseAccess($request, $tenant);
         $data = $request->validate([
-            'action' => 'required|in:edit,link,unlink,delete,convert,attach',
+            'action' => 'required|in:edit,link,unlink,delete,convert,attach,remove_image',
             'description' => 'exclude_unless:action,edit|required|string|max:191',
             'amount' => 'exclude_unless:action,edit|required|numeric|min:0.01',
             'date' => 'exclude_unless:action,edit|required|date',
@@ -332,12 +332,18 @@ class ServiceProviderPortalController extends Controller
             'service_order_id' => 'exclude_unless:action,convert,link|required|integer|min:1',
             'attachments' => 'exclude_unless:action,attach|required|array|min:1|max:5',
             'attachments.*' => 'file|mimes:jpg,jpeg,png,webp,pdf|max:12288',
+            'document_id' => 'exclude_unless:action,remove_image|required|integer|min:1',
         ]);
-        if ($data['action'] === 'attach') {
+        if (in_array($data['action'], ['attach', 'remove_image'], true)) {
             DB::transaction(function () use ($tenant, $expense, $provider, $data, $request, $attachments): void {
                 $record = Expense::query()->where('tenant_id', $tenant->id)->where('origin_module', 'services')
                     ->when($provider, fn ($query) => $query->where('service_provider_id', $provider->id))
                     ->lockForUpdate()->findOrFail($expense);
+                if ($data['action'] === 'remove_image') {
+                    $attachments->removeImage($record, (int) $data['document_id']);
+
+                    return;
+                }
                 if ($record->status->value === 'cancelled' || $record->documents()->count() + count($data['attachments']) > 5) {
                     throw ValidationException::withMessages(['attachments' => 'Despesas ativas aceitam até cinco comprovantes ao todo.']);
                 }
@@ -358,6 +364,7 @@ class ServiceProviderPortalController extends Controller
                 'link' => 'Despesa vinculada à ordem.',
                 'convert' => 'Despesa registrada como abatimento na ordem.',
                 'attach' => 'Comprovantes adicionados.',
+                'remove_image' => 'Imagem removida da despesa.',
                 default => 'Despesa atualizada.',
             });
     }

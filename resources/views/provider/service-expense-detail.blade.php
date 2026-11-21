@@ -23,6 +23,7 @@
     .expense-detail .detail-danger,.expense-detail .detail-error { color:var(--ui-color-danger-strong); }
     .expense-detail .detail-meta { color:var(--ui-color-text-secondary); overflow-wrap:anywhere; }
     .expense-detail .detail-link { color:var(--ui-color-primary-strong); text-decoration:underline; overflow-wrap:anywhere; }
+    .expense-detail .detail-attachment { display:flex; align-items:center; justify-content:space-between; gap:.5rem; }
     .expense-detail .expense-files { display:grid; gap:.55rem; margin-bottom:.55rem; }
     .expense-detail .expense-attachment-preview { display:grid; gap:.3rem; max-width:12rem; overflow-wrap:anywhere; padding:.5rem; background:var(--ui-color-surface-soft); border-radius:.55rem; font-size:.78rem; }
     .expense-detail .expense-attachment-preview button { color:var(--ui-color-danger-strong); text-align:left; min-height:32px; }
@@ -65,7 +66,18 @@
         @if($record->documents->isNotEmpty())
             <h2>Comprovantes</h2>
             @foreach($record->documents as $document)
-                <a class="detail-link" target="_blank" rel="noopener" href="{{ route($base.'.documents.show', ['tenant' => $tenant->slug, 'document' => $document->id]) }}">{{ $document->original_name }}</a>
+                <div class="detail-attachment">
+                    <a class="detail-link" target="_blank" rel="noopener" href="{{ route($base.'.documents.show', ['tenant' => $tenant->slug, 'document' => $document->id]) }}">{{ $document->original_name }}</a>
+                    @if($record->status->value !== 'cancelled' && str_starts_with((string) $document->mime_type, 'image/'))
+                        <form action="{{ $url }}" method="post" onsubmit="return confirm('Remover esta imagem da despesa?')">
+                            @csrf @method('PATCH')
+                            <input type="hidden" name="document_id" value="{{ $document->id }}">
+                            <button class="detail-button detail-danger" type="submit" name="action" value="remove_image" aria-label="Remover imagem {{ $document->original_name }}">
+                                <i class="ph ph-trash" aria-hidden="true"></i> Remover
+                            </button>
+                        </form>
+                    @endif
+                </div>
             @endforeach
         @endif
         @if($record->status->value !== 'cancelled' && $record->documents->count() < 5)

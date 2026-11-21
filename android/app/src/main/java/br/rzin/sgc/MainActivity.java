@@ -10,7 +10,9 @@ import android.os.Bundle;
 import android.os.Build;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.LayerDrawable;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -22,7 +24,10 @@ import android.widget.TextView;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.getcapacitor.BridgeActivity;
@@ -34,15 +39,48 @@ public class MainActivity extends BridgeActivity {
     private static final String ONBOARDING_COMPLETE = "onboarding_complete";
     private final PathNavigationEngine navigationEngine = new PathNavigationEngine();
     private View navigationLoading;
+    private ColorDrawable navigationBarBackground;
 
     private void applySystemBarTheme() {
-        int color = ContextCompat.getColor(this, R.color.campo_system_bar);
-        getWindow().setStatusBarColor(color);
-        getWindow().setNavigationBarColor(color);
+        if (navigationBarBackground != null) {
+            navigationBarBackground.setColor(ContextCompat.getColor(this, R.color.campo_system_bar));
+        }
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(Color.TRANSPARENT);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            getWindow().setNavigationBarContrastEnforced(false);
+        }
         WindowInsetsControllerCompat controller =
             new WindowInsetsControllerCompat(getWindow(), getWindow().getDecorView());
         controller.setAppearanceLightStatusBars(false);
         controller.setAppearanceLightNavigationBars(false);
+    }
+
+    private void installSystemBarInsets() {
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        View content = findViewById(android.R.id.content);
+        navigationBarBackground = new ColorDrawable();
+        ColorDrawable statusBarBackground = new ColorDrawable(ContextCompat.getColor(this, R.color.campo_status_bar));
+        LayerDrawable background = new LayerDrawable(new ColorDrawable[]{navigationBarBackground, statusBarBackground});
+        background.setLayerGravity(1, Gravity.TOP | Gravity.FILL_HORIZONTAL);
+        background.setLayerHeight(1, 0);
+        content.setBackground(background);
+
+        int systemArea = WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout();
+        ViewCompat.setOnApplyWindowInsetsListener(content, (view, insets) -> {
+            Insets safeArea = insets.getInsets(systemArea);
+            int bottom = insets.isVisible(WindowInsetsCompat.Type.ime()) ? 0 : safeArea.bottom;
+            view.setPadding(safeArea.left, safeArea.top, safeArea.right, bottom);
+            background.setLayerHeight(1, safeArea.top);
+            // Capacitor still receives IME insets and adjusts the WebView for the keyboard.
+            return new WindowInsetsCompat.Builder(insets)
+                .setInsets(systemArea, Insets.NONE)
+                .setInsetsIgnoringVisibility(systemArea, Insets.NONE)
+                .setDisplayCutout(null)
+                .build();
+        });
+        ViewCompat.requestApplyInsets(content);
+        applySystemBarTheme();
     }
 
     @Override
@@ -61,8 +99,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(NativeQrScannerPlugin.class);
         super.onCreate(savedInstanceState);
         createHighPriorityNotificationChannels();
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
-        applySystemBarTheme();
+        installSystemBarInsets();
 
         if (getBridge() != null) {
             WebView webView = getBridge().getWebView();

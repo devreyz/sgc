@@ -77,6 +77,15 @@ class DriveDocumentLayout
         $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
         $extension = preg_match('/\A[a-z0-9]{1,12}\z/', $extension) ? '.'.$extension : '';
 
+        if ($typeKey === 'expense_document') {
+            $slug = 'des-'.$reference.'-'.(Str::limit(Str::slug($title), 70, '') ?: 'despesa');
+
+            return [
+                'folders' => [$category, $month],
+                'filename' => $slug.' -- '.($attachment ? Str::slug($attachment) : 'comprovante').$extension,
+            ];
+        }
+
         return [
             'folders' => [$category, $month],
             'filename' => $prefix.'-'.$reference.' - '.$title.($attachment ? ' · '.$attachment : '').$extension,

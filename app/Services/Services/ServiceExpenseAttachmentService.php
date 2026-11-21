@@ -79,6 +79,16 @@ class ServiceExpenseAttachmentService
         return $document;
     }
 
+    public function removeImage(Expense $expense, int $documentId): void
+    {
+        if ($expense->status->value === 'cancelled') {
+            throw ValidationException::withMessages(['attachments' => 'Os comprovantes de uma despesa cancelada ficam disponíveis para consulta.']);
+        }
+
+        $expense->documents()->where('tenant_id', $expense->tenant_id)
+            ->where('mime_type', 'like', 'image/%')->findOrFail($documentId)->delete();
+    }
+
     public function contents(Document $document): string
     {
         if ($document->disk === 'google_drive') {

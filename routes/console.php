@@ -32,12 +32,6 @@ Schedule::command('drive:compact-queue')
     ->everyFiveMinutes()
     ->withoutOverlapping(4);
 
-Schedule::command('drive:organize --all --apply')
-    ->dailyAt('02:30')
-    ->timezone('America/Sao_Paulo')
-    ->withoutOverlapping()
-    ->runInBackground();
-
 Schedule::command('queue:work', [
     'database',
     '--stop-when-empty',

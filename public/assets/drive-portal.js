@@ -12,6 +12,7 @@
     const path = find('[data-drive-path]');
     const status = find('[data-drive-status]');
     const empty = find('[data-drive-empty]');
+    const loading = find('[data-drive-loading]');
     const emptyTitle = find('[data-drive-empty-title]');
     const footer = find('[data-drive-footer]');
     const more = find('[data-drive-more]');
@@ -26,12 +27,15 @@
     const dialogFeedback = find('[data-drive-dialog-feedback]');
     const cache = new Map();
     const inFlight = new Map();
+    const folderPaths = new Map();
     const dateFormat = new Intl.DateTimeFormat(document.documentElement.lang || 'pt-BR', {dateStyle: 'medium', timeStyle: 'short'});
+    const monthFormat = new Intl.DateTimeFormat('pt-BR', {month: 'long', year: 'numeric', timeZone: 'UTC'});
 
     let route = readRoute();
     let searchTerm = '';
     let searchTimer;
     let data;
+    let displayedRoute;
     let listingRequest = 0;
     let generation = 0;
     let dialogRequest = 0;
@@ -91,9 +95,10 @@
         return JSON.stringify([folder, trash, term]);
     }
 
-    function navigate(folder = '', trash = false) {
+    function navigate(folder = '', trash = false, entry = null) {
         const next = {folder, trash};
         if (routeKey(next) === routeKey(route) && !searchTerm) return;
+        if (entry && data?.path) folderPaths.set(folder, [...data.path, entry]);
         const url = new URL(window.location.href);
         if (folder) url.searchParams.set('folder', folder); else url.searchParams.delete('folder');
         if (trash) url.searchParams.set('trash', '1'); else url.searchParams.delete('trash');
@@ -172,14 +177,17 @@
             return;
         }
 
-        if (!stored && !append && !foreground) {
-            // Keep the panel stable, but don't let users act on rows from another folder.
-            panel.inert = true;
-        }
         panel.setAttribute('aria-busy', 'true');
+        const openingFolder = !stored && !append && displayedRoute !== routeKey(state);
+        if (openingFolder) {
+            const root = {id: '', name: 'Arquivos'};
+            const knownPath = folderPaths.get(state.folder) ?? (state.folder ? [root, {id: state.folder, name: 'Pasta'}] : [root]);
+            render({path: knownPath, items: [], canAdd: false}, true);
+        }
+        loading.hidden = !openingFolder;
         more.disabled = true;
         setActions();
-        if (!uploading) setStatus(stored ? 'Atualizando…' : 'Carregando arquivos…');
+        if (!uploading) setStatus(stored || foreground ? 'Atualizando…' : 'Carregando arquivos…');
 
         try {
             const page = append ? await request(listUrl(state, term, data.nextPage)) : await firstPage(state, term);
@@ -193,23 +201,10 @@
             if (!uploading) setStatus('');
         } catch (error) {
             if (current !== listingRequest) return;
-            if (!stored && !append && !foreground) {
-                // The previous folder remains the available view if navigation failed.
-                if (data?.path.length) {
-                    const previousFolder = data.path.length === 1 ? '' : data.path.at(-1).id;
-                    const url = new URL(window.location.href);
-                    if (previousFolder) url.searchParams.set('folder', previousFolder); else url.searchParams.delete('folder');
-                    if (data.trash) url.searchParams.set('trash', '1'); else url.searchParams.delete('trash');
-                    route = {folder: previousFolder, trash: data.trash};
-                    history.replaceState({drive: true}, '', url);
-                    trashSwitch.setAttribute('aria-pressed', String(route.trash));
-                    trashSwitch.replaceChildren(icon(route.trash ? 'folder-open' : 'trash'), document.createTextNode(route.trash ? 'Ver arquivos' : 'Lixeira da pasta'));
-                }
-            }
             setStatus(error.message, true);
         } finally {
             if (current === listingRequest) {
-                panel.inert = false;
+                loading.hidden = true;
                 panel.setAttribute('aria-busy', 'false');
                 more.disabled = false;
                 setActions();
@@ -217,13 +212,26 @@
         }
     }
 
-    function render(page) {
+    function folderLabel(entry) {
+        if (entry.label) return entry.label;
+        if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(entry.name)) return entry.name;
+        const formatted = monthFormat.format(new Date(entry.name + '-01T00:00:00Z'));
+        return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+    }
+
+    function render(page, pending = false) {
+        const reveal = !pending && (loading.hidden === false || displayedRoute !== routeKey(route));
         data = {...page, trash: route.trash};
+        displayedRoute = routeKey(route);
+        loading.hidden = !pending;
+        if (!pending) {
+            page.path.forEach((entry, index) => folderPaths.set(index === 0 ? '' : entry.id, page.path.slice(0, index + 1)));
+        }
         const crumbs = element('div', 'drive-path-trail');
         const currentEntry = page.path.at(-1);
         page.path.forEach((entry, index) => {
             if (index > 0) crumbs.append(icon('caret-right'));
-            const name = entry.label || (index === 0 ? 'Arquivos' : entry.name);
+            const name = index === 0 ? 'Arquivos' : folderLabel(entry);
             if (entry === currentEntry) {
                 const current = element('span', '', name);
                 current.title = name;
@@ -236,13 +244,13 @@
             }
         });
         const mobilePath = element('div', 'drive-path-mobile');
-        const currentName = route.trash ? 'Lixeira' : (currentEntry.label || (page.path.length === 1 ? 'Arquivos' : currentEntry.name));
+        const currentName = route.trash ? 'Lixeira' : (page.path.length === 1 ? 'Arquivos' : folderLabel(currentEntry));
         if (page.path.length > 1 || route.trash) {
             const parent = button('', () => route.trash ? navigate(route.folder) : navigate(page.path.length > 2 ? page.path.at(-2).id : ''), 'arrow-left', 'drive-icon-button');
             parent.setAttribute('aria-label', route.trash ? 'Voltar aos arquivos' : 'Voltar à pasta anterior');
             const location = button('', () => {
                 const folders = page.path.map((entry, index) => {
-                    const entryButton = button(entry.label || (index === 0 ? 'Arquivos' : entry.name), () => {
+                    const entryButton = button(index === 0 ? 'Arquivos' : folderLabel(entry), () => {
                         dialog.close();
                         navigate(index === 0 ? '' : entry.id);
                     }, index === 0 ? 'house' : 'folder');
@@ -265,15 +273,23 @@
         const groups = new Map();
         for (const item of sorted) {
             const match = !item.folder && item.name.match(/^([A-Z]{2,4}-[A-Z0-9-]+) - ([^·]+?)(?: · .*|\.[^.]+)?$/i);
-            const key = match?.[1] || item.id;
-            if (!groups.has(key)) groups.set(key, {title: match ? match[1] + ' · ' + match[2].trim() : null, items: []});
+            const key = item.group?.slug || match?.[1] || item.id;
+            if (!groups.has(key)) groups.set(key, {
+                title: item.group?.name || match?.[2]?.trim(),
+                reference: item.group?.reference || match?.[1],
+                alwaysShow: Boolean(item.group),
+                items: [],
+            });
             groups.get(key).items.push(item);
         }
         for (const group of groups.values()) {
-            if (group.title && group.items.length > 1) {
+            if (group.title && (group.alwaysShow || group.items.length > 1)) {
                 const header = element('tr', 'drive-document-group');
-                const label = element('th', '', group.title);
+                header.setAttribute('role', 'row');
+                const label = element('th');
+                label.setAttribute('role', 'rowheader');
                 label.colSpan = 4;
+                label.append(element('span', '', group.title), element('span', 'drive-reference', group.reference));
                 header.append(label);
                 fragment.append(header);
             }
@@ -281,15 +297,18 @@
         }
         rows.replaceChildren(fragment);
         table.hidden = sorted.length === 0;
-        empty.hidden = sorted.length > 0 || Boolean(page.nextPage);
+        if (reveal && sorted.length && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            rows.animate?.([{opacity: .65}, {opacity: 1}], {duration: 160, easing: 'ease-out'});
+        }
+        empty.hidden = pending || sorted.length > 0 || Boolean(page.nextPage);
         emptyTitle.textContent = searchTerm ? 'Nenhum item encontrado' : route.trash ? 'Lixeira vazia nesta pasta' : 'Pasta vazia';
         footer.hidden = !page.nextPage;
-        panel.inert = false;
         setActions();
     }
 
     function rowFor(item) {
         const row = element('tr');
+        row.setAttribute('role', 'row');
         const name = element('td');
         const trash = route.trash;
         const interactive = !trash && (item.folder || item.preview || item.download);
@@ -297,9 +316,13 @@
         const glyph = item.folder ? 'folder' : item.preview === 'application/pdf' ? 'file-pdf' : item.preview?.startsWith('image/') ? 'image' : 'file';
         const mark = element('span', 'drive-file-icon');
         mark.append(icon(glyph));
-        const filename = element('span', 'drive-file-name', item.label || item.name);
-        filename.title = item.label || item.name;
-        label.append(mark, filename);
+        const displayName = item.folder ? folderLabel(item) : item.label || item.name;
+        const title = element('span', 'drive-file-name', displayName);
+        title.title = displayName;
+        const caption = element('span', 'drive-file-caption');
+        caption.append(title);
+        if (item.reference) caption.append(element('span', 'drive-reference', item.reference));
+        label.append(mark, caption);
         if (item.folder && !trash) {
             const prefetch = () => {
                 const child = {folder: item.id, trash: false};
@@ -314,6 +337,7 @@
         const time = element('td', 'drive-secondary-col', dateText);
         const size = element('td', 'drive-secondary-col', humanSize(item.size));
         const actions = element('td');
+        for (const cell of [name, time, size, actions]) cell.setAttribute('role', 'cell');
         if (trash ? canManage && item.restore : item.download || canManage && (item.rename || item.move || item.trash)) {
             const menu = button('', () => openActions(item, trash), 'dots-three', 'drive-icon-button');
             menu.setAttribute('aria-label', 'Ações de ' + item.name);
@@ -354,7 +378,7 @@
 
     function openItem(item) {
         if (item.folder) {
-            navigate(item.id);
+            navigate(item.id, false, item);
         } else if (item.preview) {
             preview(item);
         } else if (item.download) {

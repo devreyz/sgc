@@ -64,11 +64,14 @@
                 </div>
                 <div class="drive-status" role="status" data-drive-status>Carregando arquivos…</div>
                 <div data-drive-list aria-busy="true">
-                    <table class="drive-table" hidden>
+                    <div class="drive-loading" data-drive-loading aria-hidden="true">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <table class="drive-table" role="table" hidden>
                         <thead>
                             <tr><th scope="col">Nome</th><th scope="col" class="drive-secondary-col">Modificado</th><th scope="col" class="drive-secondary-col">Tamanho</th><th scope="col"><span class="sr-only">Ações</span></th></tr>
                         </thead>
-                        <tbody data-drive-rows></tbody>
+                        <tbody role="rowgroup" data-drive-rows></tbody>
                     </table>
                     <div class="drive-empty" data-drive-empty hidden>
                         <i class="ph-duotone ph-folder-open" aria-hidden="true"></i>

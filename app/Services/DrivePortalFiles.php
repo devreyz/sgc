@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\CloudDocument;
 use App\Models\Expense;
+use Carbon\CarbonImmutable;
 use Google\Service\Drive;
 use Google\Service\Drive\DriveFile;
 use Google\Service\Exception as DriveException;
@@ -43,14 +44,26 @@ class DrivePortalFiles
         $query = "'{$target->getId()}' in parents and trashed = ".($trash ? 'true' : 'false');
         if (filled($term)) {
             $escaped = str_replace(["\\", "'"], ["\\\\", "\\'"], $term);
-            $query .= " and name contains '{$escaped}'";
+            $matches = ["name contains '{$escaped}'"];
+            if (count($path) === 3 && $path[1]['name'] === 'Despesas'
+                && preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $path[2]['name'])) {
+                $month = CarbonImmutable::parse($path[2]['name'].'-01');
+                $ids = Expense::query()->withTrashed()->where('tenant_id', $this->tenantId)
+                    ->whereBetween('date', [$month->toDateString(), $month->endOfMonth()->toDateString()])
+                    ->whereLike('description', '%'.$term.'%')->orderBy('id')->limit(60)->pluck('id');
+                foreach ($ids as $id) {
+                    $prefix = 'des-'.str_pad((string) $id, 4, '0', STR_PAD_LEFT).'-';
+                    $matches[] = "name contains '{$prefix}'";
+                }
+            }
+            $query .= ' and ('.implode(' or ', $matches).')';
         }
 
         $page = $this->drive->files->listFiles(array_filter([
             'q' => $query,
             'spaces' => 'drive',
             'fields' => 'nextPageToken,files('.self::FIELDS.')',
-            'orderBy' => 'name_natural',
+            'orderBy' => count($path) === 2 && $path[1]['name'] === 'Despesas' ? 'name_natural desc' : 'name_natural',
             'pageSize' => 60,
             'pageToken' => $pageToken,
         ]));
@@ -62,19 +75,31 @@ class DrivePortalFiles
             }
         }
 
-        $legacyExpenses = [];
-        foreach ([...$path, ...array_filter($items, fn ($item) => $item['folder'])] as $entry) {
-            if (preg_match('/^Despesa (\d+)$/i', $entry['name'], $matches)) {
-                $legacyExpenses[$entry['id']] = (int) $matches[1];
+        $expenses = [];
+        foreach ([...$path, ...$items] as $entry) {
+            $name = $entry['name'];
+            if (($entry['folder'] ?? true) && preg_match('/^Despesa (\d+)$/i', $name, $matches)) {
+                $expenses[$entry['id']] = ['id' => (int) $matches[1]];
+            } elseif (! ($entry['folder'] ?? true) && preg_match('/^(des-(\d+)-[a-z0-9-]+) -- (anexo-[a-f0-9]{8}|comprovante)(\.[a-z0-9]+)?$/i', $name, $matches)) {
+                $expenses[$entry['id']] = ['id' => (int) $matches[2], 'slug' => $matches[1],
+                    'file' => str_starts_with($matches[3], 'anexo-') ? 'Anexo '.strtoupper(substr($matches[3], 6)) : 'Comprovante',
+                    'extension' => $matches[4] ?? ''];
             }
         }
-        if ($legacyExpenses) {
+        if ($expenses) {
             $descriptions = Expense::query()->withTrashed()->where('tenant_id', $this->tenantId)
-                ->whereIn('id', array_values($legacyExpenses))->pluck('description', 'id');
-            $addLabel = function (array $entry) use ($descriptions, $legacyExpenses): array {
-                $id = $legacyExpenses[$entry['id']] ?? null;
-                if ($id && ($description = $descriptions->get($id))) {
-                    $entry['label'] = 'DES-'.str_pad((string) $id, 4, '0', STR_PAD_LEFT).' · '.$description;
+                ->whereIn('id', array_unique(array_column($expenses, 'id')))->pluck('description', 'id');
+            $addLabel = function (array $entry) use ($descriptions, $expenses): array {
+                $expense = $expenses[$entry['id']] ?? null;
+                if ($expense && ($description = $descriptions->get($expense['id']))) {
+                    $reference = 'DES-'.str_pad((string) $expense['id'], 4, '0', STR_PAD_LEFT);
+                    if (isset($expense['slug'])) {
+                        $entry['group'] = ['slug' => $expense['slug'], 'name' => $description, 'reference' => $reference];
+                        $entry['label'] = $expense['file'].$expense['extension'];
+                    } else {
+                        $entry['label'] = $description;
+                        $entry['reference'] = $reference;
+                    }
                 }
 
                 return $entry;
