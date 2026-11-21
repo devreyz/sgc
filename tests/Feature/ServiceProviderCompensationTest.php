@@ -603,6 +603,66 @@ class ServiceProviderCompensationTest extends TestCase
         $this->assertSame(1, (int) $corrected->execution->lock_version);
     }
 
+    public function test_version_changes_while_scheduled_and_is_blocked_after_start(): void
+    {
+        Schema::table('service_orders', function (Blueprint $table): void {
+            $table->unsignedBigInteger('asset_id')->nullable();
+            $table->string('unit')->nullable();
+        });
+        [$execution, , $original] = $this->execution(1, 150, 30);
+        $order = $execution->order;
+        $order->forceFill(['operational_status' => 'scheduled', 'scheduled_at' => '2026-11-24 08:30:00'])->saveQuietly();
+        $execution->forceFill(['status' => 'draft', 'quantity' => null])->saveQuietly();
+
+        $replacement = $original->replicate();
+        $replacement->forceFill(['version' => 2, 'customer_rate' => 180, 'payable_enabled' => false])->save();
+        $actor = new User;
+        $actor->id = 1;
+        $actor->exists = true;
+        $creator = app(\App\Services\Services\CreateServiceOrder::class);
+        $form = ['lock_version' => (int) $execution->lock_version, 'beneficiary_name' => 'Beneficiário de teste'];
+
+        $updated = $creator->handle(1, $replacement, $form, $actor, $order->fresh());
+        $this->assertSame($order->number, $updated->number);
+        $this->assertSame('scheduled', $updated->operational_status);
+        $this->assertSame('2026-11-24 08:30', $updated->scheduled_at->format('Y-m-d H:i'));
+        $this->assertEquals($replacement->id, $updated->service_version_id);
+        $this->assertEquals($replacement->id, $updated->execution->service_version_id);
+        $this->assertEquals(180, data_get($updated->execution->catalog_snapshot, 'customer_rate'));
+
+        $started = app(ServiceExecutionWorkflow::class)->start($updated->execution, [], (string) Str::uuid(), $actor);
+        try {
+            $creator->handle(1, $original, array_replace($form, ['lock_version' => $started->lock_version]), $actor, $updated);
+            $this->fail('A versão de uma execução iniciada não deveria mudar.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('service_version_id', $exception->errors());
+        }
+        $this->assertEquals($replacement->id, $updated->fresh()->service_version_id);
+    }
+
+    public function test_order_status_and_amounts_distinguish_customer_payment_from_provider_payment(): void
+    {
+        [$payable, $account, $actor] = $this->payable();
+        $receivable = $this->receivableObligation($payable->execution, 'OB-TEST', 100);
+        $order = $payable->execution->order;
+        $resolver = app(\App\Services\Services\ServiceHumanStatusResolver::class);
+        $payments = app(ServicePaymentService::class);
+
+        $this->assertSame('A receber e a pagar', $resolver->resolve($order->fresh()));
+        $payments->record($payable, 900, 'pix', '2026-09-09', $account->id, (string) Str::uuid(), $actor);
+        $this->assertSame('Falta receber do cliente', $resolver->resolve($order->fresh()));
+        $payments->record($receivable, 40, 'pix', '2026-09-09', $account->id, (string) Str::uuid(), $actor);
+        $html = view('services._order-value', ['order' => $order->fresh(), 'valueDirection' => 'receivable'])->render();
+        $this->assertStringContainsString('Recebido: R$ 40,00', $html);
+        $this->assertStringContainsString('A receber: R$ 60,00', $html);
+        $payments->record($receivable, 60, 'pix', '2026-09-09', $account->id, (string) Str::uuid(), $actor);
+        $this->assertSame('Quitado', $resolver->resolve($order->fresh()));
+
+        $extra = $payable->fresh();
+        $extra->update(['status' => 'partially_paid', 'adjustment_amount' => 10]);
+        $this->assertSame('Falta pagar o prestador', $resolver->resolve($order->fresh()));
+    }
+
     public function test_automatic_review_freezes_execution_and_generates_independent_obligations_once(): void
     {
         [$execution] = $this->execution(3, 150, 300);

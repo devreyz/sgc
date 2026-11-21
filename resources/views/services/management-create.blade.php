@@ -7,6 +7,7 @@
 @php
     $tenant = request()->route('tenant');
     $canPrice = auth()->user()->checkPermissionTo('view_service_financials');
+    $canChangeVersion = !$order || \App\Services\Services\ServiceOrderDetails::canChangeVersion($order);
     $bentoNavigation = \App\Support\PortalNavigation::make('services', 'new', $tenant->slug);
     $saved = $order ? [
         'service_version_id' => $order->service_version_id, 'associate_id' => $order->associate_id,
@@ -18,7 +19,7 @@
         'customer_rate' => $canPrice && data_get($order->execution->catalog_snapshot, 'customer_rate') != $order->serviceVersion?->customer_rate
             ? data_get($order->execution->catalog_snapshot, 'customer_rate') : null,
     ] : [];
-    $initial = $order ? [array_replace($saved, session()->getOldInput())] : array_values(old('rows', [$saved]));
+    $initial = $order ? [array_replace($saved, session()->getOldInput(), $canChangeVersion ? [] : ['service_version_id' => $order->service_version_id])] : array_values(old('rows', [$saved]));
     $rates = $versions->mapWithKeys(fn ($version) => [$version->id => [
         'service' => $version->service_id, 'customer' => $canPrice && $version->receivable_enabled ? ($version->customer_rate ?? 0) : null,
         'provider' => $version->payable_enabled,
@@ -113,10 +114,15 @@
                     <select data-key="service_version_id" required>
                         <option value="">Selecione o serviço</option>
                         @foreach($versions as $version)
-                            @continue($order && $order->execution->status !== 'draft' && $version->service_id !== $order->service_id)
+                            @continue(!$canChangeVersion && (int) $version->id !== (int) $order->service_version_id)
                             <option value="{{ $version->id }}">{{ $version->service?->name }} · v{{ $version->version }}{{ $version->status === 'retired' ? ' (anterior)' : '' }}</option>
                         @endforeach
                     </select>
+                    @if($order && $canChangeVersion)
+                        <small class="sg-hint">Ao trocar a versão, os campos e as tarifas seguem a configuração escolhida.</small>
+                    @elseif($order)
+                        <small class="sg-hint">A versão só pode ser trocada enquanto a ordem estiver agendada.</small>
+                    @endif
                 </label>
                 <label>Prestador
                     <select data-key="service_provider_id">

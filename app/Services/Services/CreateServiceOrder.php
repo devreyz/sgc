@@ -27,6 +27,16 @@ class CreateServiceOrder
             if ($existing && (! in_array($execution->status, ['draft', 'in_progress', 'rejected'], true) || (int) $execution->lock_version !== (int) ($data['lock_version'] ?? -1))) {
                 throw ValidationException::withMessages(['order' => 'A ordem mudou ou saiu da edição. Reabra a ordem para conferir.']);
             }
+            if ($existing) {
+                $existing = ServiceOrder::query()->where('tenant_id', $tenantId)->whereKey($existing->id)->lockForUpdate()->firstOrFail();
+                $existing->setRelation('execution', $execution);
+                if ($existing->operational_status === 'cancelled') {
+                    throw ValidationException::withMessages(['order' => 'Esta ordem foi anulada.']);
+                }
+                if ((int) $execution->service_version_id !== (int) $version->id && ! ServiceOrderDetails::canChangeVersion($existing)) {
+                    throw ValidationException::withMessages(['service_version_id' => 'A versão só pode ser alterada enquanto a ordem estiver agendada e a execução não tiver começado.']);
+                }
+            }
             if ($execution && $execution->status !== 'draft'
                 && ((int) $existing->service_id !== (int) $version->service_id
                     || (int) $execution->service_provider_id !== (int) ($data['service_provider_id'] ?? 0))) {

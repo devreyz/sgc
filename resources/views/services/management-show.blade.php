@@ -1843,6 +1843,9 @@
         <div class="ds-doc-actions" style="margin:.6rem 0">
             @if(\App\Services\Services\ServiceOrderDetails::editable($order) && auth()->user()->checkPermissionTo('edit_service_order'))
                 <button type="button" class="ds-button secondary" data-open-dialog="order-details">Editar detalhes</button>
+                @if(\App\Services\Services\ServiceOrderDetails::canChangeVersion($order))
+                    <a class="ds-button secondary" href="{{ route('services.management.edit', [$tenantSlug, $order]) }}"><i class="ph-duotone ph-sliders-horizontal" aria-hidden="true"></i> Alterar versão</a>
+                @endif
             @endif
             @if(auth()->user()->checkPermissionTo('manage_service_expenses'))
                 <a class="ds-button" href="{{ route('services.management.expenses', ['tenant' => $tenantSlug, 'order' => $order->id]) }}">Despesas da ordem</a>

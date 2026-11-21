@@ -11,6 +11,13 @@ use Illuminate\Validation\ValidationException;
 
 class ServiceOrderDetails
 {
+    public static function canChangeVersion(ServiceOrder $order): bool
+    {
+        return $order->operational_status === 'scheduled'
+            && $order->execution?->status === 'draft'
+            && $order->execution->started_at === null;
+    }
+
     public static function editable(ServiceOrder $order): bool
     {
         if ($order->operational_status === 'cancelled' || ! $order->execution) return false;

@@ -31,6 +31,7 @@ use App\Services\Services\ServiceObligationAdjustmentService;
 use App\Services\Services\ServicePaymentService;
 use App\Services\Services\ServiceOrderNumberService;
 use App\Services\Services\ServiceReportService;
+use App\Services\Services\ServiceReportLayout;
 use App\Services\Services\ServiceResourceService;
 use App\Services\TemplatedPdfService;
 use App\Services\FinancialDocumentIdentityService;
@@ -53,7 +54,9 @@ class ServiceManagementController extends Controller
         ]);
         $serviceDate = 'COALESCE(execution_date, scheduled_date, DATE(scheduled_at))';
         $orders = ServiceOrder::query()->where('tenant_id', $tenant->id)->whereNotNull('service_version_id')
-            ->with(['service', 'execution.obligations', 'execution.compositionLines'])
+            ->with(['service', 'execution.compositionLines', 'execution.obligations' => fn ($query) => $query->withSum([
+                'allocations as settled_amount' => fn ($allocations) => $allocations->whereHas('paymentEvent', fn ($events) => $events->whereIn('status', ['confirmed', 'reversed'])),
+            ], 'amount')])
             ->when($request->boolean('undated'), fn ($query) => $query->whereRaw("$serviceDate IS NULL"))
             ->when(! $request->boolean('undated') ? ($dates['from'] ?? null) : null, fn ($query, $date) => $query->whereRaw("$serviceDate >= ?", [$date]))
             ->when(! $request->boolean('undated') ? ($dates['to'] ?? null) : null, fn ($query, $date) => $query->whereRaw("$serviceDate <= ?", [$date]))
@@ -507,7 +510,8 @@ class ServiceManagementController extends Controller
     public function reports(Request $request, Tenant $tenant, ServiceReportService $reports): View
     {
         $this->allow($request, 'view_service_reports');
-        $data = $request->validate(['from' => 'nullable|date', 'to' => 'nullable|date|after_or_equal:from', 'provider_id' => 'nullable|integer', 'service_id' => 'nullable|integer', 'asset_id' => 'nullable|integer', 'statuses' => 'nullable|array', 'statuses.*' => 'string|max:80', 'exclude' => 'nullable|array', 'exclude.*' => 'integer', 'sort' => 'nullable|in:date,status']);
+        $data = $request->validate(['from' => 'nullable|date', 'to' => 'nullable|date|after_or_equal:from', 'provider_id' => 'nullable|integer', 'service_id' => 'nullable|integer', 'asset_id' => 'nullable|integer', 'statuses' => 'nullable|array', 'statuses.*' => 'string|max:80', 'exclude' => 'nullable|array', 'exclude.*' => 'integer', 'sort' => 'nullable|in:date,status'] + ServiceReportLayout::rules());
+        $reportLayout = new ServiceReportLayout($data);
         $summary = $reports->summary($tenant->id, Carbon::parse($data['from'] ?? now()->startOfMonth()), Carbon::parse($data['to'] ?? now()->endOfMonth()), $data['provider_id'] ?? null, $data['service_id'] ?? null, $data['asset_id'] ?? null, $data);
 
         $providers = ServiceProvider::query()->where('tenant_id', $tenant->id)->orderBy('name')->get(['id', 'name']);
@@ -525,22 +529,23 @@ class ServiceManagementController extends Controller
             ->paginate(15, ['id', 'number', 'beneficiary_snapshot', 'deleted_at', 'cancellation_reason'], 'deleted_page')
             ->withQueryString();
 
-        return view('services.reports', compact('summary', 'providers', 'services', 'assets', 'deletedOrders'));
+        return view('services.reports', compact('summary', 'providers', 'services', 'assets', 'deletedOrders', 'reportLayout'));
     }
 
     public function generateReport(Request $request, Tenant $tenant, ServiceReportService $reports)
     {
         $this->allow($request, 'view_service_reports');
-        $data = $request->validate(['from' => 'required|date', 'to' => 'required|date|after_or_equal:from', 'provider_id' => 'nullable|integer', 'service_id' => 'nullable|integer', 'asset_id' => 'nullable|integer', 'statuses' => 'nullable|array', 'statuses.*' => 'string|max:80', 'exclude' => 'nullable|array', 'exclude.*' => 'integer', 'sort' => 'nullable|in:date,status']);
+        $data = $request->validate(['from' => 'required|date', 'to' => 'required|date|after_or_equal:from', 'provider_id' => 'nullable|integer', 'service_id' => 'nullable|integer', 'asset_id' => 'nullable|integer', 'statuses' => 'nullable|array', 'statuses.*' => 'string|max:80', 'exclude' => 'nullable|array', 'exclude.*' => 'integer', 'sort' => 'nullable|in:date,status'] + ServiceReportLayout::rules());
+        $reportLayout = new ServiceReportLayout($data);
         $summary = $reports->summary($tenant->id, Carbon::parse($data['from']), Carbon::parse($data['to']), $data['provider_id'] ?? null, $data['service_id'] ?? null, $data['asset_id'] ?? null, $data);
 
         $request->validate(['report_type' => 'nullable|in:accountability,conference']);
         if ($request->input('report_type') === 'conference') {
-            return app(TemplatedPdfService::class)->generateSystemPdf('pdf.service-conference', compact('summary', 'tenant'), [
+            return app(TemplatedPdfService::class)->generateSystemPdf('pdf.service-conference', compact('summary', 'tenant', 'reportLayout'), [
                 'title' => 'Relatório de conferência de serviços', 'paper' => 'a4', 'orientation' => 'landscape', 'prefer_runtime_layout' => true,
             ])->download('conferencia-servicos.pdf');
         }
-        return app(TemplatedPdfService::class)->generateSystemPdf('pdf.service-accountability', compact('summary', 'tenant') + ['suppress_internal_footer' => true], [
+        return app(TemplatedPdfService::class)->generateSystemPdf('pdf.service-accountability', compact('summary', 'tenant', 'reportLayout') + ['suppress_internal_footer' => true], [
             'title' => 'Prestação de contas de serviços', 'paper' => 'a4', 'orientation' => 'landscape', 'prefer_runtime_layout' => true,
         ])->download('prestacao-servicos.pdf');
     }

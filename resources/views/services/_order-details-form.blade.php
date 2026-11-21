@@ -29,7 +29,11 @@
     </div>
     <p>As próximas emissões e consultas usarão os dados corrigidos. Documentos já emitidos preservam o registro anterior.</p>
     <div class="sg-actions">
-        @if(in_array($order->execution?->status, ['draft', 'in_progress', 'rejected'], true))<a class="sg-button ds-button secondary" href="{{ route('services.management.edit', [$detailsTenantSlug, $order]) }}">Serviço, prestador e tarifa</a>@endif
+        @if(in_array($order->execution?->status, ['draft', 'in_progress', 'rejected'], true))
+            <a class="sg-button ds-button secondary" href="{{ route('services.management.edit', [$detailsTenantSlug, $order]) }}">
+                {{ \App\Services\Services\ServiceOrderDetails::canChangeVersion($order) ? 'Alterar versão do serviço' : 'Serviço, prestador e tarifa' }}
+            </a>
+        @endif
         <button class="sg-button sg-primary ds-button primary" type="submit">Salvar correções</button>
         @if($detailsClose ?? false)<button class="sg-button ds-button secondary" type="button" @if($detailsDossier ?? false) data-close-dialog="order-details" @else data-dialog-close @endif>Cancelar</button>@else<a class="sg-button" href="{{ route('services.management.show', [$detailsTenantSlug, $order]) }}">Voltar à OS</a>@endif
     </div>

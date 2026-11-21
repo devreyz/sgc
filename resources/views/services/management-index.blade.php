@@ -478,8 +478,8 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                         <th scope="col">Data / situação</th>
                         <th scope="col">Execução</th>
                         @if($canViewFinancials)
-                            <th scope="col" class="cm-number">A receber</th>
-                            <th scope="col" class="cm-number">A pagar</th>
+                            <th scope="col" class="cm-number">Cobrança do cliente</th>
+                            <th scope="col" class="cm-number">Valor do prestador</th>
                         @endif
 
                         <th scope="col">Ações</th>
@@ -543,41 +543,41 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                                 </div>
                             </td>
                             @if($canViewFinancials)
-                                <td class="cm-number"><span class="cm-mobile-label">Valor a receber</span>@include('services._order-value', ['valueDirection' => 'receivable'])</td>
-                                <td class="cm-number"><span class="cm-mobile-label">Valor a pagar</span>@include('services._order-value', ['valueDirection' => 'payable'])</td>
+                                <td class="cm-number"><span class="cm-mobile-label">Cobrança do cliente</span>@include('services._order-value', ['valueDirection' => 'receivable'])</td>
+                                <td class="cm-number"><span class="cm-mobile-label">Valor do prestador</span>@include('services._order-value', ['valueDirection' => 'payable'])</td>
                             @endif
                             <td class="cm-col-actions">
                                 <div class="cm-order-actions" role="group" aria-label="Ações da ordem {{ $order->number }}">
-                                    <a class="cm-icon-action cm-icon-primary" href="{{ $orderUrl }}" aria-label="Abrir ordem" title="Abrir ordem"><i class="ph-duotone ph-eye" aria-hidden="true"></i><span aria-hidden="true">Abrir</span></a>
+                                    <a class="cm-icon-action cm-icon-primary" href="{{ $orderUrl }}" aria-label="Abrir ordem" title="Abrir ordem"><i class="ph ph-eye" aria-hidden="true"></i><span aria-hidden="true">Abrir</span></a>
                                     @if($canEditOrder)
-                                        <button class="cm-icon-action" type="button" data-order-dialog="details-{{ $order->id }}" aria-controls="details-{{ $order->id }}" aria-label="Editar detalhes da ordem" title="Editar detalhes"><i class="ph-duotone ph-note-pencil" aria-hidden="true"></i><span aria-hidden="true">Editar</span></button>
+                                        <button class="cm-icon-action" type="button" data-order-dialog="details-{{ $order->id }}" aria-controls="details-{{ $order->id }}" aria-label="Editar detalhes da ordem" title="Editar detalhes"><i class="ph ph-note-pencil" aria-hidden="true"></i><span aria-hidden="true">Editar</span></button>
                                     @endif
                                     @if($canEditExecution)
-                                        <button class="cm-icon-action" type="button" data-order-dialog="execution-{{ $order->id }}" aria-controls="execution-{{ $order->id }}" aria-label="Editar execução" title="Editar execução"><i class="ph-duotone ph-gauge" aria-hidden="true"></i><span aria-hidden="true">Execução</span></button>
+                                        <button class="cm-icon-action" type="button" data-order-dialog="execution-{{ $order->id }}" aria-controls="execution-{{ $order->id }}" aria-label="Editar execução" title="Editar execução"><i class="ph ph-gauge" aria-hidden="true"></i><span aria-hidden="true">Execução</span></button>
                                     @endif
                                     @if($canValidateOrder)
-                                        <button class="cm-icon-action" type="button" data-order-dialog="approve-{{ $order->id }}" aria-controls="approve-{{ $order->id }}" aria-label="Validar execução" title="Validar execução"><i class="ph-duotone ph-seal-check" aria-hidden="true"></i><span aria-hidden="true">Validar</span></button>
+                                        <button class="cm-icon-action" type="button" data-order-dialog="approve-{{ $order->id }}" aria-controls="approve-{{ $order->id }}" aria-label="Validar execução" title="Validar execução"><i class="ph ph-seal-check" aria-hidden="true"></i><span aria-hidden="true">Validar</span></button>
                                     @endif
                                     @if($accounts->isNotEmpty() && $order->execution?->isFrozen())
                                         @foreach($order->execution->obligations as $obligation)
                                             @continue(!in_array($obligation->status, ['open', 'partially_paid'], true) || !auth()->user()->checkPermissionTo($obligation->direction === 'payable' ? 'manage_service_payables' : 'manage_service_receivables'))
                                             @if($negotiated->contains($obligation->id))
                                                 @if($canManageAgreements)
-                                                    <a class="cm-icon-action" href="{{ route('services.management.agreements', $tenant->slug) }}" aria-label="Ver parcelas" title="Ver parcelas"><i class="ph-duotone ph-handshake" aria-hidden="true"></i><span aria-hidden="true">Parcelas</span></a>
+                                                    <a class="cm-icon-action" href="{{ route('services.management.agreements', $tenant->slug) }}" aria-label="Ver parcelas" title="Ver parcelas"><i class="ph ph-handshake" aria-hidden="true"></i><span aria-hidden="true">Parcelas</span></a>
                                                 @endif
                                                 @continue
                                             @endif
                                             @php
                                                 $paymentLabel = $obligation->direction === 'payable' ? 'Pagar prestador' : 'Registrar recebimento';
                                             @endphp
-                                            <button class="cm-icon-action" type="button" data-order-dialog="payment-{{ $obligation->id }}" aria-controls="payment-{{ $obligation->id }}" aria-label="{{ $paymentLabel }}" title="{{ $paymentLabel }}"><i class="ph-duotone {{ $obligation->direction === 'payable' ? 'ph-wallet' : 'ph-hand-coins' }}" aria-hidden="true"></i><span aria-hidden="true">{{ $obligation->direction === 'payable' ? 'Pagar' : 'Receber' }}</span></button>
+                                            <button class="cm-icon-action" type="button" data-order-dialog="payment-{{ $obligation->id }}" aria-controls="payment-{{ $obligation->id }}" aria-label="{{ $paymentLabel }}" title="{{ $paymentLabel }}"><i class="ph {{ $obligation->direction === 'payable' ? 'ph-wallet' : 'ph-hand-coins' }}" aria-hidden="true"></i><span aria-hidden="true">{{ $obligation->direction === 'payable' ? 'Pagar' : 'Receber' }}</span></button>
                                         @endforeach
                                     @endif
                                     @if($canExpense)
-                                        <a class="cm-icon-action" href="{{ route('services.management.expenses', ['tenant' => $tenant->slug, 'order' => $order->id]) }}" aria-label="Despesas da ordem" title="Despesas da ordem"><i class="ph-duotone ph-receipt" aria-hidden="true"></i><span aria-hidden="true">Despesas</span></a>
+                                        <a class="cm-icon-action" href="{{ route('services.management.expenses', ['tenant' => $tenant->slug, 'order' => $order->id]) }}" aria-label="Despesas da ordem" title="Despesas da ordem"><i class="ph ph-receipt" aria-hidden="true"></i><span aria-hidden="true">Despesas</span></a>
                                     @endif
                                     @if($canRemoveOrder)
-                                        <button class="cm-icon-action cm-icon-danger" type="button" data-remove-url="{{ route('services.management.remove', [$tenant->slug, $order]) }}" data-order="{{ $order->number }}" data-order-id="{{ $order->id }}" data-can-delete="{{ in_array($order->execution->status, ['draft', 'submitted'], true) ? '1' : '0' }}" aria-haspopup="dialog" aria-label="Anular ou excluir ordem" title="Anular ou excluir ordem"><i class="ph-duotone ph-prohibit" aria-hidden="true"></i><span aria-hidden="true">Anular</span></button>
+                                        <button class="cm-icon-action cm-icon-danger" type="button" data-remove-url="{{ route('services.management.remove', [$tenant->slug, $order]) }}" data-order="{{ $order->number }}" data-order-id="{{ $order->id }}" data-can-delete="{{ in_array($order->execution->status, ['draft', 'submitted'], true) ? '1' : '0' }}" aria-haspopup="dialog" aria-label="Anular ou excluir ordem" title="Anular ou excluir ordem"><i class="ph ph-prohibit" aria-hidden="true"></i><span aria-hidden="true">Anular</span></button>
                                     @endif
                                 </div>
                             </td>

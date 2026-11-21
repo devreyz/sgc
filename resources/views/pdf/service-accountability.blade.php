@@ -16,7 +16,11 @@
         $period = \Illuminate\Support\Carbon::parse($summary['from'])->format('d/m/Y').' a '.\Illuminate\Support\Carbon::parse($summary['to'])->format('d/m/Y');
     @endphp
     <div class="section-title">Período {{ $period }}</div>
-    {!! \App\Services\Services\ServiceDocumentService::extraContent($system_pdf_template ?? null, 'intro') !!}
+    @if(($reportLayout ?? null)?->complete() ?? true)
+        {!! \App\Services\Services\ServiceDocumentService::extraContent($system_pdf_template ?? null, 'intro') !!}
+    @endif
     @include('services._accountability', ['pdfMode' => true])
-    {!! \App\Services\Services\ServiceDocumentService::extraContent($system_pdf_template ?? null, 'closing') !!}
+    @if(($reportLayout ?? null)?->complete() ?? true)
+        {!! \App\Services\Services\ServiceDocumentService::extraContent($system_pdf_template ?? null, 'closing') !!}
+    @endif
 @endsection

@@ -311,6 +311,16 @@
         box-shadow: 0 0 0 3px var(--rp-blue-soft);
     }
 
+    .rp-report-fields[open] { grid-column: 1 / -1; }
+    .rp-report-fields summary { cursor: pointer; font-weight: 700; }
+    .rp-report-fields .rp-checklist {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+        gap: .35rem .75rem;
+        margin-top: .5rem;
+    }
+    .rp-report-fields .rp-checklist label { display: flex; align-items: center; gap: .4rem; }
+
     .rp-filter-actions {
         display: flex;
         gap: .45rem;
@@ -844,6 +854,23 @@
             @foreach($summary['statuses'] as $status)<label><input type="checkbox" name="statuses[]" value="{{ $status }}" @checked(in_array($status, request('statuses', [])))> {{ $status }}</label>@endforeach</details>
             <details class="rp-field"><summary>Omitir ordens específicas</summary>
             @foreach($summary['choices'] as $id => $number)<label><input type="checkbox" name="exclude[]" value="{{ $id }}" @checked(in_array($id, request('exclude', [])))> {{ $number }}</label>@endforeach</details>
+            <label class="rp-field">Dados do relatório
+                <select class="rp-control" name="report_scope">
+                    <option value="both" @selected($reportLayout->scope === 'both')>Cliente e prestador</option>
+                    <option value="customer" @selected($reportLayout->scope === 'customer')>Somente cliente</option>
+                    <option value="provider" @selected($reportLayout->scope === 'provider')>Somente prestador</option>
+                </select>
+            </label>
+            <details class="rp-field rp-report-fields" @if($reportLayout->custom) open @endif>
+                <summary>Escolher campos</summary>
+                <label><input type="checkbox" name="custom_fields" value="1" @checked($reportLayout->custom)> Usar apenas os campos marcados</label>
+                <small>Número e data da OS sempre aparecem. O lado escolhido acima define quais dados financeiros podem sair.</small>
+                <div class="rp-checklist">
+                    @foreach(\App\Services\Services\ServiceReportLayout::FIELDS as $key => $label)
+                        <label><input type="checkbox" name="report_fields[]" value="{{ $key }}" @checked(!$reportLayout->custom || $reportLayout->has($key))> {{ $label }}</label>
+                    @endforeach
+                </div>
+            </details>
             <div class="rp-filter-actions">
                 <button
                     class="rp-button primary"
@@ -889,6 +916,11 @@
                     ) }}"
                 >
                     @csrf
+                    <input type="hidden" name="report_scope" value="{{ $reportLayout->scope }}">
+                    @if($reportLayout->custom)
+                        <input type="hidden" name="custom_fields" value="1">
+                        @foreach($reportLayout->fields as $key)<input type="hidden" name="report_fields[]" value="{{ $key }}">@endforeach
+                    @endif
 
                     <input type="hidden" name="sort" value="{{ request('sort','date') }}">
                     @foreach(['statuses','exclude'] as $filter) @foreach(request($filter, []) as $value)<input type="hidden" name="{{ $filter }}[]" value="{{ $value }}">@endforeach @endforeach
@@ -939,6 +971,7 @@
             @include('services._accountability')
         </div>
     </section>
+    @if($reportLayout->complete())
     <section class="rp-result" aria-labelledby="deleted-orders-title">
         <div class="rp-result-body">
             <h2 id="deleted-orders-title">Registro de exclusões</h2>
@@ -972,6 +1005,7 @@
             @endif
         </div>
     </section>
+    @endif
 </main>
 </div>
 @endsection

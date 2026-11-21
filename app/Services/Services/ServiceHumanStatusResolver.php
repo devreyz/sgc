@@ -24,17 +24,19 @@ class ServiceHumanStatusResolver
         if ($status !== 'validated') {
             return $status === 'scheduled' ? 'Agendado' : 'Rascunho';
         }
-        $obligations = $order->execution?->obligations ?? collect();
+        $obligations = ($order->execution?->obligations ?? collect())->where('status', '!=', 'cancelled');
         if ($obligations->isEmpty()) {
             return 'Concluído';
         }
-        if ($obligations->every(fn ($o) => $o->status === 'paid')) {
-            return 'Quitado';
-        }
-        if ($obligations->contains(fn ($o) => $o->status === 'partially_paid')) {
-            return 'Parcialmente pago';
-        }
+        $pending = $obligations->where('status', '!=', 'paid');
+        $receivable = $pending->contains('direction', 'receivable');
+        $payable = $pending->contains('direction', 'payable');
 
-        return 'Aguardando pagamento';
+        return match (true) {
+            $receivable && $payable => 'A receber e a pagar',
+            $receivable => 'Falta receber do cliente',
+            $payable => 'Falta pagar o prestador',
+            default => 'Quitado',
+        };
     }
 }
