@@ -1,4 +1,4 @@
-@extends('layouts.security-public')
+@extends('layouts.security-public', ['redirectAuthenticatedUsers' => false])
 
 @section('title', 'Google Drive')
 @section('referrer-policy', 'strict-origin-when-cross-origin')

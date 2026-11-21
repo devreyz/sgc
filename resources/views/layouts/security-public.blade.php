@@ -767,6 +767,7 @@
 
     @stack('scripts')
 
+    @if($redirectAuthenticatedUsers ?? true)
     <script>
         (() => {
             const checkAuthentication = async () => {
@@ -826,5 +827,6 @@
             );
         })();
     </script>
+    @endif
 </body>
 </html>
