@@ -12,42 +12,55 @@ class ServiceObligationAdjustmentService
 {
     public function changeProviderRate(ServiceObligation $obligation, float $rate, float $expectedTotal, string $reason, string $operationKey, User $actor): ServiceObligationAdjustment
     {
-        return DB::transaction(function () use ($obligation, $rate, $expectedTotal, $reason, $operationKey, $actor) {
+        return $this->changeRate($obligation, 'payable', $rate, $expectedTotal, $reason, $operationKey, $actor);
+    }
+
+    public function changeCustomerRate(ServiceObligation $obligation, float $rate, float $expectedTotal, string $reason, string $operationKey, User $actor): ServiceObligationAdjustment
+    {
+        return $this->changeRate($obligation, 'receivable', $rate, $expectedTotal, $reason, $operationKey, $actor);
+    }
+
+    private function changeRate(ServiceObligation $obligation, string $direction, float $rate, float $expectedTotal, string $reason, string $operationKey, User $actor): ServiceObligationAdjustment
+    {
+        return DB::transaction(function () use ($obligation, $direction, $rate, $expectedTotal, $reason, $operationKey, $actor) {
             $locked = ServiceObligation::query()->where('tenant_id', $obligation->tenant_id)->whereKey($obligation->id)->lockForUpdate()->firstOrFail();
+            $rateField = $direction === 'payable' ? 'provider_rate' : 'customer_rate';
+            if ($locked->direction !== $direction) {
+                throw ValidationException::withMessages([$rateField => 'Esta cobrança não corresponde à tarifa selecionada.']);
+            }
             $existing = $locked->adjustments()->where('operation_key', $operationKey)->first();
             if ($existing) {
-                if ((float) data_get($existing->metadata, 'new_rate') !== $rate || $existing->reason !== $reason) {
+                if (data_get($existing->metadata, 'kind') !== $rateField || (float) data_get($existing->metadata, 'new_rate') !== $rate || $existing->reason !== $reason) {
                     throw ValidationException::withMessages(['operation_key' => 'Esta operação já foi usada com outros dados.']);
                 }
                 return $existing;
             }
-            if ($locked->direction !== 'payable' || $locked->status === 'cancelled' || $locked->activePaymentPlan()
-                || \App\Models\ServicePayoutRequestItem::query()->where('service_obligation_id', $locked->id)->whereHas('request', fn ($query) => $query->where('tenant_id', $locked->tenant_id)->whereIn('status', ['pending', 'approved']))->exists()
-                || ! $locked->execution?->order || $locked->execution->order->operational_status === 'cancelled') {
-                throw ValidationException::withMessages(['provider_rate' => 'Esta ordem não permite alterar o valor do prestador.']);
+            if (! $locked->execution?->order) {
+                throw ValidationException::withMessages([$rateField => 'A ordem de serviço desta cobrança não foi encontrada.']);
             }
             if (abs($locked->total_amount - $expectedTotal) > .001) {
-                throw ValidationException::withMessages(['provider_rate' => 'O valor mudou. Reabra a ordem antes de reajustar.']);
+                throw ValidationException::withMessages([$rateField => 'O valor mudou. Reabra a ordem antes de reajustar.']);
             }
-            $base = collect(data_get($locked->composition_snapshot, 'lines', []))->first(fn ($line) => ($line['type'] ?? null) === 'base' && ($line['source_key'] ?? null) === 'provider_compensation');
+            $base = $locked->rateBaseLine();
             $method = data_get($base, 'rule_snapshot.method');
             if (! $base || ! in_array($method, ['fixed', 'quantity_x_rate'], true) || ! is_finite($rate) || $rate <= 0) {
-                throw ValidationException::withMessages(['provider_rate' => 'A remuneração desta ordem não usa uma tarifa fixa ou por quantidade.']);
+                throw ValidationException::withMessages([$rateField => 'Esta ordem não usa uma tarifa fixa ou por quantidade.']);
             }
             $quantity = $method === 'fixed' ? 1.0 : (float) ($base['quantity'] ?? 0);
             if ($quantity <= 0) {
-                throw ValidationException::withMessages(['provider_rate' => 'Confira a quantidade executada antes de reajustar.']);
+                throw ValidationException::withMessages([$rateField => 'Confira a quantidade executada antes de reajustar.']);
             }
-            $previous = $locked->latestProviderRateAdjustment()->first();
+            $previous = $locked->latestRateAdjustment()->first();
             $oldBase = $previous ? (float) data_get($previous->metadata, 'new_base') : (float) $base['amount'];
             $newBase = round($quantity * $rate, 2);
             if ($newBase <= 0 || $newBase > 999999999999.99) {
-                throw ValidationException::withMessages(['provider_rate' => 'O total calculado está fora do limite permitido. Confira a quantidade e a tarifa.']);
+                throw ValidationException::withMessages([$rateField => 'O total calculado está fora do limite permitido. Confira a quantidade e a tarifa.']);
             }
             $difference = round($newBase - $oldBase, 2);
-            $adjustment = $this->add($locked, $difference < 0 ? 'decrease' : 'increase', abs($difference), $reason, $operationKey, $actor);
-            $adjustment->update(['metadata' => ['kind' => 'provider_rate', 'old_rate' => $previous ? data_get($previous->metadata, 'new_rate') : ($base['unit_price'] ?? null), 'new_rate' => $rate, 'quantity' => $quantity, 'unit' => $base['unit'] ?? '', 'old_base' => $oldBase, 'new_base' => $newBase]]);
-            return $adjustment;
+            return $this->add($locked, $difference < 0 ? 'decrease' : 'increase', abs($difference), $reason, $operationKey, $actor, [
+                'kind' => $rateField, 'old_rate' => data_get($previous, 'metadata.new_rate') ?? ($base['unit_price'] ?? null),
+                'new_rate' => $rate, 'quantity' => $quantity, 'unit' => $base['unit'] ?? '', 'old_base' => $oldBase, 'new_base' => $newBase,
+            ]);
         }, 3);
     }
 

@@ -60,7 +60,7 @@ class ServiceManagementController extends Controller
         $serviceDate = 'COALESCE(execution_date, scheduled_date, DATE(scheduled_at))';
         $orders = ServiceOrder::query()->where('tenant_id', $tenant->id)->whereNotNull('service_version_id')
             ->when($request->input('status') === 'cancelled' && $request->user()->checkPermissionTo('edit_service_order'), fn ($query) => $query->withTrashed())
-            ->with(['service', 'execution.compositionLines', 'execution.obligations' => fn ($query) => $query->with('latestProviderRateAdjustment')->withSum([
+            ->with(['service', 'execution.compositionLines', 'execution.obligations' => fn ($query) => $query->with('latestRateAdjustment')->withSum([
                 'allocations as settled_amount' => fn ($allocations) => $allocations->whereHas('paymentEvent', fn ($events) => $events->whereIn('status', ['confirmed', 'reversed'])),
             ], 'amount')])
             ->when($request->boolean('undated'), fn ($query) => $query->whereRaw("$serviceDate IS NULL"))
@@ -370,7 +370,7 @@ class ServiceManagementController extends Controller
         $this->allow($request, 'view_service_management');
         $order = $this->order($tenant, $order);
         if ($request->user()->checkPermissionTo('view_service_financials')) $this->attachFinancialPreview($order);
-        $order->loadMissing(['execution.obligations.allocations.paymentEvent.bankAccount', 'execution.obligations.latestProviderRateAdjustment']);
+        $order->loadMissing(['execution.obligations.allocations.paymentEvent.bankAccount', 'execution.obligations.latestRateAdjustment']);
         $accounts = BankAccount::query()->where('tenant_id', $tenant->id)->active()->orderBy('name')->get();
 
         return view('services.management-show', compact('tenant', 'order', 'accounts', 'statuses'));
@@ -520,12 +520,30 @@ class ServiceManagementController extends Controller
 
     public function updateProviderRate(Request $request, Tenant $tenant, int $obligation, ServiceObligationAdjustmentService $adjustments): RedirectResponse
     {
+        return $this->updateObligationRate($request, $tenant, $obligation, $adjustments, 'payable');
+    }
+
+    public function updateCustomerRate(Request $request, Tenant $tenant, int $obligation, ServiceObligationAdjustmentService $adjustments): RedirectResponse
+    {
+        return $this->updateObligationRate($request, $tenant, $obligation, $adjustments, 'receivable');
+    }
+
+    private function updateObligationRate(Request $request, Tenant $tenant, int $obligation, ServiceObligationAdjustmentService $adjustments, string $direction): RedirectResponse
+    {
+        $provider = $direction === 'payable';
+        $field = $provider ? 'provider_rate' : 'customer_rate';
         $this->allow($request, 'view_service_management');
-        $this->allow($request, 'manage_service_payables');
-        $record = ServiceObligation::query()->where('tenant_id', $tenant->id)->whereKey($obligation)->firstOrFail();
-        $data = $request->validate(['operation_key' => 'required|uuid', 'provider_rate' => 'required|numeric|decimal:0,4|gt:0|max:999999999', 'expected_total' => 'required|numeric|min:0', 'reason' => 'required|string|min:5|max:500']);
-        $adjustments->changeProviderRate($record, (float) $data['provider_rate'], (float) $data['expected_total'], $data['reason'], $data['operation_key'], $request->user());
-        return back()->with('success', 'Tarifa do prestador atualizada nesta OS. O saldo foi recalculado e os pagamentos foram preservados.');
+        $this->allow($request, $provider ? 'manage_service_payables' : 'manage_service_receivables');
+        $record = ServiceObligation::query()->where('tenant_id', $tenant->id)->where('direction', $direction)->findOrFail($obligation);
+        $data = $request->validate(['operation_key' => 'required|uuid', $field => 'required|numeric|decimal:0,4|gt:0|max:999999999', 'expected_total' => 'required|numeric|min:0', 'reason' => 'required|string|min:5|max:500']);
+        $arguments = [$record, (float) $data[$field], (float) $data['expected_total'], $data['reason'], $data['operation_key'], $request->user()];
+        if ($provider) {
+            $adjustments->changeProviderRate(...$arguments);
+        } else {
+            $adjustments->changeCustomerRate(...$arguments);
+        }
+
+        return back()->with('success', 'Tarifa atualizada nesta OS. O saldo foi recalculado e os pagamentos foram preservados.');
     }
 
     public function adjustment(Request $request, Tenant $tenant, int $obligation, ServiceObligationAdjustmentService $adjustments): RedirectResponse

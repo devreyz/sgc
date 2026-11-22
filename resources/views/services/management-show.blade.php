@@ -2286,7 +2286,7 @@
                                             <div class="ds-resource-record">
                                                 <div>
                                                     <strong>{{ match (data_get($change->metadata, 'kind')) {
-                                                        'provider_rate' => 'Alteração de tarifa',
+                                                        'provider_rate', 'customer_rate' => 'Alteração de tarifa',
                                                         'resource' => 'Recurso',
                                                         default => $change->type === 'decrease' ? 'Desconto' : 'Acréscimo',
                                                     } }}</strong>
@@ -2998,10 +2998,12 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
-    document.querySelectorAll('[data-provider-rate-form]').forEach(form => {
-        form.elements.provider_rate.addEventListener('input', () => {
-            const rate = Number(form.elements.provider_rate.value);
-            const difference = Math.round((Number(form.dataset.quantity) * rate - Number(form.dataset.base)) * 100) / 100;
+    document.querySelectorAll('[data-order-rate-form]').forEach(form => {
+        const rateInput = form.querySelector('[data-rate-input]');
+        rateInput.addEventListener('input', () => {
+            const rate = Number(rateInput.value);
+            const newBase = Math.round((Number(form.dataset.quantity) * rate + Number.EPSILON) * 100) / 100;
+            const difference = newBase - Number(form.dataset.base);
             form.querySelector('[data-rate-preview]').textContent = rate > 0 ? 'Novo total desta OS: ' + money(Number(form.dataset.total) + difference) + '. Diferença: ' + money(difference) + '. Nenhum pagamento será registrado por esta ação.' : 'Informe a nova tarifa para conferir o total antes de salvar.';
         });
     });

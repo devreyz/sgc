@@ -59,10 +59,18 @@ class ServiceObligation extends Model
         return $this->hasMany(ServiceObligationAdjustment::class);
     }
 
-    public function latestProviderRateAdjustment(): HasOne
+    public function latestRateAdjustment(): HasOne
     {
         return $this->adjustments()->one()->ofMany(['id' => 'max'], fn ($query) =>
-            $query->where('metadata->kind', 'provider_rate'));
+            $query->whereIn('metadata->kind', ['provider_rate', 'customer_rate']));
+    }
+
+    public function rateBaseLine(): ?array
+    {
+        $source = $this->direction === 'payable' ? 'provider_compensation' : 'customer_base';
+
+        return collect(data_get($this->composition_snapshot, 'lines', []))
+            ->first(fn ($line) => ($line['type'] ?? null) === 'base' && ($line['source_key'] ?? null) === $source);
     }
 
     public function verificationIdentity(): MorphOne

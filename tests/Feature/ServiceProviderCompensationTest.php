@@ -1403,12 +1403,65 @@ class ServiceProviderCompensationTest extends TestCase
         ]);
         $composition->tenant_id = $obligation->tenant_id;
         $composition->save();
-        $order = $obligation->execution->order->load('execution.compositionLines', 'execution.obligations.latestProviderRateAdjustment');
+        $order = $obligation->execution->order->load('execution.compositionLines', 'execution.obligations.latestRateAdjustment');
         $html = view('services._order-value', ['order' => $order, 'valueDirection' => 'payable'])->render();
 
         $this->assertStringContainsString('hora × R$ 400,00', $html);
         $this->assertStringNotContainsString('hora × R$ 300,00', $html);
         $this->assertStringContainsString('A pagar: R$ 1.210,00', $html);
+    }
+
+    public function test_beneficiary_rate_updates_the_charge_and_preserves_payments_and_provider_amount(): void
+    {
+        [$payable, $account, $actor] = $this->payable();
+        $this->prepareRateAdjustment($payable);
+        $execution = $payable->execution;
+        $receivable = $this->receivableObligation($execution, 'OB-2026-000002', 450.00);
+        $line = [
+            'type' => 'base', 'direction' => 'receivable', 'source_type' => 'catalog', 'source_key' => 'customer_base',
+            'description' => 'Serviço executado', 'quantity' => 3, 'unit' => 'hora', 'unit_price' => 150,
+            'amount' => 450, 'financial_effect' => 'add', 'rule_snapshot' => ['method' => 'quantity_x_rate'],
+        ];
+        Schema::getConnection()->table('service_obligations')->where('id', $receivable->id)
+            ->update(['composition_snapshot' => json_encode(['lines' => [$line]])]);
+        $composition = $execution->compositionLines()->make($line);
+        $composition->tenant_id = $execution->tenant_id;
+        $composition->save();
+
+        app(ServicePaymentService::class)->record($receivable, 200, 'pix', '2026-09-09', $account->id, (string) Str::uuid(), $actor);
+        $service = app(\App\Services\Services\ServiceObligationAdjustmentService::class);
+        $service->add($receivable, 'decrease', 20, 'Desconto acordado', (string) Str::uuid(), $actor);
+        $manager = \Mockery::mock($actor);
+        $manager->shouldReceive('checkPermissionTo')->with('view_service_management')->andReturn(true);
+        $manager->shouldReceive('checkPermissionTo')->with('manage_service_receivables')->andReturn(true);
+        $tenant = new \App\Models\Tenant(['slug' => 'cooperativa']);
+        $tenant->id = $execution->tenant_id;
+        $request = \Illuminate\Http\Request::create('/', 'POST', [
+            'customer_rate' => '170', 'expected_total' => '430', 'reason' => 'Correção da tarifa',
+            'operation_key' => (string) Str::uuid(),
+        ]);
+        $request->setUserResolver(fn () => $manager);
+        app(\App\Http\Controllers\Services\ServiceManagementController::class)
+            ->updateCustomerRate($request, $tenant, $receivable->id, $service);
+
+        $receivable = $receivable->fresh();
+        $this->assertSame(490.0, $receivable->total_amount);
+        $this->assertSame(200.0, $receivable->paid_amount);
+        $this->assertSame(290.0, $receivable->balance);
+        $this->assertSame(900.0, $payable->fresh()->total_amount);
+        $order = $execution->order->load('execution.compositionLines', 'execution.obligations.latestRateAdjustment');
+        $this->assertStringContainsString('hora × R$ 170,00', view('services._order-value', [
+            'order' => $order, 'valueDirection' => 'receivable',
+        ])->render());
+        $html = view('services._financial-actions', [
+            'obligation' => $receivable, 'tenantSlug' => $tenant->slug, 'execution' => $execution,
+            'errors' => new \Illuminate\Support\ViewErrorBag,
+        ])->render();
+        $this->assertStringContainsString('Alterar tarifa do beneficiário', $html);
+        $this->assertStringContainsString('/customer-rate', $html);
+
+        $this->expectException(ValidationException::class);
+        $service->changeCustomerRate($receivable, 60, 490, 'Tarifa abaixo do recebido', (string) Str::uuid(), $actor);
     }
 
     public function test_direct_provider_rate_cannot_reduce_total_below_paid_amount(): void

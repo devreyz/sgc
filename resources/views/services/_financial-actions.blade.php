@@ -1,12 +1,10 @@
 @php
     $adjustDialog = 'adjust-obligation-'.$obligation->id;
     $rateDialog = 'change-rate-'.$obligation->id;
-    $rateLine = collect(data_get($obligation->composition_snapshot, 'lines', []))->first(
-        fn ($line) => ($line['type'] ?? null) === 'base' && ($line['source_key'] ?? null) === 'provider_compensation'
-    );
-    $canChangeRate = $obligation->direction === 'payable'
-        && in_array(data_get($rateLine, 'rule_snapshot.method'), ['fixed', 'quantity_x_rate'], true);
-    $target = $obligation->direction === 'payable' ? 'Pagamento do prestador' : 'Cobrança do beneficiário';
+    $rateLine = $obligation->rateBaseLine();
+    $canChangeRate = in_array(data_get($rateLine, 'rule_snapshot.method'), ['fixed', 'quantity_x_rate'], true);
+    $providerRate = $obligation->direction === 'payable';
+    $target = $providerRate ? 'Pagamento do prestador' : 'Cobrança do beneficiário';
     $retryAdjustment = old('finance_dialog') === $adjustDialog && $errors->any();
 @endphp
 <div class="ds-quick-finance">
@@ -50,11 +48,11 @@
 @if($canChangeRate)
     <dialog class="dossier-dialog ds-quick-dialog" id="{{ $rateDialog }}" aria-labelledby="{{ $rateDialog }}-title" @if(old('finance_dialog') === $rateDialog && $errors->any()) data-finance-reopen @endif>
         <header class="ds-dialog-head">
-            <h3 id="{{ $rateDialog }}-title">Alterar tarifa do prestador</h3>
+            <h3 id="{{ $rateDialog }}-title">Alterar tarifa {{ $providerRate ? 'do prestador' : 'do beneficiário' }}</h3>
             <button class="ds-dialog-close" type="button" data-close-dialog="{{ $rateDialog }}" aria-label="Fechar"><i class="ph ph-x" aria-hidden="true"></i></button>
         </header>
         <div class="ds-dialog-body">
-            @include('services._provider-rate-editor', ['rateDialog' => $rateDialog])
+            @include('services._order-rate-editor')
         </div>
     </dialog>
 @endif
