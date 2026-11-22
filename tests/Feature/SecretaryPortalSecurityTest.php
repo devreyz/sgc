@@ -309,7 +309,8 @@ class SecretaryPortalSecurityTest extends TestCase
     {
         $this->actingAs(User::findOrFail(1))->withSession(['tenant_id' => 1]);
         $root = '/tenant-a/secretary/documents';
-        $this->get($root.'/create')->assertOk()->assertSee('data-inline-letter="subject"', false)->assertSee('Fonte do documento');
+        $this->get($root.'/create')->assertOk()->assertSee('data-inline-letter="subject"', false)->assertSee('Fonte do documento')
+            ->assertSee('data-placeholder="Escreva o corpo do ofício…"', false)->assertSee('aria-controls="se-toolbar-extra"', false);
         $before = DB::table('generated_documents')->count();
         $payload = $this->letterPayload();
         $payload['layout']['font'] = 'mono';

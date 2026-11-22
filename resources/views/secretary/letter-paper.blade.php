@@ -46,7 +46,9 @@
             @endif
         </div>
         <div id="se-editor" class="se-paper-body" contenteditable="{{ $closed ? 'false' : 'true' }}" spellcheck="true"
-            autocapitalize="sentences" role="textbox" aria-label="Corpo do documento" aria-multiline="true">{!! $record['content'] ?? '<p><br></p>' !!}</div>
+            autocapitalize="sentences" role="textbox" aria-label="Corpo do documento" aria-multiline="true"
+            aria-placeholder="{{ $isOfficialDocument ? 'Escreva o corpo do ofício…' : 'Escreva o conteúdo do documento…' }}"
+            data-placeholder="{{ $isOfficialDocument ? 'Escreva o corpo do ofício…' : 'Escreva o conteúdo do documento…' }}">{!! $record['content'] ?? '<p><br></p>' !!}</div>
         <div class="se-letter-chrome se-paper-end">
             @if($isOfficialDocument && !$closed)
                 <p class="se-paper-paragraph">@include('secretary.letter-inline-field', ['field' => 'closing', 'hint' => 'Fecho'])</p>

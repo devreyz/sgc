@@ -98,12 +98,15 @@
     .se-side { max-height:calc(100dvh - 150px);overflow:auto }
     .se-document-stage { overflow:auto; }
     .se-toolbar .se-select { flex:none; width:auto; }
+    .se-toolbar-primary, .se-toolbar-extra { display:contents; }
+    .se-toolbar-more { display:none; }
     .se-tool[aria-pressed="true"] { color:#203519;background:#d6ef74; }
     .se-paper-controls { display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.35rem .6rem;border-bottom:1px solid var(--color-border);font-size:.75rem;color:var(--color-text-secondary); }
     .se-paper-controls .se-select { min-height:40px;max-width:100%; }
     .se-paper-options { display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.3rem; }
     .se-sheet [hidden] { display:none; }
     .se-document-stage { touch-action:pan-x pan-y; }
+    .se-document-stage[data-pan="true"] { touch-action:none; }
     .se-inline-field { white-space:pre-wrap;outline:none;border-radius:.15em;overflow-wrap:anywhere; }
     .se-inline-field:empty::before { content:attr(data-hint);color:#526057;font-weight:400; }
     .se-inline-field:focus-visible,.se-date-picker:focus-within { outline:2px solid #507656;outline-offset:3px;background:#eff6ec; }
@@ -136,7 +139,10 @@
     .se-paper-subject { margin:0 0 5mm }
     .se-paper-paragraph,.se-document-paper[data-enabled="1"] .se-paper-body > p { text-indent:var(--letter-indent,25mm) }
     .se-paper-body { min-height:2em;outline:none;line-height:inherit;text-align:left;max-width:100% }
-    .se-paper-body:empty::before { content:attr(data-empty-label);color:#526057; }
+    #se-editor[data-empty="true"] { position:relative; }
+    #se-editor[data-empty="true"]:not(:focus)::before { position:absolute;inset-inline-start:var(--se-placeholder-left,0);top:var(--se-placeholder-top,0);content:attr(data-placeholder);color:#526057;pointer-events:none;text-indent:0; }
+    .se-layout-region { --se-placeholder-left:.55rem;--se-placeholder-top:.55rem; }
+    .se-page { --se-placeholder-left:18mm;--se-placeholder-top:20mm; }
     .se-paper-body:focus-visible { outline:1px dashed #9bb2a0;outline-offset:4px }
     .se-paper-body p,.se-paper-paragraph { margin:0 0 var(--letter-spacing,6pt) }
     .se-paper-body h1 { font-size:1.55em;font-weight:700 }.se-paper-body h2 { font-size:1.35em;font-weight:700 }.se-paper-body h3 { font-size:1.15em;font-weight:700 }
@@ -152,7 +158,21 @@
     .se-paper-end { display:flex;flex:1;flex-direction:column;padding-top:var(--letter-spacing,6pt) }
     .se-paper-footer { margin-top:auto;padding-top:5mm;text-align:center;font-size:.72em;color:#333 }
     .se-paper-footer p + p { margin-top:2mm }
+    @media(max-width:1023px) {
+        body:has(#se-format-toolbar) #app-portal-navigation { display:none; }
+        body:has(#se-format-toolbar) .bento-container { padding-bottom:calc(5rem + env(safe-area-inset-bottom)); }
+        #se-format-toolbar { position:fixed;inset:auto 0 var(--se-keyboard-inset,0px);z-index:100;display:flex;flex-direction:column;gap:0;max-height:min(50dvh,18rem);padding:0 0 env(safe-area-inset-bottom);overflow:auto;border:1px solid var(--color-border);border-radius:.85rem .85rem 0 0;background:var(--color-surface);box-shadow:0 -3px 18px #0002; }
+        .se-toolbar-primary { display:grid;grid-template-columns:repeat(6,minmax(0,1fr));padding:.3rem;gap:.15rem; }
+        .se-toolbar-more { display:grid; }
+        .se-toolbar-extra { display:none; }
+        #se-format-toolbar[data-expanded="true"] .se-toolbar-extra { order:-1;display:flex;flex-wrap:wrap;gap:.25rem;padding:.5rem;border-bottom:1px solid var(--color-border); }
+        #se-format-toolbar .se-tool { min-width:0;width:100%;height:44px; }
+        #se-format-toolbar .se-toolbar-extra .se-tool { width:44px;flex-basis:44px; }
+        #se-format-toolbar .se-select { height:44px; }
+        #se-format-toolbar .se-divider { display:none; }
+    }
     @media(max-width:900px) {
+        .se-page { --se-placeholder-left:9mm;--se-placeholder-top:12mm; }
         .se-side { position:static;max-height:none;overflow:visible }
         .se-letter-details .se-field-grid { gap:.4rem;grid-template-columns:repeat(2,minmax(0,1fr)) }
         .se-page-wrap.se-document-stage { overflow:auto; }
@@ -207,19 +227,23 @@
                     <a class="se-btn" href="{{ $previewUrl }}" target="_blank" rel="noopener" data-sgc-pdf><i class="ph ph-file-pdf" aria-hidden="true"></i> Abrir PDF arquivado</a>
                 </div>
             @else
-                @if(!$closed)<div class="se-toolbar" role="toolbar" aria-label="Formatação de texto">
-                    <button class="se-tool" type="button" data-command="undo" title="Desfazer"><i data-lucide="undo-2"></i></button>
+                @if(!$closed)<div class="se-toolbar" id="se-format-toolbar" role="group" aria-label="Formatação de texto">
+                    <div class="se-toolbar-primary">
+                        <button class="se-tool" type="button" data-command="bold" title="Negrito" aria-label="Negrito"><i data-lucide="bold" aria-hidden="true"></i></button>
+                        <button class="se-tool" type="button" data-command="italic" title="Itálico" aria-label="Itálico"><i data-lucide="italic" aria-hidden="true"></i></button>
+                        <button class="se-tool" type="button" data-command="underline" title="Sublinhado" aria-label="Sublinhado"><i data-lucide="underline" aria-hidden="true"></i></button>
+                        <button class="se-tool" type="button" data-command="insertUnorderedList" title="Lista" aria-label="Lista com marcadores"><i data-lucide="list" aria-hidden="true"></i></button>
+                        <button class="se-tool" type="button" data-command="undo" title="Desfazer" aria-label="Desfazer"><i data-lucide="undo-2" aria-hidden="true"></i></button>
+                        <button class="se-tool se-toolbar-more" id="se-toolbar-more" type="button" title="Mais ferramentas" aria-label="Mais ferramentas" aria-expanded="false" aria-controls="se-toolbar-extra"><i class="ph ph-dots-three" aria-hidden="true"></i></button>
+                    </div>
+                    <div class="se-toolbar-extra" id="se-toolbar-extra">
                     <button class="se-tool" type="button" data-command="redo" title="Refazer"><i data-lucide="redo-2"></i></button><span class="se-divider"></span>
                     <select class="se-select" id="se-format" aria-label="Estilo do texto"><option value="p">Texto</option><option value="h1">Título 1</option><option value="h2">Título 2</option><option value="h3">Título 3</option></select>
-                    <button class="se-tool" type="button" data-command="bold" title="Negrito"><i data-lucide="bold"></i></button>
-                    <button class="se-tool" type="button" data-command="italic" title="Itálico"><i data-lucide="italic"></i></button>
-                    <button class="se-tool" type="button" data-command="underline" title="Sublinhado"><i data-lucide="underline"></i></button>
                     <button class="se-tool" type="button" data-command="strikeThrough" title="Tachado"><i data-lucide="strikethrough"></i></button><span class="se-divider"></span>
                     <button class="se-tool" type="button" data-command="justifyLeft" title="Alinhar à esquerda"><i data-lucide="align-left"></i></button>
                     <button class="se-tool" type="button" data-command="justifyCenter" title="Centralizar"><i data-lucide="align-center"></i></button>
                     <button class="se-tool" type="button" data-command="justifyRight" title="Alinhar à direita"><i data-lucide="align-right"></i></button>
                     <button class="se-tool" type="button" data-command="justifyFull" title="Justificar"><i data-lucide="align-justify"></i></button><span class="se-divider"></span>
-                    <button class="se-tool" type="button" data-command="insertUnorderedList" title="Lista"><i data-lucide="list"></i></button>
                     <button class="se-tool" type="button" data-command="insertOrderedList" title="Lista numerada"><i data-lucide="list-ordered"></i></button>
                     <button class="se-tool" type="button" id="se-link" title="Inserir link"><i data-lucide="link"></i></button>
                     <button class="se-tool" type="button" id="se-table" title="Inserir tabela"><i data-lucide="table-2"></i></button>
@@ -237,6 +261,7 @@
                     @unless($isOfficialDocument || $isTemplate)
                         <select id="se-zoom" class="se-select" aria-label="Zoom da edição"><option value="fit">Ajustar folha</option><option value=".75">75%</option><option value="1">100%</option><option value="1.25">125%</option></select>
                     @endunless
+                    </div>
                 </div>@endif
                 @if($isOfficialDocument || ($isTemplate))
                     @include('secretary.letter-paper')
@@ -244,11 +269,11 @@
                     <div class="se-page-wrap"><article class="se-page se-layout-paper">
                         <p class="se-layout-reference" id="se-layout-reference" @unless(($record['layout_type'] ?? '') === 'footer') hidden @endunless>Corpo do documento</p>
                         <div id="se-editor" class="se-layout-region" data-layout-position="{{ $record['layout_type'] ?? 'header' }}"
-                            contenteditable="true" spellcheck="true" role="textbox" aria-label="Conteúdo do cabeçalho ou rodapé" aria-multiline="true">{!! $record['content'] ?? '<p><br></p>' !!}</div>
+                            contenteditable="true" spellcheck="true" role="textbox" aria-label="Conteúdo do cabeçalho ou rodapé" aria-multiline="true" data-placeholder="Escreva o conteúdo do layout…">{!! $record['content'] ?? '<p><br></p>' !!}</div>
                         <p class="se-layout-reference" id="se-layout-reference-after" @if(($record['layout_type'] ?? '') === 'footer') hidden @endif>Corpo do documento</p>
                     </article></div>
                 @else
-                    <div class="se-page-wrap"><div id="se-editor" class="se-page" data-paper="{{ $record['paper_orientation'] ?? 'portrait' }}" contenteditable="{{ $closed ? 'false' : 'true' }}" spellcheck="true" autocapitalize="sentences" role="textbox" aria-label="Conteúdo do documento" aria-multiline="true">{!! $record['content'] ?? '<p><br></p>' !!}</div></div>
+                    <div class="se-page-wrap"><div id="se-editor" class="se-page" data-paper="{{ $record['paper_orientation'] ?? 'portrait' }}" contenteditable="{{ $closed ? 'false' : 'true' }}" spellcheck="true" autocapitalize="sentences" role="textbox" aria-label="Conteúdo do documento" aria-multiline="true" data-placeholder="Escreva o conteúdo do documento…">{!! $record['content'] ?? '<p><br></p>' !!}</div></div>
                 @endif
             @endif
         </section>
@@ -335,6 +360,9 @@
     const previewButton = document.getElementById('se-preview');
     const loading = document.getElementById('se-loading');
     const state = document.getElementById('se-state');
+    const toolbar = document.getElementById('se-format-toolbar');
+    const moreTools = document.getElementById('se-toolbar-more');
+    const mobileEditor = matchMedia('(max-width:1023px)');
     const variableEntries = Object.entries(config.variables).flatMap(([group, items]) => Object.entries(items).map(([token, label]) => ({group, token, label})));
     let dirty = false;
     let saving = false;
@@ -346,6 +374,41 @@
     let onlineConflict = false;
     let activeSave = null;
 
+    if (editor?.isContentEditable) {
+        const updatePlaceholder = () => {
+            const hasText = editor.textContent.replace(/[\u200B\uFEFF]/g, '').trim().length > 0;
+            editor.dataset.empty = String(!hasText && !editor.querySelector('img,table,hr'));
+        };
+        new MutationObserver(updatePlaceholder).observe(editor, {subtree:true, childList:true, characterData:true});
+        updatePlaceholder();
+    }
+    if (toolbar && moreTools) {
+        const expandToolbar = expanded => {
+            toolbar.dataset.expanded = String(expanded);
+            moreTools.setAttribute('aria-expanded', String(expanded));
+        };
+        moreTools.addEventListener('click', () => expandToolbar(toolbar.dataset.expanded !== 'true'));
+        document.addEventListener('pointerdown', event => {
+            if (mobileEditor.matches && !toolbar.contains(event.target)) expandToolbar(false);
+        });
+        toolbar.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && toolbar.dataset.expanded === 'true') {
+                expandToolbar(false);
+                moreTools.focus();
+            }
+        });
+        const viewport = window.visualViewport;
+        if (viewport) {
+            const positionToolbar = () => {
+                const inset = viewport.scale === 1
+                    ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0;
+                toolbar.style.setProperty('--se-keyboard-inset', `${inset}px`);
+            };
+            viewport.addEventListener('resize', positionToolbar);
+            viewport.addEventListener('scroll', positionToolbar);
+            positionToolbar();
+        }
+    }
     function checkpoint() {
         if (!config.recoveryKey) return;
         try {
@@ -363,7 +426,7 @@
         if (config.signed) return;
         dirty = true;
         changeCount++;
-        state.textContent = 'Alterações não salvas';
+        if (!onlineConflict && state.textContent !== 'Alterações pendentes') state.textContent = 'Alterações pendentes';
         scheduleAutosave();
     }
     function readFields(attribute) {
@@ -408,15 +471,16 @@
             const changesAtStart = changeCount;
             const fields = payload();
             saving = true;
-            if (!automatic) loading.hidden = false;
-            saveButton.disabled = true;
-            state.textContent = 'Salvando…';
+            if (!automatic) {
+                saveButton.disabled = true;
+                state.textContent = 'Salvando…';
+            }
             activeSave = (async () => {
                 try {
-                    const data = await request(config.saveUrl, {method:config.editing ? 'PUT' : 'POST',body:JSON.stringify({...fields, autosave:automatic})});
+                    const data = await request(config.saveUrl, {method:config.editing ? 'PUT' : 'POST',globalLoader:false,body:JSON.stringify({...fields, autosave:automatic})});
                     if (data.revision != null) revision = Number(data.revision);
                     dirty = changesAtStart !== changeCount;
-                    state.textContent = dirty ? 'Alterações não salvas' : (data.updated_at ? `Salvo às ${data.updated_at}` : 'Salvo');
+                    if (!dirty) state.textContent = 'Salvo';
                     checkpoint();
                     if (!automatic) toast(data.message || 'Salvo.');
                     if (openPreview && (data.preview_url || config.previewUrl)) {
@@ -440,8 +504,7 @@
                 } finally {
                     activeSave = null;
                     saving = false;
-                    loading.hidden = true;
-                    saveButton.disabled = false;
+                    if (!automatic) saveButton.disabled = false;
                 }
             })();
             return await activeSave;
@@ -490,7 +553,10 @@
             previewButton.disabled = false;
         }
     });
-    document.querySelectorAll('input,select,textarea').forEach(input => input.addEventListener('change', () => { markDirty(); if (input.id === 'se-orientation' && editor) editor.dataset.paper = input.value; }));
+    document.querySelectorAll('.se-side input,.se-side select,.se-side textarea').forEach(input => input.addEventListener('change', () => {
+        if (!input.matches('[data-layout]')) markDirty();
+        if (input.id === 'se-orientation' && editor) editor.dataset.paper = input.value;
+    }));
     document.getElementById('se-title').addEventListener('input', markDirty);
     document.querySelectorAll('[data-letter], [data-layout]').forEach(input => input.addEventListener('input', markDirty));
     editor?.addEventListener('input', () => { markDirty(); rememberSelection(); showVariableSuggestions(); });
@@ -707,6 +773,7 @@
         const stage = paper.closest('.se-document-stage');
         const zoomControl = byId('se-zoom');
         let gesture = null;
+        let pan = null;
         let customZoom = null;
         let layoutRequest = 0;
         function fitPaper() {
@@ -715,7 +782,11 @@
             const style = getComputedStyle(stage);
             const available = stage.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
             const zoom = zoomControl.value;
-            if (available > 0) paper.style.zoom = customZoom ?? (zoom === 'fit' ? Math.min(1, available / (width * 96 / 25.4)) : Number(zoom));
+            if (available <= 0) return;
+            const widthInPixels = width * 96 / 25.4;
+            const scale = customZoom ?? (zoom === 'fit' ? Math.min(1, available / widthInPixels) : Number(zoom));
+            paper.style.zoom = scale;
+            stage.dataset.pan = String(scale * widthInPixels > available + 2);
         }
         function element(tag, text = '', className = '') {
             const node = document.createElement(tag);
@@ -874,8 +945,13 @@
         }
         zoomControl.addEventListener('change', () => { customZoom = null; fitPaper(); });
         const distance = touches => Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+        const startPan = touch => {
+            pan = {x:touch.clientX, y:touch.clientY, active:false};
+        };
         stage.addEventListener('touchstart', event => {
+            if (event.touches.length === 1 && stage.dataset.pan === 'true') startPan(event.touches[0]);
             if (event.touches.length !== 2) return;
+            pan = null;
             const rect = paper.getBoundingClientRect();
             const x = (event.touches[0].clientX + event.touches[1].clientX) / 2;
             const y = (event.touches[0].clientY + event.touches[1].clientY) / 2;
@@ -883,13 +959,29 @@
                 x, y, left:(x - rect.left) / rect.width, top:(y - rect.top) / rect.height};
         }, {passive:true});
         stage.addEventListener('touchmove', event => {
+            if (pan && event.touches.length === 1 && event.cancelable) {
+                const touch = event.touches[0];
+                const dx = pan.x - touch.clientX;
+                const dy = pan.y - touch.clientY;
+                if (!pan.active && Math.hypot(dx, dy) < 6) return;
+                const selection = window.getSelection();
+                if (!pan.active && selection && !selection.isCollapsed && paper.contains(selection.anchorNode)) {
+                    pan = null;
+                    return;
+                }
+                event.preventDefault();
+                pan = {x:touch.clientX, y:touch.clientY, active:true};
+                stage.scrollLeft += dx;
+                window.scrollBy({top:dy, behavior:'instant'});
+                return;
+            }
             if (!gesture || !gesture.distance || event.touches.length !== 2 || !event.cancelable) return;
             event.preventDefault();
             customZoom = Math.max(.25, Math.min(2.5, gesture.zoom * distance(event.touches) / gesture.distance));
             fitPaper();
             const rect = paper.getBoundingClientRect();
             stage.scrollLeft += rect.left + rect.width * gesture.left - gesture.x;
-            window.scrollBy(0, rect.top + rect.height * gesture.top - gesture.y);
+            window.scrollBy({top:rect.top + rect.height * gesture.top - gesture.y, behavior:'instant'});
         }, {passive:false});
         const stopZoom = () => {
             if (!gesture) return;
@@ -902,8 +994,12 @@
             if (!option.parentNode) zoomControl.add(option);
             zoomControl.value = option.value;
         };
-        stage.addEventListener('touchend', stopZoom);
-        stage.addEventListener('touchcancel', stopZoom);
+        stage.addEventListener('touchend', event => {
+            stopZoom();
+            pan = null;
+            if (event.touches.length === 1 && stage.dataset.pan === 'true') startPan(event.touches[0]);
+        });
+        stage.addEventListener('touchcancel', () => { stopZoom(); pan = null; });
         if ('ResizeObserver' in window) new ResizeObserver(fitPaper).observe(stage);
         else window.addEventListener('resize', fitPaper);
         updateFragments();
