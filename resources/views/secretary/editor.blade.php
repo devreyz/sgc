@@ -463,6 +463,89 @@ dialog.se-sheet:is(#se-settings,#se-letter-data)[open]{display:flex!important;fl
 }
 @media(prefers-reduced-motion:reduce){.se-sheet-scroll{scroll-behavior:auto}}
 
+
+/* Campo v4: uma única faixa fixa, compacta e expansível; sem barras em cascata. */
+html:has(.se-shell),body:has(.se-shell){touch-action:pan-x pan-y;overscroll-behavior-y:none}
+body:has(.se-shell) :is(button,a,select){touch-action:manipulation}
+body:has(.se-shell) .se-toolbar-spacer{width:100%;min-height:54px;pointer-events:none}
+body:has(.se-shell) #se-format-toolbar.se-toolbar{
+    position:fixed!important;inset:auto 0 auto 0!important;left:0!important;right:0!important;
+    top:var(--se-header-offset,66px)!important;width:100%!important;
+    z-index:61!important;display:block!important;max-height:none!important;
+    overflow:visible!important;margin:0!important;padding:0!important;
+    border:0!important;border-bottom:1px solid var(--se-border)!important;
+    border-radius:0!important;background:var(--se-surface)!important;
+    box-shadow:0 3px 12px #101b1b16!important;
+}
+#se-format-toolbar .se-quick{display:flex;align-items:center;gap:0;min-height:54px;max-width:1920px;margin:auto;padding:5px clamp(6px,1.4vw,21px)}
+#se-format-toolbar .se-quick-scroll{display:flex;flex:1 1 auto;align-items:center;gap:6px;min-width:0;overflow-x:auto;overflow-y:hidden;overscroll-behavior-inline:contain;scrollbar-width:none}
+#se-format-toolbar .se-quick-scroll::-webkit-scrollbar{display:none}
+#se-format-toolbar .se-quick-group{display:inline-flex;flex:0 0 auto;align-items:center;gap:2px;padding-right:6px;margin-right:2px;border-right:1px solid var(--se-border)}
+#se-format-toolbar .se-quick-group:last-child{border-right:0}
+#se-format-toolbar .se-quick .se-tool,#se-format-toolbar .se-expanded .se-tool{
+    display:inline-grid!important;place-items:center!important;
+    width:42px!important;min-width:42px!important;max-width:42px!important;
+    height:42px!important;min-height:42px!important;flex:0 0 42px!important;
+    padding:0!important;border:1px solid transparent!important;
+    border-radius:8px!important;background:transparent;color:var(--se-text)!important;
+    cursor:pointer;transition:background-color .14s ease,color .14s ease;
+}
+#se-format-toolbar :is(.se-quick,.se-expanded) .se-tool:hover,#se-format-toolbar :is(.se-quick,.se-expanded) .se-tool:focus-visible{background:var(--se-subtle)!important}
+#se-format-toolbar .se-tool[aria-pressed="true"]{background:color-mix(in srgb,var(--se-accent) 65%,var(--se-surface))!important;color:var(--se-on-accent)!important}
+#se-format-toolbar .se-tool i{font-size:1.18rem;width:auto;height:auto;line-height:1}
+#se-format-toolbar .se-more-toggle{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;gap:6px;min-width:132px;min-height:44px;margin-left:6px;padding:0 12px;border:1px solid var(--se-border);border-radius:9px;background:var(--se-subtle);color:var(--se-text);font-family:inherit;font-size:.79rem;font-weight:750;line-height:1.2;cursor:pointer}
+#se-format-toolbar .se-more-toggle:hover,#se-format-toolbar .se-more-toggle:focus-visible{border-color:var(--se-focus)}
+#se-format-toolbar .se-more-toggle[aria-expanded="true"]{background:var(--se-strong);border-color:var(--se-strong);color:var(--se-on-strong)}
+#se-format-toolbar .se-more-toggle .se-more-caret{transition:transform .16s ease}
+#se-format-toolbar .se-more-toggle[aria-expanded="true"] .se-more-caret{transform:rotate(180deg)}
+body:has(.se-shell) #se-format-toolbar .se-expanded{display:none!important;max-height:min(54dvh,var(--se-available-height,410px));overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;scrollbar-gutter:stable;border-top:1px solid var(--se-border);background:var(--se-surface)}
+body:has(.se-shell) #se-format-toolbar[data-expanded="true"] .se-expanded:not([hidden]){display:block!important}
+#se-format-toolbar .se-expanded-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;max-width:1920px;margin:auto;padding:12px clamp(10px,2vw,26px) 16px}
+#se-format-toolbar .se-toolset{min-width:0;padding:4px clamp(8px,1vw,18px) 8px;border-right:1px solid var(--se-border)}
+#se-format-toolbar .se-toolset:last-child{border-right:0}
+#se-format-toolbar .se-toolset h3{display:flex;align-items:center;gap:6px;margin:0 0 10px;color:var(--se-muted);font-size:.74rem;font-weight:780;line-height:1.2;letter-spacing:.01em}
+#se-format-toolbar .se-toolset h3 i{font-size:1rem;color:var(--se-strong)}
+#se-format-toolbar .se-toolset-controls{display:flex;align-items:center;align-content:start;flex-wrap:wrap;gap:6px;min-width:0}
+#se-format-toolbar .se-toolset .se-select{width:auto!important;max-width:100%!important;height:42px!important;min-height:42px!important;min-width:80px;padding:0 9px!important;border:1px solid var(--se-border)!important;border-radius:9px!important;background:var(--se-subtle)!important;color:var(--se-text)!important;font-size:.79rem!important;box-shadow:none!important}
+#se-format-toolbar .se-toolset .se-style-select{min-width:118px}
+#se-format-toolbar .se-toolset .se-size-select{min-width:110px}
+#se-format-toolbar .se-toolset input[type="color"]{width:42px!important;height:42px!important;min-width:42px!important;flex-basis:42px!important;appearance:auto!important;padding:6px!important;border:1px solid var(--se-border)!important;background:var(--se-subtle)!important}
+#se-format-toolbar .se-page-tools{display:flex!important;flex-wrap:wrap;gap:7px}
+#se-format-toolbar .se-page-tools .se-paper-controls-inline{display:flex!important;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:8px;min-width:0;width:100%!important;height:auto!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
+#se-format-toolbar .se-page-tools .se-paper-options{display:flex!important;flex-wrap:wrap;gap:7px;align-items:center;justify-content:flex-start}
+#se-format-toolbar .se-page-tools :is(.se-paper-controls-inline button,.se-paper-controls-inline select){max-width:100%!important;min-height:42px}
+#se-format-toolbar .se-page-tools #se-paper-dimensions{display:none!important}
+.se-toolbar-spacer + .se-page-wrap{scroll-margin-top:calc(var(--se-header-offset,66px) + 56px)}
+@media(max-width:1150px){
+ #se-format-toolbar .se-expanded-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 0}
+ #se-format-toolbar .se-toolset:nth-child(even){border-right:0}
+}
+@media(max-width:700px){
+ #se-format-toolbar .se-quick{min-height:52px;padding:4px max(5px,env(safe-area-inset-left)) 4px max(5px,env(safe-area-inset-right))}
+ #se-format-toolbar .se-quick-scroll{gap:3px}
+ #se-format-toolbar .se-quick-group{gap:0;padding-right:4px;margin-right:1px}
+ #se-format-toolbar .se-quick .se-tool{width:40px!important;min-width:40px!important;height:42px!important;min-height:42px!important;flex-basis:40px!important}
+ #se-format-toolbar .se-quick-align{display:none}
+ #se-format-toolbar .se-quick [data-command="underline"],#se-format-toolbar .se-quick [data-command="insertOrderedList"]{display:none!important}
+ #se-format-toolbar .se-more-toggle{min-width:52px;min-height:44px;margin-left:5px;padding:0 8px;gap:4px;font-size:.68rem}
+ #se-format-toolbar .se-more-toggle span{display:none}
+ #se-format-toolbar .se-more-caret{font-size:.78rem}
+ #se-format-toolbar .se-expanded-grid{grid-template-columns:1fr;padding:8px 12px 15px;gap:2px}
+ #se-format-toolbar .se-toolset{padding:10px 2px 13px;border-right:0;border-bottom:1px solid var(--se-border)}
+ #se-format-toolbar .se-toolset:last-child{border-bottom:0}
+ #se-format-toolbar .se-toolset h3{margin-bottom:7px}
+ #se-format-toolbar .se-expanded{max-height:min(53dvh,var(--se-available-height,380px))!important}
+}
+@media(max-width:365px){
+ #se-format-toolbar .se-quick .se-tool{width:38px!important;min-width:38px!important;flex-basis:38px!important}
+ #se-format-toolbar .se-more-toggle{min-width:47px;padding-inline:5px}
+}
+@media(prefers-reduced-motion:no-preference){
+ #se-format-toolbar[data-expanded="true"] .se-expanded{animation:se-tools-open .14s ease-out both}
+ @keyframes se-tools-open{from{opacity:.82;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+}
+@media(prefers-reduced-motion:reduce){#se-format-toolbar .se-more-caret{transition:none!important}}
+
 </style>
 @endpush
 
@@ -499,43 +582,83 @@ dialog.se-sheet:is(#se-settings,#se-letter-data)[open]{display:flex!important;fl
                     <a class="se-btn" href="{{ $previewUrl }}" target="_blank" rel="noopener" data-sgc-pdf><i class="ph ph-file-pdf" aria-hidden="true"></i> Abrir PDF arquivado</a>
                 </div>
             @else
-                @if(!$closed)<div class="se-toolbar" id="se-format-toolbar" role="group" aria-label="Formatação de texto">
-                    <div class="se-toolbar-primary" aria-label="Ações rápidas">
-                        <button class="se-tool" type="button" data-command="undo" title="Desfazer" aria-label="Desfazer"><i class="ph ph-arrow-counter-clockwise" aria-hidden="true"></i><span class="se-tool-label" aria-hidden="true">Desfazer</span></button>
-                        <button class="se-tool" type="button" data-command="redo" title="Refazer" aria-label="Refazer"><i class="ph ph-arrow-clockwise" aria-hidden="true"></i><span class="se-tool-label" aria-hidden="true">Refazer</span></button>
-                        <button class="se-tool" type="button" data-command="bold" title="Negrito" aria-label="Negrito"><i class="ph ph-text-b" aria-hidden="true"></i><span class="se-tool-label" aria-hidden="true">Negrito</span></button>
-                        <button class="se-tool" type="button" data-command="italic" title="Itálico" aria-label="Itálico"><i class="ph ph-text-italic" aria-hidden="true"></i><span class="se-tool-label" aria-hidden="true">Itálico</span></button>
-                        <button class="se-tool" type="button" data-command="insertUnorderedList" title="Lista" aria-label="Lista com marcadores"><i class="ph ph-list-bullets" aria-hidden="true"></i><span class="se-tool-label" aria-hidden="true">Lista</span></button>
-
+                @if(!$closed)
+                <div class="se-toolbar" id="se-format-toolbar" role="group" aria-label="Ferramentas de edição" data-expanded="false">
+                    <div class="se-quick">
+                        <div class="se-quick-scroll" aria-label="Formatação rápida">
+                            <div class="se-quick-group" role="group" aria-label="Histórico de edição">
+                                <button class="se-tool" type="button" data-command="undo" title="Desfazer (Ctrl+Z)" aria-label="Desfazer"><i class="ph ph-arrow-counter-clockwise" aria-hidden="true"></i></button>
+                                <button class="se-tool" type="button" data-command="redo" title="Refazer (Ctrl+Y)" aria-label="Refazer"><i class="ph ph-arrow-clockwise" aria-hidden="true"></i></button>
+                            </div>
+                            <div class="se-quick-group" role="group" aria-label="Estilo do texto">
+                                <button class="se-tool" type="button" data-command="bold" title="Negrito" aria-label="Negrito"><i class="ph ph-text-b" aria-hidden="true"></i></button>
+                                <button class="se-tool" type="button" data-command="italic" title="Itálico" aria-label="Itálico"><i class="ph ph-text-italic" aria-hidden="true"></i></button>
+                                <button class="se-tool" type="button" data-command="underline" title="Sublinhado" aria-label="Sublinhado"><i class="ph ph-text-underline" aria-hidden="true"></i></button>
+                            </div>
+                            <div class="se-quick-group" role="group" aria-label="Listas">
+                                <button class="se-tool" type="button" data-command="insertUnorderedList" title="Lista com marcadores" aria-label="Lista com marcadores"><i class="ph ph-list-bullets" aria-hidden="true"></i></button>
+                                <button class="se-tool" type="button" data-command="insertOrderedList" title="Lista numerada" aria-label="Lista numerada"><i class="ph ph-list-numbers" aria-hidden="true"></i></button>
+                            </div>
+                            <div class="se-quick-group se-quick-align" role="group" aria-label="Alinhamento">
+                                <button class="se-tool" type="button" data-command="justifyLeft" title="Alinhar à esquerda" aria-label="Alinhar à esquerda"><i class="ph ph-text-align-left" aria-hidden="true"></i></button>
+                                <button class="se-tool" type="button" data-command="justifyCenter" title="Centralizar" aria-label="Centralizar"><i class="ph ph-text-align-center" aria-hidden="true"></i></button>
+                            </div>
+                        </div>
+                        <button class="se-more-toggle" id="se-toolbar-more" type="button" aria-label="Mostrar todas as ferramentas" aria-expanded="false" aria-controls="se-toolbar-extra" title="Mais ferramentas">
+                            <i class="ph ph-sliders-horizontal" aria-hidden="true"></i><span>Ferramentas</span><i class="ph ph-caret-down se-more-caret" aria-hidden="true"></i>
+                        </button>
                     </div>
-                    <div class="se-toolbar-extra" id="se-toolbar-extra" aria-label="Todas as ferramentas">
-                    <button class="se-tool" type="button" data-command="underline" title="Sublinhado" aria-label="Sublinhado"><i class="ph ph-text-underline" aria-hidden="true"></i></button>
-<span class="se-divider" aria-hidden="true"></span>
-                    <select class="se-select" id="se-format" aria-label="Estilo do texto"><option value="p">Texto</option><option value="h1">Título 1</option><option value="h2">Título 2</option><option value="h3">Título 3</option></select>
-                    <button class="se-tool" type="button" data-command="strikeThrough" title="Tachado"><i class="ph ph-text-strikethrough" aria-hidden="true"></i></button><span class="se-divider"></span>
-                    <button class="se-tool" type="button" data-command="justifyLeft" title="Alinhar à esquerda"><i class="ph ph-text-align-left" aria-hidden="true"></i></button>
-                    <button class="se-tool" type="button" data-command="justifyCenter" title="Centralizar"><i class="ph ph-text-align-center" aria-hidden="true"></i></button>
-                    <button class="se-tool" type="button" data-command="justifyRight" title="Alinhar à direita"><i class="ph ph-text-align-right" aria-hidden="true"></i></button>
-                    <button class="se-tool" type="button" data-command="justifyFull" title="Justificar"><i class="ph ph-text-align-justify" aria-hidden="true"></i></button><span class="se-divider"></span>
-                    <button class="se-tool" type="button" data-command="insertOrderedList" title="Lista numerada"><i class="ph ph-list-numbers" aria-hidden="true"></i></button>
-                    <button class="se-tool" type="button" id="se-link" aria-label="Inserir link" title="Inserir link"><i class="ph ph-link-simple" aria-hidden="true"></i></button>
-                    <button class="se-tool" type="button" id="se-table" aria-label="Inserir tabela" title="Inserir tabela"><i class="ph ph-table" aria-hidden="true"></i></button>
-                    <button class="se-tool" type="button" id="se-image" aria-label="Inserir imagem" title="Inserir imagem"><i class="ph ph-image-square" aria-hidden="true"></i></button>
-                    <button class="se-tool" type="button" id="se-pagebreak" aria-label="Inserir quebra de página" title="Quebra de página"><i class="ph ph-arrows-out-line-vertical" aria-hidden="true"></i></button>
-                    <button class="se-tool" type="button" data-command="removeFormat" title="Limpar formatação"><i class="ph ph-text-aa" aria-hidden="true"></i></button>
-                    <button class="se-tool" type="button" data-command="indent" title="Recuar"><i class="ph ph-text-indent"></i></button>
-                    <button class="se-tool" type="button" data-command="outdent" title="Diminuir recuo"><i class="ph ph-text-outdent"></i></button>
-                    <button class="se-tool" type="button" data-command="insertHorizontalRule" title="Linha horizontal"><i class="ph ph-minus"></i></button>
-                    <button class="se-tool" type="button" id="se-quote" aria-label="Inserir citação" title="Citação"><i class="ph ph-quotes"></i></button>
-                    <select class="se-select" id="se-font-size" aria-label="Tamanho da fonte"><option value="">Fonte</option>@foreach([10,12,14,16,18,24] as $pt)<option value="{{ $pt }}">{{ $pt }} pt</option>@endforeach</select>
-                    <input id="se-color" type="color" value="#17392b" class="se-tool" aria-label="Cor do texto" title="Cor do texto">
-                    <button class="se-tool" type="button" id="se-image-library" aria-label="Abrir biblioteca de imagens" title="Biblioteca de imagens"><i class="ph ph-images"></i></button>
-                    <button class="se-tool" type="button" id="se-markdown" aria-label="Inserir Markdown" title="Importar Markdown"><i class="ph ph-markdown-logo"></i></button>
-                    @unless($isOfficialDocument || $isTemplate)
-                        <select id="se-zoom" class="se-select" aria-label="Zoom da edição"><option value="fit">Ajustar folha</option><option value=".75">75%</option><option value="1">100%</option><option value="1.25">125%</option></select>
-                    @endunless
+                    <div class="se-expanded" id="se-toolbar-extra" hidden>
+                        <div class="se-expanded-grid">
+                            <section class="se-toolset" aria-label="Texto">
+                                <h3><i class="ph ph-text-aa" aria-hidden="true"></i> Texto</h3>
+                                <div class="se-toolset-controls">
+                                    <select class="se-select se-style-select" id="se-format" aria-label="Estilo do texto"><option value="p">Texto</option><option value="h1">Título 1</option><option value="h2">Título 2</option><option value="h3">Título 3</option></select>
+                                    <select class="se-select se-size-select" id="se-font-size" aria-label="Tamanho da fonte"><option value="">Tamanho</option>@foreach([10,12,14,16,18,24] as $pt)<option value="{{ $pt }}">{{ $pt }} pt</option>@endforeach</select>
+                                    <button class="se-tool" type="button" data-command="underline" title="Sublinhado" aria-label="Sublinhado"><i class="ph ph-text-underline" aria-hidden="true"></i></button>
+                                    <button class="se-tool" type="button" data-command="strikeThrough" title="Tachado" aria-label="Tachado"><i class="ph ph-text-strikethrough" aria-hidden="true"></i></button>
+                                    <input id="se-color" type="color" value="#17392b" class="se-tool" aria-label="Cor do texto" title="Cor do texto">
+                                    <button class="se-tool" type="button" data-command="removeFormat" title="Limpar formatação" aria-label="Limpar formatação"><i class="ph ph-eraser" aria-hidden="true"></i></button>
+                                </div>
+                            </section>
+                            <section class="se-toolset" aria-label="Parágrafo e alinhamento">
+                                <h3><i class="ph ph-text-align-left" aria-hidden="true"></i> Parágrafo</h3>
+                                <div class="se-toolset-controls">
+                                    <button class="se-tool" type="button" data-command="justifyLeft" title="Alinhar à esquerda" aria-label="Alinhar à esquerda"><i class="ph ph-text-align-left" aria-hidden="true"></i></button>
+                                    <button class="se-tool" type="button" data-command="justifyCenter" title="Centralizar" aria-label="Centralizar"><i class="ph ph-text-align-center" aria-hidden="true"></i></button>
+                                    <button class="se-tool" type="button" data-command="insertOrderedList" title="Lista numerada" aria-label="Lista numerada"><i class="ph ph-list-numbers" aria-hidden="true"></i></button>
+                                    <button class="se-tool" type="button" data-command="justifyRight" title="Alinhar à direita" aria-label="Alinhar à direita"><i class="ph ph-text-align-right" aria-hidden="true"></i></button>
+                                    <button class="se-tool" type="button" data-command="justifyFull" title="Justificar" aria-label="Justificar"><i class="ph ph-text-align-justify" aria-hidden="true"></i></button>
+                                    <button class="se-tool" type="button" data-command="indent" title="Aumentar recuo" aria-label="Aumentar recuo"><i class="ph ph-text-indent" aria-hidden="true"></i></button>
+                                    <button class="se-tool" type="button" data-command="outdent" title="Diminuir recuo" aria-label="Diminuir recuo"><i class="ph ph-text-outdent" aria-hidden="true"></i></button>
+                                    <button class="se-tool" type="button" data-command="insertHorizontalRule" title="Linha horizontal" aria-label="Linha horizontal"><i class="ph ph-minus" aria-hidden="true"></i></button>
+                                    <button class="se-tool" type="button" id="se-quote" title="Citação" aria-label="Inserir citação"><i class="ph ph-quotes" aria-hidden="true"></i></button>
+                                </div>
+                            </section>
+                            <section class="se-toolset" aria-label="Inserir elementos">
+                                <h3><i class="ph ph-plus-circle" aria-hidden="true"></i> Inserir</h3>
+                                <div class="se-toolset-controls">
+                                    <button class="se-tool" type="button" id="se-link" title="Inserir link" aria-label="Inserir link"><i class="ph ph-link-simple" aria-hidden="true"></i></button>
+                                    <button class="se-tool" type="button" id="se-table" title="Inserir tabela" aria-label="Inserir tabela"><i class="ph ph-table" aria-hidden="true"></i></button>
+                                    <button class="se-tool" type="button" id="se-image" title="Inserir imagem" aria-label="Inserir imagem"><i class="ph ph-image-square" aria-hidden="true"></i></button>
+                                    <button class="se-tool" type="button" id="se-image-library" title="Biblioteca de imagens" aria-label="Biblioteca de imagens"><i class="ph ph-images" aria-hidden="true"></i></button>
+                                    <button class="se-tool" type="button" id="se-pagebreak" title="Quebra de página" aria-label="Quebra de página"><i class="ph ph-arrows-out-line-vertical" aria-hidden="true"></i></button>
+                                    <button class="se-tool" type="button" id="se-markdown" title="Importar Markdown" aria-label="Importar Markdown"><i class="ph ph-markdown-logo" aria-hidden="true"></i></button>
+                                </div>
+                            </section>
+                            <section class="se-toolset" aria-label="Página e visualização">
+                                <h3><i class="ph ph-file-text" aria-hidden="true"></i> Página e visualização</h3>
+                                <div class="se-toolset-controls se-page-tools" id="se-page-tools">
+                                    @unless($isOfficialDocument || $isTemplate)
+                                        <select id="se-zoom" class="se-select" aria-label="Zoom da folha"><option value="fit">Ajustar folha</option><option value=".75">75%</option><option value="1">100%</option><option value="1.25">125%</option></select>
+                                    @endunless
+                                </div>
+                            </section>
+                        </div>
                     </div>
-                </div>@endif
+                </div>
+                <div class="se-toolbar-spacer" id="se-toolbar-spacer" aria-hidden="true"></div>
+                @endif
                 @if($isOfficialDocument || ($isTemplate))
                     @include('secretary.letter-paper')
                 @elseif($isLayout)
@@ -707,6 +830,69 @@ dialog.se-sheet:is(#se-settings,#se-letter-data)[open]{display:flex!important;fl
         event.preventDefault();
     }, {passive:false});
     document.addEventListener('touchend', () => { pageTouchY = null; }, {passive:true});
+    // A pinça não deve ampliar a interface do aplicativo. O editor oficial
+    // continua responsável por seu próprio zoom; documentos simples usam a folha.
+    const localPinch = {start:0, zoom:1, active:false};
+    const touchDistance = touches => Math.hypot(touches[0].clientX-touches[1].clientX, touches[0].clientY-touches[1].clientY);
+    const genericStage = editor && !document.getElementById('se-paper-preview') ? editor.closest('.se-page-wrap') : null;
+    const changeGenericZoom = (scale, anchor = null) => {
+        if (!genericStage || !editor) return;
+        const before = anchor ? editor.getBoundingClientRect() : null;
+        const relativeX = before && before.width ? (anchor.x - before.left)/before.width : 0;
+        const relativeY = before && before.height ? (anchor.y - before.top)/before.height : 0;
+        editor.style.zoom = String(Math.min(2.5,Math.max(.4,scale)));
+        if (anchor && before) {
+            const after = editor.getBoundingClientRect();
+            genericStage.scrollLeft += after.left+relativeX*after.width-anchor.x;
+            window.scrollBy(0, after.top+relativeY*after.height-anchor.y);
+        }
+    };
+    document.addEventListener('gesturestart', e => { if(e.cancelable) e.preventDefault(); }, {passive:false,capture:true});
+    document.addEventListener('gesturechange', e => { if(e.cancelable) e.preventDefault(); }, {passive:false,capture:true});
+    document.addEventListener('touchmove', e => {
+        if (e.touches.length >= 2 && e.cancelable) e.preventDefault();
+    }, {passive:false,capture:true});
+    genericStage?.addEventListener('touchstart', e => {
+        if (e.touches.length !== 2) { localPinch.active=false; return; }
+        localPinch.start=touchDistance(e.touches);
+        localPinch.zoom=Number(editor.style.zoom)||1;
+        localPinch.active=localPinch.start>0;
+    }, {passive:true});
+    genericStage?.addEventListener('touchmove', e => {
+        if (!localPinch.active || e.touches.length !== 2 || !localPinch.start) return;
+        const anchor={x:(e.touches[0].clientX+e.touches[1].clientX)/2,y:(e.touches[0].clientY+e.touches[1].clientY)/2};
+        changeGenericZoom(localPinch.zoom*touchDistance(e.touches)/localPinch.start, anchor);
+    }, {passive:false});
+    genericStage?.addEventListener('touchend', e => {
+        if(e.touches.length<2) {
+            localPinch.active=false;
+            const control=document.getElementById('se-zoom');
+            if(control && editor.style.zoom) {
+                const value=editor.style.zoom;
+                let option=control.querySelector('[data-gesture-zoom]');
+                if(!option) { option=new Option();option.dataset.gestureZoom='';control.add(option); }
+                option.value=value;option.textContent=`${Math.round(Number(value)*100)}%`;control.value=value;
+            }
+        }
+    }, {passive:true});
+    // Trackpads frequently send Ctrl+wheel for pinch. Redirect it to the page,
+    // not the browser zoom; outside the paper only suppress accidental zoom.
+    document.addEventListener('wheel', e => {
+        if(!e.ctrlKey || !e.cancelable) return;
+        e.preventDefault();
+        const onPaper=e.target.closest('.se-page-wrap,.se-document-stage');
+        if(!onPaper || !editor) return;
+        const currentPaper=document.getElementById('se-paper-preview')||editor;
+        const next=Math.max(.4,Math.min(2.5,(Number(currentPaper.style.zoom)||1)*Math.exp(-e.deltaY*.008)));
+        const zoomSelect=document.getElementById('se-zoom');
+        if(zoomSelect) {
+            let option=zoomSelect.querySelector('[data-wheel-zoom]');
+            if(!option) {option=new Option();option.dataset.wheelZoom='';zoomSelect.add(option);}
+            option.value=String(next);option.textContent=`${Math.round(next*100)}%`;
+            zoomSelect.value=option.value;
+            zoomSelect.dispatchEvent(new Event('change',{bubbles:true}));
+        } else if(genericStage) changeGenericZoom(next);
+    }, {passive:false,capture:true});
     const variableEntries = Object.entries(config.variables).flatMap(([group, items]) => Object.entries(items).map(([token, label]) => ({group, token, label})));
     let dirty = false;
     let saving = false;
@@ -739,8 +925,46 @@ dialog.se-sheet:is(#se-settings,#se-letter-data)[open]{display:flex!important;fl
     const paperControls = document.querySelector('.se-paper-controls');
     if (toolbar && paperControls) {
         paperControls.classList.add('se-paper-controls-inline');
-        toolbar.append(paperControls);
+        document.getElementById('se-page-tools')?.append(paperControls);
     }
+    // A faixa rápida permanece fixa abaixo do cabeçalho; as demais opções
+    // ficam num painel rolável que não altera o espaço reservado à folha.
+    const toolbarToggle = document.getElementById('se-toolbar-more');
+    const toolbarDrawer = document.getElementById('se-toolbar-extra');
+    const toolbarSpacer = document.getElementById('se-toolbar-spacer');
+    const setToolbarExpanded = expanded => {
+        if (!toolbar || !toolbarDrawer || !toolbarToggle) return;
+        toolbar.dataset.expanded = String(expanded);
+        toolbarDrawer.hidden = !expanded;
+        toolbarToggle.setAttribute('aria-expanded', String(expanded));
+        toolbarToggle.setAttribute('aria-label', expanded ? 'Recolher ferramentas' : 'Mostrar todas as ferramentas');
+        toolbarToggle.title = expanded ? 'Recolher ferramentas' : 'Mais ferramentas';
+        toolbarToggle.querySelector('span').textContent = expanded ? 'Recolher' : 'Ferramentas';
+    };
+    const syncToolbarLayout = () => {
+        if (!toolbar) return;
+        const measuredHeader = header?.getBoundingClientRect().height || 66;
+        document.documentElement.style.setProperty('--se-header-offset', `${measuredHeader}px`);
+        if (toolbarSpacer) toolbarSpacer.style.height = `${toolbar.querySelector('.se-quick')?.offsetHeight || 56}px`;
+        toolbar.style.setProperty('--se-available-height', `${Math.max(160, window.innerHeight - measuredHeader - 72)}px`);
+    };
+    toolbarToggle?.addEventListener('click', () => setToolbarExpanded(toolbar.dataset.expanded !== 'true'));
+    document.addEventListener('keydown', event => {
+        if (event.key !== 'Escape' || toolbar?.dataset.expanded !== 'true') return;
+        if (document.querySelector('dialog[open]')) return;
+        event.preventDefault();
+        setToolbarExpanded(false);
+        toolbarToggle?.focus();
+    });
+    document.addEventListener('pointerdown', event => {
+        if (toolbar?.dataset.expanded === 'true' && !toolbar.contains(event.target)) setToolbarExpanded(false);
+    });
+    if (toolbar && 'ResizeObserver' in window) {
+        new ResizeObserver(syncToolbarLayout).observe(toolbar.querySelector('.se-quick'));
+        if (header) new ResizeObserver(syncToolbarLayout).observe(header);
+    }
+    window.addEventListener('resize', syncToolbarLayout, {passive:true});
+    syncToolbarLayout();
     // Dialogs have their own scroll viewport; close actions must work with mouse and touch.
     document.querySelectorAll('[data-se-close]').forEach(button => button.addEventListener('click', () => {
         document.getElementById(button.dataset.seClose)?.close();
@@ -751,11 +975,6 @@ dialog.se-sheet:is(#se-settings,#se-letter-data)[open]{display:flex!important;fl
         });
         sheet.addEventListener('close', () => document.activeElement?.blur?.());
     });
-    const shortcutHint = document.createElement('span');
-    shortcutHint.className = 'se-toolbar-hint';
-    shortcutHint.textContent = 'Formatação';
-    shortcutHint.setAttribute('aria-hidden', 'true');
-    toolbar?.prepend(shortcutHint);
 
     function checkpoint() {
         if (!config.recoveryKey) return;
