@@ -61,63 +61,239 @@
 @endphp
 
 @push('styles')
+@once
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css">
+@endonce
 <style>
-    .se-shell{width:min(1440px,100%);margin:0 auto;display:grid;gap:.7rem;color:var(--color-text)}
-    .se-head{position:sticky;top:0;z-index:41;background:var(--color-surface);border-bottom:1px solid var(--color-border);padding-top:env(safe-area-inset-top)}
-    .se-head-inner{max-width:1440px;margin-inline:auto;min-height:58px;display:flex;align-items:center;justify-content:space-between;gap:.45rem;padding:.35rem .75rem}
-    .se-title-wrap{display:flex;align-items:center;gap:.55rem;min-width:0;flex:1}.se-icon-btn,.se-btn{min-height:38px;border:1px solid var(--color-border);border-radius:6px;background:var(--color-bg);color:inherit;display:inline-flex;align-items:center;justify-content:center;gap:.38rem;cursor:pointer;font:inherit;font-size:.78rem;font-weight:700}.se-icon-btn{width:38px;padding:0;flex:0 0 38px}.se-btn{padding:.45rem .7rem}.se-btn-primary{background:var(--color-primary);border-color:var(--color-primary);color:#fff}.se-btn-danger{color:var(--color-danger);border-color:color-mix(in srgb,var(--color-danger) 35%,var(--color-border))}.se-btn:disabled,.se-icon-btn:disabled{opacity:.48;cursor:not-allowed}
-    .se-title{width:100%;max-width:560px;border:0;background:transparent;color:inherit;font:700 .98rem/1.2 inherit;outline:none;padding:.35rem}.se-state{font-size:.7rem;color:var(--color-text-secondary);white-space:nowrap}.se-actions{display:flex;align-items:center;gap:.4rem}
-    .se-workspace{display:grid;grid-template-columns:minmax(0,1fr)}.se-main{min-width:0;border:1px solid var(--color-border);border-radius:8px;background:var(--color-surface);overflow:visible}.se-toolbar{display:flex;align-items:center;gap:.22rem;padding:.45rem;overflow-x:auto;border-bottom:1px solid var(--color-border);position:sticky;top:var(--app-header-rendered-height,58px);z-index:20;background:color-mix(in srgb,var(--color-surface) 94%,transparent);backdrop-filter:blur(12px)}
-    .se-tool{width:34px;height:34px;flex:0 0 34px;border:0;border-radius:5px;background:transparent;color:inherit;display:grid;place-items:center;cursor:pointer}.se-tool:hover,.se-tool:focus-visible{background:var(--color-bg)}.se-tool i,.se-icon-btn i,.se-btn i{width:16px;height:16px}.se-divider{width:1px;height:22px;background:var(--color-border);margin:0 .15rem;flex:0 0 1px}.se-select{height:34px;border:1px solid var(--color-border);border-radius:5px;background:var(--color-bg);color:inherit;padding:0 .45rem;font-size:.75rem}
-    .se-page-wrap{padding:1.1rem;background:var(--color-bg);overflow:auto}.se-page{box-sizing:border-box;width:min(210mm,100%);min-height:297mm;margin:0 auto;padding:20mm 18mm;background:#fff;color:#20242a;box-shadow:0 3px 18px rgba(0,0,0,.12);font:14px/1.58 Arial,sans-serif;outline:none}.se-page[data-paper="landscape"]{width:min(297mm,100%);min-height:210mm}.se-page h1{font-size:24px}.se-page h2{font-size:20px}.se-page h3{font-size:17px}.se-page table{width:100%;border-collapse:collapse}.se-page td,.se-page th{border:1px solid #999;padding:5px}.se-page img{max-width:100%;height:auto}.se-page:empty:before{content:'Comece a escrever...';color:#8a9099}
-    .se-side{display:grid;gap:.6rem;position:sticky;top:calc(var(--header-height,64px) + 4.9rem)}.se-panel{border:1px solid var(--color-border);border-radius:8px;background:var(--color-surface);overflow:hidden}.se-panel summary{cursor:pointer;list-style:none;padding:.72rem .8rem;font-weight:800;font-size:.78rem;display:flex;align-items:center;justify-content:space-between}.se-panel summary::-webkit-details-marker{display:none}.se-panel-body{display:grid;gap:.62rem;padding:0 .8rem .8rem;border-top:1px solid var(--color-border)}.se-field{display:grid;gap:.28rem;padding-top:.6rem}.se-field label,.se-label{font-size:.7rem;font-weight:750;color:var(--color-text-secondary)}.se-control{width:100%;min-height:38px;border:1px solid var(--color-border);border-radius:6px;background:var(--color-bg);color:inherit;padding:.45rem .55rem;font:inherit;font-size:.78rem}.se-checks{display:grid;gap:.3rem;max-height:245px;overflow:auto}.se-check{display:flex;align-items:flex-start;gap:.48rem;padding:.38rem;border-radius:5px;font-size:.75rem}.se-check:hover{background:var(--color-bg)}.se-check input{margin-top:.1rem}
-    .se-mini-editor{min-height:110px;max-height:260px;overflow:auto;border:1px solid var(--color-border);border-radius:6px;background:#fff;color:#20242a;padding:.55rem;font:12px/1.45 Arial,sans-serif;outline:none}.se-mini-editor:focus{border-color:var(--color-primary)}
-    .se-vars{display:grid;gap:.5rem}.se-var-group strong{display:block;margin-bottom:.28rem;font-size:.7rem;color:var(--color-text-secondary)}.se-var-list{display:flex;flex-wrap:wrap;gap:.28rem}.se-var{max-width:100%;border:1px solid var(--color-border);border-radius:5px;background:var(--color-bg);color:inherit;padding:.3rem .4rem;font:600 .68rem/1.2 monospace;cursor:pointer;overflow:hidden;text-overflow:ellipsis}.se-var:hover{border-color:var(--color-primary)}
-    .se-suggest{position:fixed;z-index:90;width:min(340px,calc(100vw - 24px));max-height:230px;overflow:auto;border:1px solid var(--color-border);border-radius:7px;background:var(--color-surface);box-shadow:0 12px 35px rgba(0,0,0,.2);padding:.3rem}.se-suggest[hidden]{display:none}.se-suggest button{display:block;width:100%;border:0;border-radius:4px;background:transparent;color:inherit;text-align:left;padding:.48rem;font-size:.73rem;cursor:pointer}.se-suggest button:hover,.se-suggest button:focus{background:var(--color-bg)}.se-suggest code{display:block;font-size:.68rem;color:var(--color-primary)}
-    .se-delete-confirm{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.65rem;border:1px solid color-mix(in srgb,var(--color-danger) 35%,var(--color-border));border-radius:7px;color:var(--color-danger);font-size:.75rem}.se-loading{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:rgba(15,23,42,.38);backdrop-filter:blur(2px)}.se-loading[hidden]{display:none}.se-loading-box{padding:.8rem 1rem;border-radius:7px;background:var(--color-surface);color:var(--color-text);font-weight:750}.se-toast{position:fixed;right:1rem;bottom:calc(1rem + var(--bottom-nav-height,0px));z-index:10000;max-width:min(380px,calc(100vw - 2rem));padding:.7rem .85rem;border-radius:7px;background:#16261e;color:#fff;font-size:.78rem;box-shadow:0 8px 24px rgba(0,0,0,.24)}.se-toast.error{background:#7f1d1d}
-    dialog.se-dialog{width:min(420px,calc(100vw - 24px));border:1px solid var(--color-border);border-radius:8px;background:var(--color-surface);color:var(--color-text);padding:0;box-shadow:0 18px 50px rgba(0,0,0,.3)}dialog.se-dialog::backdrop{background:rgba(15,23,42,.45)}.se-dialog-body{padding:1rem;display:grid;gap:.7rem}.se-dialog-actions{display:flex;justify-content:flex-end;gap:.4rem}
-    @media(max-width:900px){.se-workspace{grid-template-columns:1fr}.se-side{position:static}.se-head{top:.35rem}.se-toolbar{top:4.7rem}.se-page-wrap{padding:.55rem}.se-page{min-height:70vh;padding:12mm 9mm;box-shadow:none}.se-state{display:none}}
-    @media(max-width:600px){.se-head{align-items:flex-start}.se-actions .se-btn span{display:none}.se-actions .se-btn{width:38px;padding:0}.se-title{font-size:.85rem}.se-toolbar{top:4.55rem}.se-page{font-size:13px;line-height:1.5}.se-page-wrap{overflow:visible}}
-</style>
-<style>
-    .se-state { display:block; white-space:normal }
-    .se-head .ph { font-size:1.1rem }
-    .se-btn-primary { color:var(--campo-brand-ink,#1b341f);background:var(--campo-lime,#d6ef74);border-color:transparent }
-    .se-field-grid { grid-template-columns:repeat(2,minmax(0,1fr)) }
-    .se-letter-details .se-field-grid { grid-template-columns:repeat(4,minmax(0,1fr)) }
-    .se-letter-details .se-full { grid-column:span 2 }
-    .se-full { grid-column:1 / -1 }
-    #se-institutional-layout > details + details { margin-top:.6rem }
-    .se-sheet { width:min(100% - 2rem,540px);max-height:85dvh;overflow:auto;border:1px solid var(--color-border);border-radius:14px;background:var(--color-surface);color:var(--color-text);padding:1rem;margin:auto }
-    .se-sheet::backdrop { background:rgb(10 26 19 / .52) }
-    .se-sheet h2 { margin-bottom:.75rem;font-size:1.1rem;font-weight:750 }
-    .se-sheet-actions { display:flex;flex-wrap:wrap;gap:.45rem;margin-top:1rem }
-    .se-sheet [data-image-choice] { text-align:left;width:100%;justify-content:flex-start;overflow-wrap:anywhere }
-    .se-page figcaption { font-size:.85em }
-    .se-editor-notice { padding:.7rem 1rem;border:1px solid var(--color-border);border-radius:8px;background:var(--color-surface) }
-    .se-page-wrap { min-width:0 }
-    .se-side { position:static; }
-    .se-title { font-family:inherit;font-size:.95rem;font-weight:750;line-height:1.2; }
-    .se-settings-head { position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.65rem;background:var(--color-surface); }
-    .se-settings-head h2 { margin:0; }
-    .se-settings-head form { margin:0; }
-    #se-letter-data,#se-settings { overscroll-behavior:contain; }
-    html:has(#se-letter-data[open],#se-settings[open]) { overflow:hidden; }
-    .se-settings-actions { display:grid;gap:.4rem; }
-    .se-settings-actions > :is(button,a) { justify-content:flex-start; }
-    .se-toolbar-primary .se-tool-label { display:none; }
-    .se-settings-actions > .se-compact-preview { display:none; }
-    .se-document-stage { overflow:auto; }
-    .se-toolbar .se-select { flex:none; width:auto; }
-    .se-toolbar-primary, .se-toolbar-extra { display:contents; }
-    .se-toolbar-more { display:none; }
-    .se-tool[aria-pressed="true"] { color:#203519;background:#d6ef74; }
-    .se-paper-controls { display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.35rem .6rem;border-bottom:1px solid var(--color-border);font-size:.75rem;color:var(--color-text-secondary); }
-    .se-paper-controls .se-select { min-height:40px;max-width:100%; }
-    .se-paper-options { display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.3rem; }
-    .se-sheet [hidden] { display:none; }
-    .se-document-stage { touch-action:pan-x pan-y; }
-    .se-document-stage[data-pan="true"] { touch-action:none; }
+/* SGC Campo — Secretaria | Editor de documentos. Escopo: apenas a view. */
+html:has(.se-shell),body:has(.se-shell){overscroll-behavior-y:none}
+body:has(.se-shell) .bento-container{min-width:0}
+.se-shell,.se-head,.se-sheet,.se-dialog{
+    --se-bg:var(--ui-color-bg,var(--color-bg,#f4f4ef));
+    --se-surface:var(--ui-color-surface,var(--color-surface,#fffefb));
+    --se-subtle:var(--ui-color-surface-soft,var(--color-surface-soft,#f4f5f0));
+    --se-text:var(--ui-color-text,var(--color-text,#202b24));
+    --se-muted:var(--ui-color-text-secondary,var(--color-text-secondary,#637269));
+    --se-border:var(--ui-color-border,var(--color-border,#d9e1d8));
+    --se-strong:var(--ui-color-primary-strong,#173c2e);
+    --se-accent:var(--sgc-accent,var(--campo-lime,#d9f172));
+    --se-on-accent:var(--sgc-on-accent,#20351f);
+    --se-on-strong:#fff;
+    --se-danger:var(--ui-color-danger,#b73b45);
+    --se-danger-soft:var(--ui-color-danger-soft,#fff1f0);
+    --se-warning:var(--ui-color-warning,#a66913);
+    --se-focus:var(--ui-color-focus,#567e68);
+    color:var(--se-text);
+}
+html[data-theme="dark"] :is(.se-shell,.se-head,.se-sheet,.se-dialog),
+[data-theme="dark"] :is(.se-shell,.se-head,.se-sheet,.se-dialog){
+    --se-bg:#111418;--se-surface:#191e24;--se-subtle:#222a30;--se-text:#edf2f6;
+    --se-muted:#a7b2b7;--se-border:#344048;--se-strong:#e7c87d;
+    --se-accent:#e7c87d;--se-on-accent:#201e17;--se-on-strong:#201e17;
+    --se-danger:#f18c94;--se-danger-soft:#412a2e;--se-warning:#e7bc72;--se-focus:#e7c87d;
+    color-scheme:dark;
+}
+.se-shell *, .se-shell *::before,.se-shell *::after,.se-head *, .se-head *::before,.se-sheet *,.se-dialog *{box-sizing:border-box}
+.se-shell [hidden],.se-head [hidden],.se-sheet [hidden],.se-dialog [hidden]{display:none!important}
+.se-shell{display:grid;grid-column:1/-1;width:100%;max-width:none;min-width:0;gap:0;margin:0;padding:0 0 2rem;color:var(--se-text)}
+.se-head{position:sticky;z-index:62;top:0;width:100%;background:var(--se-surface);border-bottom:1px solid var(--se-border);padding-top:env(safe-area-inset-top);box-shadow:0 2px 10px #00000005}
+.se-head-inner{display:flex;align-items:center;justify-content:space-between;gap:.9rem;min-height:66px;width:100%;max-width:1920px;margin:auto;padding:.45rem clamp(.7rem,2vw,1.65rem)}
+.se-title-wrap{display:flex;align-items:center;gap:.72rem;flex:1 1 auto;min-width:0}
+.se-name-block{flex:1;min-width:0;display:grid;gap:2px}
+.se-context{display:block;color:var(--se-muted);font-size:.67rem;font-weight:670;letter-spacing:.025em;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.se-context strong{color:var(--se-strong);font-weight:760}
+.se-title{display:block;width:100%;max-width:700px;min-width:0;min-height:28px;margin:0!important;padding:2px 6px!important;border:1px solid transparent!important;border-radius:6px!important;background:transparent!important;color:var(--se-text)!important;box-shadow:none!important;outline:0!important;font-family:inherit!important;font-size:clamp(.96rem,1.3vw,1.08rem)!important;font-weight:750!important;line-height:1.3!important;text-overflow:ellipsis}
+.se-title:focus{border-color:var(--se-border)!important;background:var(--se-subtle)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--se-focus) 16%,transparent)!important}
+.se-state-line{display:flex;align-items:center;min-height:16px;gap:5px;padding-left:6px;min-width:0}
+.se-state-dot{width:6px;height:6px;flex:0 0 6px;border-radius:50%;background:#4a9876}
+.se-state-line[data-document-status="cancelled"] .se-state-dot{background:var(--se-danger)}
+.se-state-line[data-document-status="issued"] .se-state-dot{background:#5685b6}
+.se-state-line:has(.se-state[data-se-save="dirty"]) .se-state-dot{background:var(--se-warning)}
+.se-state-line:has(.se-state[data-se-save="error"]) .se-state-dot{background:var(--se-danger)}
+.se-state-line:has(.se-state[data-se-save="saving"]) .se-state-dot{background:#5685b6;animation:se-pulse 1.2s ease-in-out infinite}
+.se-state{display:block;min-width:0;max-width:100%;font-size:.67rem;color:var(--se-muted);line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.se-actions{display:flex;flex:0 0 auto;align-items:center;gap:.38rem}
+.se-icon-btn,.se-btn,.se-tool,.se-select,.se-control,.se-var{font-family:inherit}
+.se-icon-btn,.se-btn{display:inline-flex;align-items:center;justify-content:center;gap:.44rem;min-height:42px;border:1px solid var(--se-border);border-radius:9px;background:var(--se-surface);color:var(--se-text);font-size:.78rem;font-weight:730;line-height:1.2;text-decoration:none;white-space:nowrap;cursor:pointer;transition:background-color .14s ease,border-color .14s ease,transform .14s ease}
+.se-icon-btn{height:42px;width:42px;padding:0;flex:0 0 42px}
+.se-btn{padding:.48rem .82rem}
+:is(.se-icon-btn,.se-btn):hover:not(:disabled){background:var(--se-subtle);border-color:color-mix(in srgb,var(--se-strong) 22%,var(--se-border))}
+:is(.se-icon-btn,.se-btn):active:not(:disabled){transform:scale(.975)}
+.se-btn-primary,.se-btn-primary:hover:not(:disabled){background:var(--se-strong);color:var(--se-on-strong);border-color:var(--se-strong)}
+.se-head .se-btn-primary{background:var(--se-strong);color:var(--se-on-strong);border-color:var(--se-strong)}
+html[data-theme="dark"] .se-head .se-btn-primary{background:var(--se-accent);border-color:var(--se-accent);color:var(--se-on-accent)}
+.se-btn-danger{color:var(--se-danger);border-color:color-mix(in srgb,var(--se-danger) 27%,var(--se-border));background:var(--se-surface)}
+.se-btn-danger:hover:not(:disabled){background:var(--se-danger-soft)!important;color:var(--se-danger)}
+.se-btn:disabled,.se-icon-btn:disabled,.se-tool:disabled{opacity:.45;cursor:not-allowed}
+.se-head :is(.ph,.ph-fill),.se-shell :is(.ph,.ph-fill),.se-sheet :is(.ph,.ph-fill),.se-dialog :is(.ph,.ph-fill){font-size:1.18rem;line-height:1;flex:0 0 auto}
+.se-shell :is(button,a,input,select,textarea,[contenteditable]):focus-visible,
+.se-head :is(button,a,input):focus-visible,.se-sheet :is(button,a,input,textarea,select):focus-visible,
+.se-dialog :is(button,a,input):focus-visible{outline:2px solid var(--se-focus);outline-offset:2px}
+.se-workspace{display:grid;grid-template-columns:minmax(0,1fr);width:100%;min-width:0}
+.se-main{min-width:0;width:100%;background:var(--se-bg);overflow:visible}
+.se-toolbar{display:flex;align-items:center;justify-content:center;gap:0;min-height:54px;padding:6px clamp(.5rem,2vw,1.5rem);overflow-x:auto;scrollbar-width:thin;border:0;border-bottom:1px solid var(--se-border);background:var(--se-surface);position:sticky;top:var(--se-header-offset,66px);z-index:41;box-shadow:0 3px 8px #00000005;overscroll-behavior-x:contain}
+.se-toolbar-primary,.se-toolbar-extra{display:flex;align-items:center;gap:3px;min-width:0}
+.se-toolbar-primary{flex:0 0 auto}
+.se-toolbar-more{display:none!important}
+.se-tool{display:inline-flex;align-items:center;justify-content:center;min-width:38px;height:38px;flex:0 0 38px;padding:0;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--se-text);cursor:pointer;transition:background-color .14s ease,color .14s ease}
+.se-tool:hover,.se-tool:focus-visible{background:var(--se-subtle)}
+.se-tool[aria-pressed="true"]{background:var(--se-accent);color:var(--se-on-accent)}
+.se-tool-label{display:none}
+.se-divider{width:1px;height:21px;flex:0 0 1px;background:var(--se-border);margin:0 .3rem}
+.se-toolbar .se-select{min-height:38px;max-width:146px;flex:0 0 auto;padding:0 .55rem;border:1px solid var(--se-border);border-radius:8px;background:var(--se-subtle);color:var(--se-text);font-size:.76rem;cursor:pointer}
+.se-toolbar input[type="color"]{appearance:none;width:38px;height:38px;padding:7px;flex:0 0 38px;overflow:hidden}
+.se-toolbar input[type="color"]::-webkit-color-swatch-wrapper{padding:0}
+.se-toolbar input[type="color"]::-webkit-color-swatch{border:1px solid var(--se-border);border-radius:5px}
+.se-page-wrap,.se-document-stage{width:100%;min-width:0;padding:clamp(1rem,2.8vw,2.6rem);background:var(--se-bg);overflow:auto;overscroll-behavior:contain}
+.se-page{box-sizing:border-box;width:min(210mm,100%);min-height:297mm;margin:0 auto;padding:20mm 18mm;border:1px solid #e0e4df;background:#fff;color:#20242a;box-shadow:0 4px 26px #12261b15;font:14px/1.6 Arial,sans-serif;outline:0;overflow-wrap:anywhere;word-break:normal}
+.se-page[data-paper="landscape"]{width:min(297mm,100%);min-height:210mm}
+.se-page:focus-within{box-shadow:0 5px 28px #12261b20,0 0 0 1px #849d8b}
+.se-page h1{font-size:24px}.se-page h2{font-size:20px}.se-page h3{font-size:17px}
+.se-page table{width:100%;table-layout:fixed;border-collapse:collapse}
+.se-page td,.se-page th{border:1px solid #999;padding:5px;overflow-wrap:anywhere}
+.se-page img{max-width:100%;height:auto}
+.se-page:empty:before{content:'Comece a escrever…';color:#87938d}
+.se-editor-notice{margin:1rem;padding:.8rem .95rem;border:1px solid var(--se-border);border-left:3px solid var(--se-warning);border-radius:10px;background:var(--se-surface);color:var(--se-text);font-size:.85rem}
+.se-editor-notice .se-btn{margin-top:.6rem}
+.se-paper-controls{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.55rem;min-height:49px;padding:.42rem .8rem;border-bottom:1px solid var(--se-border);background:var(--se-surface);color:var(--se-muted);font-size:.74rem}
+.se-paper-options{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:.35rem}
+.se-paper-controls .se-select{min-height:38px;max-width:100%;padding:.35rem .5rem;border:1px solid var(--se-border);border-radius:8px;background:var(--se-subtle);color:var(--se-text);font-size:.76rem}
+.se-document-stage[data-pan="true"]{touch-action:none}
+.se-side{position:static;display:grid;gap:.6rem;min-width:0}
+.se-panel{min-width:0;overflow:hidden;border:1px solid var(--se-border);border-radius:10px;background:var(--se-surface)}
+.se-panel>summary{display:flex;align-items:center;justify-content:space-between;min-height:48px;gap:.5rem;padding:.72rem .85rem;list-style:none;cursor:pointer;color:var(--se-text);font-size:.83rem;font-weight:770}
+.se-panel>summary::-webkit-details-marker{display:none}
+.se-panel>summary :is(.ph,.ph-fill){font-size:1rem;color:var(--se-muted);transition:transform .15s ease}
+.se-panel[open]>summary :is(.ph,.ph-fill){transform:rotate(180deg)}
+.se-panel-body{display:grid;gap:.65rem;min-width:0;padding:.75rem .85rem .85rem;border-top:1px solid var(--se-border)}
+.se-field{display:grid;gap:.3rem;min-width:0}
+.se-field label,.se-label,.se-field>span{font-size:.72rem;font-weight:730;color:var(--se-muted)}
+.se-field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem}
+.se-letter-details .se-field-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.se-letter-details .se-full{grid-column:span 2}
+.se-full{grid-column:1/-1}
+.se-control{display:block;width:100%;min-width:0;min-height:44px;padding:.58rem .7rem;border:1px solid var(--se-border);border-radius:9px;background:var(--se-subtle);color:var(--se-text);font-size:.82rem;line-height:1.35;outline:0}
+.se-control:focus{border-color:var(--se-focus);box-shadow:0 0 0 3px color-mix(in srgb,var(--se-focus) 15%,transparent)}
+.se-control:disabled{opacity:.6}
+.se-sheet :is(input:not([type="checkbox"]),select,textarea).se-control{background:var(--se-subtle)!important;color:var(--se-text)!important;border:1px solid var(--se-border)!important;border-radius:9px!important;box-shadow:none!important;min-height:44px!important}
+.se-sheet :is(input:not([type="checkbox"]),select,textarea).se-control:focus{border-color:var(--se-focus)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--se-focus) 15%,transparent)!important}
+.se-checks{display:grid;gap:.3rem;max-height:245px;overflow:auto}
+.se-check{display:flex;align-items:flex-start;gap:.52rem;min-height:34px;padding:.38rem;border-radius:7px;color:var(--se-text);font-size:.79rem}
+.se-check:hover{background:var(--se-subtle)}
+.se-check input{width:17px;height:17px;flex:0 0 17px;margin:2px 0 0;accent-color:var(--se-strong)}
+.se-mini-editor{min-height:110px;max-height:260px;overflow:auto;padding:.7rem;border:1px solid var(--se-border);border-radius:9px;background:#fff;color:#20242a;font:13px/1.5 Arial,sans-serif;outline:0}
+.se-mini-editor:focus{border-color:var(--se-focus)}
+.se-vars{display:grid;gap:.7rem}.se-var-group strong{display:block;margin-bottom:.32rem;color:var(--se-muted);font-size:.72rem}
+.se-var-list{display:flex;flex-wrap:wrap;gap:.35rem}
+.se-var{max-width:100%;min-height:33px;padding:.36rem .52rem;border:1px solid var(--se-border);border-radius:7px;background:var(--se-subtle);color:var(--se-text);font:650 .72rem/1.2 monospace;cursor:pointer;overflow-wrap:anywhere}
+.se-var:hover{border-color:var(--se-focus)}
+.se-suggest{position:fixed;z-index:110;width:min(360px,calc(100vw - 24px));max-height:235px;overflow:auto;border:1px solid var(--se-border);border-radius:10px;background:var(--se-surface);box-shadow:0 14px 36px #0003;padding:.35rem}
+.se-suggest[hidden]{display:none}
+.se-suggest button{display:block;width:100%;padding:.55rem .65rem;border:0;border-radius:7px;background:transparent;color:var(--se-text);text-align:left;font:inherit;font-size:.79rem;cursor:pointer}
+.se-suggest button:hover,.se-suggest button:focus{background:var(--se-subtle)}
+.se-suggest code{display:block;margin-top:.13rem;font-size:.7rem;color:var(--se-strong)}
+.se-delete-confirm{display:flex;align-items:center;justify-content:space-between;gap:.55rem;padding:.65rem;border:1px solid var(--se-danger);border-radius:9px;color:var(--se-danger);font-size:.78rem}
+.se-settings-head{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:.55rem;min-height:61px;margin:0 0 .7rem;padding:.25rem 0;border-bottom:1px solid var(--se-border);background:var(--se-surface)}
+.se-settings-head h2{margin:0!important;font-size:1rem!important;line-height:1.3;font-weight:780}
+.se-settings-head form{margin:0}
+.se-settings-actions{display:grid;gap:.38rem;margin-top:.45rem;padding-top:.8rem;border-top:1px solid var(--se-border)}
+.se-settings-actions>:is(button,a){justify-content:flex-start;min-height:45px}
+.se-settings-actions>.se-compact-preview{display:none}
+.se-sheet{display:block;width:min(100% - 24px,600px);max-width:none;max-height:min(90dvh,940px);margin:auto;padding:.85rem 1rem 1rem;overflow:auto;overscroll-behavior:contain;border:1px solid var(--se-border);border-radius:14px;background:var(--se-surface);color:var(--se-text);box-shadow:0 30px 75px #0004}
+.se-sheet:not([open]){display:none}
+.se-sheet::backdrop,.se-dialog::backdrop{background:rgba(9,20,17,.62)}
+.se-sheet h2{margin:0 0 .75rem;color:var(--se-text);font-size:1.05rem;font-weight:780}
+.se-sheet-actions{display:flex;flex-wrap:wrap;gap:.4rem;justify-content:flex-end;margin-top:1rem}
+.se-sheet [data-image-choice]{width:100%;justify-content:flex-start;text-align:left;overflow-wrap:anywhere;white-space:normal}
+.se-sheet #se-image-results{display:grid;gap:.35rem;max-height:54dvh;overflow:auto}
+.se-dialog{width:min(100% - 24px,460px);max-width:none;max-height:90dvh;margin:auto;padding:0;border:1px solid var(--se-border);border-radius:13px;background:var(--se-surface);color:var(--se-text);box-shadow:0 30px 75px #0004}
+.se-dialog:not([open]){display:none}
+.se-dialog-body{display:grid;gap:.75rem;padding:1.05rem}
+.se-dialog-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:.4rem}
+.se-loading{position:fixed;z-index:9999;inset:0;display:grid;place-items:center;background:#0a18197a;backdrop-filter:blur(2px)}
+.se-loading[hidden]{display:none}
+.se-loading-box{padding:.8rem 1rem;border-radius:10px;background:var(--se-surface);color:var(--se-text);font-weight:770;box-shadow:0 12px 35px #0003}
+.se-toast{position:fixed;z-index:10000;right:max(1rem,env(safe-area-inset-right));bottom:calc(1rem + env(safe-area-inset-bottom));max-width:min(400px,calc(100vw - 2rem));padding:.75rem .9rem;border:1px solid #4c6a57;border-radius:10px;background:#173c2e;color:#fff;font-size:.81rem;line-height:1.45;box-shadow:0 12px 30px #0003}
+.se-toast.error{border-color:#922b34;background:#70292e}
+.se-help{color:var(--se-muted);font-size:.76rem;line-height:1.45}
+.se-toolbar:focus-within{scrollbar-color:var(--se-border) transparent}
+@keyframes se-pulse{50%{opacity:.36}}
+@media(min-width:1100px){
+ .se-head-inner{min-height:69px}
+ .se-toolbar{top:var(--se-header-offset,69px);justify-content:flex-start}
+ .se-page-wrap,.se-document-stage{padding:clamp(1.4rem,2.8vw,3rem)}
+ .se-letter-details .se-field-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+@media(max-width:1099px){
+ .se-toolbar{justify-content:flex-start}
+ .se-actions .se-btn{padding-inline:.7rem}
+}
+@media(max-width:1023px){
+ body:has(.se-shell) .bento-container{padding-bottom:calc(6.2rem + env(safe-area-inset-bottom))}
+ .se-shell{padding-bottom:calc(5.9rem + env(safe-area-inset-bottom))}
+ .se-toolbar{position:fixed;z-index:100;inset:auto 0 var(--se-keyboard-inset,0px);display:flex;flex-direction:column;justify-content:flex-start;gap:0;min-height:0;max-height:min(64dvh,380px);padding:0 0 env(safe-area-inset-bottom);overflow:auto;border:0;border-top:1px solid var(--se-border);background:var(--se-surface);box-shadow:0 -5px 25px #00000016;overscroll-behavior:contain}
+ .se-toolbar-primary{display:grid;width:min(100%,610px);grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;margin-inline:auto;padding:5px max(6px,env(safe-area-inset-right)) 5px max(6px,env(safe-area-inset-left))}
+ .se-toolbar-primary .se-tool{display:grid;grid-template-rows:22px auto;justify-items:center;align-content:center;gap:4px;width:100%;height:56px;min-width:0;min-height:56px;border-radius:9px}
+ .se-toolbar-primary .se-tool-label{display:block;font-size:.67rem;font-weight:680;line-height:1.1;white-space:nowrap}
+ .se-toolbar-more{display:grid!important}
+ .se-toolbar-extra{display:none!important}
+ #se-format-toolbar[data-expanded="true"] .se-toolbar-extra{display:flex!important;order:-1;flex-wrap:wrap;justify-content:center;align-items:center;gap:.3rem;padding:.6rem max(.65rem,env(safe-area-inset-right));border-bottom:1px solid var(--se-border);max-height:260px;overflow-y:auto}
+ .se-toolbar-extra .se-tool{width:43px;height:43px;min-width:43px;flex-basis:43px}
+ .se-toolbar-extra .se-select{min-height:43px}
+ .se-toolbar .se-divider{display:none}
+ .se-head-inner{min-height:60px}
+ .se-page-wrap,.se-document-stage{padding:clamp(.5rem,1.8vw,1rem)}
+ .se-sheet{width:min(100% - 16px,600px)}
+ .se-toast{bottom:calc(6rem + var(--se-keyboard-inset,0px) + env(safe-area-inset-bottom))}
+}
+@media(max-width:700px){
+ .se-head-inner{gap:.3rem;min-height:58px;padding:.28rem max(.45rem,env(safe-area-inset-left)) .32rem max(.45rem,env(safe-area-inset-right))}
+ .se-title-wrap{gap:.38rem}
+ .se-title-wrap>.se-icon-btn{width:42px;flex-basis:42px}
+ .se-context{display:none}
+ .se-title{min-height:24px;font-size:.9rem!important}
+ .se-state{font-size:.62rem}
+ .se-actions{gap:.22rem}
+ .se-actions .se-btn{width:42px;height:42px;min-width:42px;padding:0}
+ .se-actions .se-btn span{display:none}
+ .se-page{min-height:72dvh;padding:11mm 9mm;font-size:14px;line-height:1.56;box-shadow:0 3px 12px #0000000c}
+ .se-page-wrap{padding:.4rem 0}
+ .se-main{background:var(--se-bg)}
+ .se-paper-controls{padding:.4rem .55rem}
+ .se-paper-options{justify-content:flex-start}
+ .se-sheet{position:fixed;inset:auto 0 0;width:100%;max-width:none;max-height:min(90dvh,850px);margin:0;padding:.6rem .85rem calc(1rem + env(safe-area-inset-bottom));border-width:1px 0 0;border-radius:17px 17px 0 0;box-shadow:0 -12px 40px #0004}
+ .se-sheet:not([open]){display:none}
+ .se-settings-head{padding:.45rem 0}
+ .se-letter-details .se-field-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .se-dialog{width:min(100% - 16px,460px)}
+ .se-sheet-actions .se-btn{flex:1 1 auto;white-space:normal;min-height:44px}
+}
+@media(max-width:440px){
+ .se-actions #se-preview{display:none}
+ .se-settings-actions>.se-compact-preview{display:inline-flex}
+}
+@media(max-width:390px){
+ .se-head-inner{gap:.15rem}
+ .se-title-wrap{gap:.2rem}
+ .se-actions{gap:.1rem}
+ .se-actions .se-btn,.se-title-wrap>.se-icon-btn{min-width:40px;width:40px;height:40px;flex-basis:40px}
+ .se-title{font-size:.83rem!important}
+ .se-state-line{padding-left:3px}
+ .se-page{padding:8mm 6mm;line-height:1.5}
+ .se-toolbar-primary .se-tool-label{font-size:.63rem}
+ .se-sheet{padding-inline:.65rem}
+ .se-letter-details .se-field-grid{grid-template-columns:1fr}
+ .se-letter-details .se-full{grid-column:auto}
+ .se-field-grid{grid-template-columns:1fr}
+ .se-full{grid-column:auto}
+}
+@media(prefers-reduced-motion:reduce){
+ .se-head :is(button,a),.se-shell :is(button,a),.se-dialog :is(button,a),.se-sheet :is(button,a){transition:none!important}
+ .se-state-dot{animation:none!important}
+}
+
+/* Formatação de papel e ofício preservada do editor original */
     .se-inline-field { white-space:pre-wrap;outline:none;border-radius:.15em;overflow-wrap:anywhere; }
     .se-inline-field:empty::before { content:attr(data-hint);color:#526057;font-weight:400; }
     .se-inline-field:focus-visible,.se-date-picker:focus-within { outline:2px solid #507656;outline-offset:3px;background:#eff6ec; }
@@ -169,41 +345,11 @@
     .se-paper-end { display:flex;flex:1;flex-direction:column;padding-top:var(--letter-spacing,6pt) }
     .se-paper-footer { margin-top:auto;padding-top:5mm;text-align:center;font-size:.72em;color:#333 }
     .se-paper-footer p + p { margin-top:2mm }
-    @media(max-width:1023px) {
-        body:has(#se-format-toolbar) .bento-container { padding-bottom:calc(4.5rem + env(safe-area-inset-bottom)); }
-        #se-format-toolbar { position:fixed;inset:auto 0 var(--se-keyboard-inset,0px);z-index:100;display:flex;flex-direction:column;gap:0;max-height:min(50dvh,18rem);padding:0 0 env(safe-area-inset-bottom);overflow:auto;border:0;border-top:1px solid var(--color-border);background:var(--color-surface);box-shadow:0 -3px 18px #0002; }
-        .se-toolbar-primary { display:grid;grid-template-columns:repeat(5,minmax(0,1fr));width:min(100%,38rem);margin:auto;padding:.2rem max(.25rem,env(safe-area-inset-right)) .25rem max(.25rem,env(safe-area-inset-left));gap:.12rem; }
-        .se-toolbar-primary .se-tool-label { display:block;font-size:.64rem;line-height:1.05; }
-        #se-format-toolbar .se-toolbar-primary .se-tool { grid-template-rows:auto auto;align-content:center;gap:.2rem;height:50px;border-radius:.55rem; }
-        .se-toolbar-primary .se-tool svg,.se-toolbar-primary .se-tool i { width:18px;height:18px;font-size:1.1rem; }
-        .se-toolbar-more { display:grid; }
-        .se-toolbar-extra { display:none; }
-        #se-format-toolbar[data-expanded="true"] .se-toolbar-extra { order:-1;display:flex;flex-wrap:wrap;gap:.25rem;padding:.5rem;border-bottom:1px solid var(--color-border); }
-        #se-format-toolbar .se-tool { min-width:0;width:100%;height:44px; }
-        #se-format-toolbar .se-toolbar-extra .se-tool { width:44px;flex-basis:44px; }
-        #se-format-toolbar .se-select { height:44px; }
-        #se-format-toolbar .se-divider { display:none; }
-    }
-    @media(max-width:900px) {
-        .se-page { --se-placeholder-left:9mm;--se-placeholder-top:12mm; }
-        .se-side { position:static;max-height:none;overflow:visible }
-        .se-letter-details .se-field-grid { gap:.4rem;grid-template-columns:repeat(2,minmax(0,1fr)) }
-        .se-page-wrap.se-document-stage { overflow:auto; }
-    }
-    @media(max-width:600px) {
-        .se-head { top:0; }
-        .se-head-inner { padding-inline:max(.4rem,env(safe-area-inset-left)); }
-        .se-actions { flex-wrap:nowrap;gap:.18rem; }
-        .se-actions .se-btn,.se-title-wrap .se-icon-btn { width:44px;min-height:44px;flex-basis:44px; }
-        .se-title-wrap { gap:.2rem; }
-        .se-title { padding:.2rem; }
-        .se-state { font-size:.62rem; }
-        .se-sheet { width:100%;max-width:100%;margin:auto 0 0;border-radius:16px 16px 0 0;padding-bottom:calc(1rem + env(safe-area-inset-bottom)) }
-    }
-    @media(max-width:380px) {
-        .se-actions #se-preview { display:none; }
-        .se-settings-actions > .se-compact-preview { display:inline-flex; }
-    }
+
+    .se-document-paper{border:1px solid #dce0d9;box-shadow:0 4px 26px #12261b1a}
+    .se-document-paper :is(input,textarea){color:#151515}
+    .se-layout-paper{max-width:100%}
+
 </style>
 @endpush
 
@@ -212,9 +358,10 @@
         <div class="se-head-inner">
         <div class="se-title-wrap">
             <a class="se-icon-btn" href="{{ route('secretary.index', ['tenant' => $tenant->slug, 'section' => $isLayout ? 'layouts' : ($isTemplate ? 'templates' : 'documents')]) }}" title="Voltar" aria-label="Voltar"><i class="ph ph-arrow-left" aria-hidden="true"></i></a>
-            <div style="min-width:0;flex:1">
-                <input id="se-title" class="se-title" maxlength="220" value="{{ ($isTemplate || $isLayout) ? ($record['name'] ?? '') : ($record['title'] ?? '') }}" aria-label="Título do documento" @readonly($closed)>
-                <div class="se-state" id="se-state" role="status">{{ match($record['status'] ?? null) { 'issued' => 'Emitido', 'cancelled' => 'Cancelado', default => $editing ? 'Salvo' : 'Novo rascunho' } }}{{ !empty($record['number']) ? ' · '.$record['number'] : '' }}</div>
+            <div class="se-name-block">
+                <span class="se-context"><strong>Secretaria</strong> / {{ $isLayout ? 'Layout' : ($isTemplate ? 'Modelo' : 'Documento') }}</span>
+                <input id="se-title" class="se-title" type="text" maxlength="220" autocomplete="off" spellcheck="false" value="{{ ($isTemplate || $isLayout) ? ($record['name'] ?? '') : ($record['title'] ?? '') }}" aria-label="Título do documento" @readonly($closed)>
+                <div class="se-state-line" data-document-status="{{ $record['status'] ?? 'draft' }}"><span class="se-state-dot" aria-hidden="true"></span><span class="se-state" id="se-state" role="status" aria-live="polite">{{ match($record['status'] ?? null) { 'issued' => 'Emitido', 'cancelled' => 'Cancelado', default => $editing ? 'Salvo' : 'Novo rascunho' } }}{{ !empty($record['number']) ? ' · '.$record['number'] : '' }}</span></div>
             </div>
         </div>
         <div class="se-actions">
@@ -231,7 +378,7 @@
 <div class="se-shell">
     @if(!empty($record['cancellation']))<p class="se-editor-notice">{{ $record['cancellation'] }}</p>@endif
     <div class="se-workspace">
-        <section class="se-main">
+        <section class="se-main" aria-label="Área de edição do documento">
             @if($archiveOnly)
                 <div class="se-editor-notice">
                     <strong>PDF arquivado</strong>
@@ -248,28 +395,28 @@
                         <button class="se-tool se-toolbar-more" id="se-toolbar-more" type="button" title="Mais ferramentas" aria-label="Mais ferramentas" aria-expanded="false" aria-controls="se-toolbar-extra"><i class="ph ph-text-aa" aria-hidden="true"></i><span class="se-tool-label" aria-hidden="true">Formato</span></button>
                     </div>
                     <div class="se-toolbar-extra" id="se-toolbar-extra">
-                    <button class="se-tool" type="button" data-command="underline" title="Sublinhado" aria-label="Sublinhado"><i data-lucide="underline" aria-hidden="true"></i></button>
-                    <button class="se-tool" type="button" data-command="redo" title="Refazer"><i data-lucide="redo-2"></i></button><span class="se-divider"></span>
+                    <button class="se-tool" type="button" data-command="underline" title="Sublinhado" aria-label="Sublinhado"><i class="ph ph-text-underline" aria-hidden="true"></i></button>
+                    <button class="se-tool" type="button" data-command="redo" title="Refazer"><i class="ph ph-arrow-clockwise" aria-hidden="true"></i></button><span class="se-divider"></span>
                     <select class="se-select" id="se-format" aria-label="Estilo do texto"><option value="p">Texto</option><option value="h1">Título 1</option><option value="h2">Título 2</option><option value="h3">Título 3</option></select>
-                    <button class="se-tool" type="button" data-command="strikeThrough" title="Tachado"><i data-lucide="strikethrough"></i></button><span class="se-divider"></span>
-                    <button class="se-tool" type="button" data-command="justifyLeft" title="Alinhar à esquerda"><i data-lucide="align-left"></i></button>
-                    <button class="se-tool" type="button" data-command="justifyCenter" title="Centralizar"><i data-lucide="align-center"></i></button>
-                    <button class="se-tool" type="button" data-command="justifyRight" title="Alinhar à direita"><i data-lucide="align-right"></i></button>
-                    <button class="se-tool" type="button" data-command="justifyFull" title="Justificar"><i data-lucide="align-justify"></i></button><span class="se-divider"></span>
-                    <button class="se-tool" type="button" data-command="insertOrderedList" title="Lista numerada"><i data-lucide="list-ordered"></i></button>
-                    <button class="se-tool" type="button" id="se-link" title="Inserir link"><i data-lucide="link"></i></button>
-                    <button class="se-tool" type="button" id="se-table" title="Inserir tabela"><i data-lucide="table-2"></i></button>
-                    <button class="se-tool" type="button" id="se-image" title="Inserir imagem"><i data-lucide="image-plus"></i></button>
-                    <button class="se-tool" type="button" id="se-pagebreak" title="Quebra de página"><i data-lucide="between-horizontal-end"></i></button>
-                    <button class="se-tool" type="button" data-command="removeFormat" title="Limpar formatação"><i data-lucide="remove-formatting"></i></button>
+                    <button class="se-tool" type="button" data-command="strikeThrough" title="Tachado"><i class="ph ph-text-strikethrough" aria-hidden="true"></i></button><span class="se-divider"></span>
+                    <button class="se-tool" type="button" data-command="justifyLeft" title="Alinhar à esquerda"><i class="ph ph-text-align-left" aria-hidden="true"></i></button>
+                    <button class="se-tool" type="button" data-command="justifyCenter" title="Centralizar"><i class="ph ph-text-align-center" aria-hidden="true"></i></button>
+                    <button class="se-tool" type="button" data-command="justifyRight" title="Alinhar à direita"><i class="ph ph-text-align-right" aria-hidden="true"></i></button>
+                    <button class="se-tool" type="button" data-command="justifyFull" title="Justificar"><i class="ph ph-text-align-justify" aria-hidden="true"></i></button><span class="se-divider"></span>
+                    <button class="se-tool" type="button" data-command="insertOrderedList" title="Lista numerada"><i class="ph ph-list-numbers" aria-hidden="true"></i></button>
+                    <button class="se-tool" type="button" id="se-link" aria-label="Inserir link" title="Inserir link"><i class="ph ph-link-simple" aria-hidden="true"></i></button>
+                    <button class="se-tool" type="button" id="se-table" aria-label="Inserir tabela" title="Inserir tabela"><i class="ph ph-table" aria-hidden="true"></i></button>
+                    <button class="se-tool" type="button" id="se-image" aria-label="Inserir imagem" title="Inserir imagem"><i class="ph ph-image-square" aria-hidden="true"></i></button>
+                    <button class="se-tool" type="button" id="se-pagebreak" aria-label="Inserir quebra de página" title="Quebra de página"><i class="ph ph-arrows-out-line-vertical" aria-hidden="true"></i></button>
+                    <button class="se-tool" type="button" data-command="removeFormat" title="Limpar formatação"><i class="ph ph-text-aa" aria-hidden="true"></i></button>
                     <button class="se-tool" type="button" data-command="indent" title="Recuar"><i class="ph ph-text-indent"></i></button>
                     <button class="se-tool" type="button" data-command="outdent" title="Diminuir recuo"><i class="ph ph-text-outdent"></i></button>
                     <button class="se-tool" type="button" data-command="insertHorizontalRule" title="Linha horizontal"><i class="ph ph-minus"></i></button>
-                    <button class="se-tool" type="button" id="se-quote" title="Citação"><i class="ph ph-quotes"></i></button>
+                    <button class="se-tool" type="button" id="se-quote" aria-label="Inserir citação" title="Citação"><i class="ph ph-quotes"></i></button>
                     <select class="se-select" id="se-font-size" aria-label="Tamanho da fonte"><option value="">Fonte</option>@foreach([10,12,14,16,18,24] as $pt)<option value="{{ $pt }}">{{ $pt }} pt</option>@endforeach</select>
                     <input id="se-color" type="color" value="#17392b" class="se-tool" aria-label="Cor do texto" title="Cor do texto">
-                    <button class="se-tool" type="button" id="se-image-library" title="Biblioteca de imagens"><i class="ph ph-images"></i></button>
-                    <button class="se-tool" type="button" id="se-markdown" title="Importar Markdown"><i class="ph ph-markdown-logo"></i></button>
+                    <button class="se-tool" type="button" id="se-image-library" aria-label="Abrir biblioteca de imagens" title="Biblioteca de imagens"><i class="ph ph-images"></i></button>
+                    <button class="se-tool" type="button" id="se-markdown" aria-label="Inserir Markdown" title="Importar Markdown"><i class="ph ph-markdown-logo"></i></button>
                     @unless($isOfficialDocument || $isTemplate)
                         <select id="se-zoom" class="se-select" aria-label="Zoom da edição"><option value="fit">Ajustar folha</option><option value=".75">75%</option><option value="1">100%</option><option value="1.25">125%</option></select>
                     @endunless
@@ -307,14 +454,14 @@
             <form method="dialog"><button class="se-icon-btn" aria-label="Fechar configurações"><i class="ph ph-x" aria-hidden="true"></i></button></form>
         </div>
         <div class="se-side">
-            <details class="se-panel" open><summary>Documento <i data-lucide="chevron-down" style="width:15px"></i></summary><div class="se-panel-body">
+            <details class="se-panel" open><summary>Documento <i class="ph ph-caret-down" aria-hidden="true" style="width:15px"></i></summary><div class="se-panel-body">
                 @if($isTemplate)<div class="se-field"><label for="se-type">Tipo</label><select id="se-type" class="se-control">@foreach(\App\Models\DocumentTemplate::TYPES as $value => $label)<option value="{{ $value }}" @selected(($record['type'] ?? 'minutes') === $value)>{{ $label }}</option>@endforeach</select></div>@endif
                 @if($isLayout)<div class="se-field"><label for="se-layout-type">Aplicação</label><select id="se-layout-type" class="se-control">@foreach(\App\Models\PdfLayoutTemplate::LAYOUT_TYPES as $value => $label)<option value="{{ $value }}" @selected(($record['layout_type'] ?? 'header') === $value)>{{ $label }}</option>@endforeach</select></div><div class="se-field"><label for="se-layout-height">Altura reservada (mm)</label><input id="se-layout-height" class="se-control" type="number" min="8" max="100" value="{{ $record['estimated_height_mm'] ?? 22 }}"></div>@endif
                 @if(!$isTemplate && !$isLayout)<div class="se-field"><label for="se-template">Modelo de origem</label><select id="se-template" class="se-control" @disabled($closed || $isOfficialDocument)><option value="">{{ $isOfficialDocument ? 'Ofício institucional' : 'Documento avulso' }}</option>@foreach($templates as $template)<option value="{{ $template->id }}" @selected((int)($record['template_id'] ?? 0) === (int)$template->id)>{{ $template->name }}</option>@endforeach</select></div>@endif
                 @if($isTemplate)<div class="se-field"><label for="se-description">Descrição</label><textarea id="se-description" class="se-control" rows="3" maxlength="500">{{ $record['description'] ?? '' }}</textarea></div>@endif
                 @if($isTemplate || $isLayout)<label class="se-check"><input id="se-active" type="checkbox" @checked($record['is_active'] ?? true)> {{ $isLayout ? 'Layout ativo' : 'Modelo ativo' }}</label>@endif
             </div></details>
-            @if(!$isLayout)<details class="se-panel"><summary>Página <i data-lucide="chevron-down" style="width:15px"></i></summary><div class="se-panel-body">
+            @if(!$isLayout)<details class="se-panel"><summary>Página <i class="ph ph-caret-down" aria-hidden="true" style="width:15px"></i></summary><div class="se-panel-body">
                 <div class="se-field"><label for="se-paper">Papel</label><select id="se-paper" class="se-control" @disabled($closed)>@foreach(\App\Models\DocumentTemplate::PAPER_SIZES as $value => $label)<option value="{{ $value }}" @selected(($record['paper_size'] ?? 'a4') === $value)>{{ $label }}</option>@endforeach</select></div>
                 <div class="se-field"><label for="se-orientation">Orientação</label><select id="se-orientation" class="se-control" @disabled($closed)>@foreach(\App\Models\DocumentTemplate::PAPER_ORIENTATIONS as $value => $label)<option value="{{ $value }}" @selected(($record['paper_orientation'] ?? 'portrait') === $value)>{{ $label }}</option>@endforeach</select></div>
                 <div class="se-field"><label for="se-header">Modelo de cabeçalho</label><select id="se-header" class="se-control" @disabled($closed)><option value="">Padrão do documento</option>@foreach(($layouts['header'] ?? collect()) as $layout)<option value="{{ $layout->id }}" @selected((int)($record['header_layout_id'] ?? 0) === (int)$layout->id)>{{ $layout->name }}</option>@endforeach</select></div>
@@ -334,7 +481,7 @@
                 </details>
             @endif
             @if(!$closed)
-                <details class="se-panel"><summary>Variáveis <i data-lucide="chevron-down" style="width:15px"></i></summary><div class="se-panel-body"><div class="se-vars">@foreach($variables as $group => $items)<div class="se-var-group"><strong>{{ $group }}</strong><div class="se-var-list">@foreach($items as $token => $label)<button class="se-var" type="button" data-variable="{{ $token }}" title="{{ $label }}">{{ $token }}</button>@endforeach</div></div>@endforeach</div></div></details>
+                <details class="se-panel"><summary>Variáveis <i class="ph ph-caret-down" aria-hidden="true" style="width:15px"></i></summary><div class="se-panel-body"><div class="se-vars">@foreach($variables as $group => $items)<div class="se-var-group"><strong>{{ $group }}</strong><div class="se-var-list">@foreach($items as $token => $label)<button class="se-var" type="button" data-variable="{{ $token }}" title="{{ $label }}">{{ $token }}</button>@endforeach</div></div>@endforeach</div></div></details>
             @endif
             <div class="se-settings-actions">
                 @if(!$isLayout && !$archiveOnly && ($editing || $isOfficialDocument))
@@ -405,6 +552,28 @@
     const moreTools = document.getElementById('se-toolbar-more');
     const mobileEditor = matchMedia('(max-width:1023px)');
     const settingsDialog = document.getElementById('se-settings');
+    const header = document.querySelector('.se-head');
+    if (header && 'ResizeObserver' in window) {
+        new ResizeObserver(() => document.documentElement.style.setProperty('--se-header-offset', `${header.offsetHeight}px`)).observe(header);
+        document.documentElement.style.setProperty('--se-header-offset', `${header.offsetHeight}px`);
+    }
+    // Evita o "puxar para atualizar" no topo, sem bloquear rolagem/seleção da folha.
+    // O overscroll-behavior no CSS é a proteção principal; isto cobre navegadores antigos.
+    let pageTouchY = null;
+    document.addEventListener('touchstart', event => {
+        pageTouchY = event.touches.length === 1 ? event.touches[0].clientY : null;
+    }, {passive:true});
+    document.addEventListener('touchmove', event => {
+        if (pageTouchY === null || event.touches.length !== 1 || !event.cancelable) return;
+        const dy = event.touches[0].clientY - pageTouchY;
+        if (dy <= 8 || window.scrollY > 0) return;
+        if (!event.target.closest('.se-shell,.se-head,.se-sheet,.se-dialog')) return;
+        const scrollable = event.target.closest('.se-sheet,.se-dialog,.se-document-stage,.se-page-wrap,.se-suggest');
+        if (scrollable && scrollable.scrollTop > 0) return;
+        if (event.target.closest('[contenteditable="true"],input,textarea,select')) return;
+        event.preventDefault();
+    }, {passive:false});
+    document.addEventListener('touchend', () => { pageTouchY = null; }, {passive:true});
     const variableEntries = Object.entries(config.variables).flatMap(([group, items]) => Object.entries(items).map(([token, label]) => ({group, token, label})));
     let dirty = false;
     let saving = false;
@@ -415,6 +584,7 @@
     let recovery = null;
     let onlineConflict = false;
     let activeSave = null;
+    const saveState = value => { if (state) state.dataset.seSave = value; };
 
     document.querySelectorAll('[data-se-open]').forEach(button => {
         button.addEventListener('click', () => document.getElementById(button.dataset.seOpen).showModal());
@@ -474,6 +644,7 @@
     function markDirty() {
         if (config.signed) return;
         dirty = true;
+        saveState('dirty');
         changeCount++;
         if (!onlineConflict && state.textContent !== 'Alterações pendentes') state.textContent = 'Alterações pendentes';
         scheduleAutosave();
@@ -523,13 +694,15 @@
             if (!automatic) {
                 saveButton.disabled = true;
                 state.textContent = 'Salvando…';
+                saveState('saving');
             }
             activeSave = (async () => {
                 try {
                     const data = await request(config.saveUrl, {method:config.editing ? 'PUT' : 'POST',globalLoader:false,body:JSON.stringify({...fields, autosave:automatic})});
                     if (data.revision != null) revision = Number(data.revision);
                     dirty = changesAtStart !== changeCount;
-                    if (!dirty) state.textContent = 'Salvo';
+                    if (!dirty) { state.textContent = 'Salvo'; saveState('saved'); }
+                    else saveState('dirty');
                     checkpoint();
                     if (!automatic) toast(data.message || 'Salvo.');
                     if (openPreview && (data.preview_url || config.previewUrl)) {
@@ -547,6 +720,7 @@
                 } catch (error) {
                     onlineConflict = error.status === 409;
                     state.textContent = onlineConflict ? 'Rascunho alterado em outra janela' : 'Salvamento pendente';
+                    saveState('error');
                     checkpoint();
                     if (!automatic || onlineConflict) toast(error.message, true);
                     return false;
@@ -1085,7 +1259,7 @@
                     input.dispatchEvent(new Event('input'));
                 }
                 markDirty();
-                if (recovery.revision !== revision) { clearTimeout(autosaveTimer); onlineConflict = true; state.textContent = 'Revise a recuperação antes de salvar'; }
+                if (recovery.revision !== revision) { clearTimeout(autosaveTimer); onlineConflict = true; state.textContent = 'Revise a recuperação antes de salvar'; saveState('error'); }
                 button.remove();
             });
             state.after(button);
@@ -1155,7 +1329,7 @@
         const box=document.getElementById('se-suggest'); const selection=window.getSelection(); if(!selection.rangeCount||!selection.anchorNode||!editor.contains(selection.anchorNode)){box.hidden=true;return}
         const text=selection.anchorNode.textContent?.slice(0,selection.anchorOffset)||''; const match=text.match(/\{\{[^{}]{0,45}$/); if(!match){box.hidden=true;return}
         const query=match[0].slice(2).toLocaleLowerCase('pt-BR'); const matches=variableEntries.filter(item=>item.token.toLocaleLowerCase('pt-BR').includes(query)||item.label.toLocaleLowerCase('pt-BR').includes(query)).slice(0,8); if(!matches.length){box.hidden=true;return}
-        const range=selection.getRangeAt(0).cloneRange(); const rect=range.getBoundingClientRect(); box.style.left=`${Math.min(rect.left,window.innerWidth-352)}px`; box.style.top=`${Math.min(rect.bottom+6,window.innerHeight-245)}px`; box.innerHTML=matches.map((item,index)=>`<button type="button" data-suggestion="${index}">${item.label}<code>${item.token}</code></button>`).join(''); box.hidden=false;
+        const range=selection.getRangeAt(0).cloneRange(); const rect=range.getBoundingClientRect(); box.style.left=`${Math.max(12,Math.min(rect.left,window.innerWidth-372))}px`; box.style.top=`${Math.max(12,Math.min(rect.bottom+6,window.innerHeight-245))}px`; box.innerHTML=matches.map((item,index)=>`<button type="button" data-suggestion="${index}">${item.label}<code>${item.token}</code></button>`).join(''); box.hidden=false;
         box.querySelectorAll('[data-suggestion]').forEach(button=>button.addEventListener('click',()=>{ const chosen=matches[Number(button.dataset.suggestion)]; const node=selection.anchorNode; node.textContent=text.slice(0,text.length-match[0].length)+chosen.token+(node.textContent||'').slice(selection.anchorOffset); const next=document.createRange(); next.setStart(node,text.length-match[0].length+chosen.token.length); next.collapse(true); selection.removeAllRanges();selection.addRange(next);box.hidden=true;markDirty(); }));
     }
     document.addEventListener('click', event => { const box=document.getElementById('se-suggest'); if(!box.contains(event.target)&&event.target!==editor)box.hidden=true; });
