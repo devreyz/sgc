@@ -26,6 +26,9 @@ class GeneratedDocument extends Model
         'last_edited_by',
         'signed_at',
         'signature_file',
+        'institutional_year',
+        'institutional_sector',
+        'institutional_sequence',
     ];
 
     protected function casts(): array

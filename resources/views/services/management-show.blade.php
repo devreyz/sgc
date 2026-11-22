@@ -1860,32 +1860,7 @@
             @if(auth()->user()->checkPermissionTo('manage_service_expenses'))
                 <a class="ds-button" href="{{ route('services.management.expenses', ['tenant' => $tenantSlug, 'order' => $order->id]) }}">Despesas da ordem</a>
             @endif
-            @if($execution?->isFrozen() && auth()->user()->checkPermissionTo('view_service_financials'))
-                <form method="post" action="{{ route('services.management.documents.generate', [$tenantSlug, $order]) }}" target="_blank" data-sgc-pdf-form="Nota interna">
-                    @csrf
-                    <input type="hidden" name="type" value="note">
-                    <button class="ds-button primary">Emitir nota interna</button>
-                    <small data-sgc-pdf-error role="alert"></small>
-                </form>
-                @foreach($notes ?? [] as $note)
-                    <a class="ds-button" target="_blank" rel="noopener" data-sgc-pdf title="Nota interna" href="{{ route('services.management.documents.download', [$tenantSlug, $note, 'inline' => 1]) }}">Nota de {{ $note->created_at?->format('d/m/Y H:i') }}</a>
-                @endforeach
-            @endif
-            @foreach((auth()->user()->checkPermissionTo('view_service_financials') ? ['order' => 'Imprimir OS', 'execution' => 'Comprovante de execução'] : ['order' => 'Imprimir OS']) as $documentType => $documentLabel)
-                <form method="post" action="{{ route('services.management.documents.generate', [$tenantSlug, $order]) }}" target="_blank" data-sgc-pdf-form="{{ $documentLabel }}">
-                    @csrf
-                    <input type="hidden" name="type" value="{{ $documentType }}">
-                    <button class="ds-button {{ $documentType === 'order' ? 'primary' : 'secondary' }}" type="submit"><i class="ph-duotone ph-printer" aria-hidden="true"></i>{{ $documentLabel }}</button>
-                    <small data-sgc-pdf-error role="alert"></small>
-                </form>
-            @endforeach
-            <form method="post" action="{{ route('services.management.documents.generate', [$tenantSlug, $order]) }}" target="_blank" data-sgc-pdf-form="Via do beneficiário">
-                @csrf
-                <input type="hidden" name="type" value="order">
-                <input type="hidden" name="copy" value="beneficiary">
-                <button class="ds-button secondary" type="submit"><i class="ph-duotone ph-share-network" aria-hidden="true"></i>Via do beneficiário</button>
-                <small data-sgc-pdf-error role="alert"></small>
-            </form>
+            <a class="ds-button secondary" href="#order-documents"><i class="ph ph-file-pdf" aria-hidden="true"></i>Documentos</a>
             @if(auth()->user()->checkPermissionTo('manage_service_agreements') && $order->execution?->obligations?->contains(fn ($debt) => $debt->direction === 'receivable' && $debt->balance > 0))
                 <a class="ds-button" href="{{ route('services.management.agreements.create', ['tenant' => $tenantSlug, 'origin' => $order->id]) }}"><i class="ph-duotone ph-handshake"></i>Negociar cobrança</a>
             @endif
@@ -2740,7 +2715,7 @@
         </div>
     </section>
 
-    <section class="ds-section documents">
+    <section class="ds-section documents" id="order-documents">
         <header class="ds-section-head">
             <div class="ds-section-title">
                 <span
@@ -2752,49 +2727,41 @@
 
                 <span class="ds-section-title-copy">
                     <strong>Documentos</strong>
-                    <span>Gerar documentos da ordem e da execução.</span>
+                    <span>Ordem de serviço, nota interna e recibos de pagamento.</span>
                 </span>
             </div>
         </header>
-
         <div class="ds-section-body">
+            @php
+                $receipts = ($execution?->obligations ?? collect())->where('direction', 'receivable')
+                    ->flatMap->allocations->pluck('paymentEvent')->filter()
+                    ->where('event_type', 'payment')->whereIn('status', ['confirmed', 'reversed'])
+                    ->unique('id')->sortByDesc('id');
+            @endphp
             <div class="ds-doc-actions">
-                @foreach([
-                    'order' => 'Ordem de serviço',
-                    'execution' => 'Relatório de execução',
-                ] as $type => $label)
-                    @continue($type === 'execution' && !auth()->user()->checkPermissionTo('view_service_financials'))
-                    <form
-                        method="post"
-                        target="_blank"
-                        data-sgc-pdf-form="{{ $label }}"
-                        action="{{ route(
-                            'services.management.documents.generate',
-                            [
-                                $tenantSlug,
-                                $order,
-                            ]
-                        ) }}"
-                    >
-                        @csrf
-
-                        <input
-                            type="hidden"
-                            name="type"
-                            value="{{ $type }}"
-                        >
-
-                        <button
-                            class="ds-button blue"
-                            type="submit"
-                        >
-                            <i class="ph-duotone ph-file-arrow-down"></i>
-                            {{ $label }}
-                        </button>
-                        <small data-sgc-pdf-error role="alert"></small>
-                    </form>
+                @foreach(['association' => 'OS · Via da associação', 'beneficiary' => 'OS · Via do beneficiário'] as $copy => $label)
+                    <a class="ds-button {{ $loop->first ? 'primary' : 'secondary' }}" href="{{ route('services.management.orders.documents', [$tenantSlug, $order, 'type' => 'order', 'copy' => $copy]) }}" target="_blank" rel="noopener" data-sgc-pdf>
+                        <i class="ph ph-file-pdf" aria-hidden="true"></i>{{ $label }}
+                    </a>
                 @endforeach
+                @if($execution?->isFrozen() && auth()->user()->checkPermissionTo('view_service_financials'))
+                    <a class="ds-button secondary" href="{{ route('services.management.orders.documents', [$tenantSlug, $order, 'type' => 'note']) }}" target="_blank" rel="noopener" data-sgc-pdf>
+                        <i class="ph ph-file-text" aria-hidden="true"></i>Nota interna de cobrança
+                    </a>
+                @endif
             </div>
+            @if(auth()->user()->checkPermissionTo('manage_service_receivables'))
+                <h3 style="margin-top:1rem">Recibos de pagamento</h3>
+                <div class="ds-doc-actions">
+                    @forelse($receipts as $event)
+                        <a class="ds-button secondary" href="{{ route('services.management.payments.receipt', [$tenantSlug, $event, 'inline' => 1]) }}" target="_blank" rel="noopener" data-sgc-pdf>
+                            {{ $event->payment_date?->format('d/m/Y') }} · R$ {{ number_format((float) $event->amount, 2, ',', '.') }}{{ $event->status === 'reversed' ? ' · Estornado' : '' }}
+                        </a>
+                    @empty
+                        <p>Os recibos ficam disponíveis após o registro do recebimento.</p>
+                    @endforelse
+                </div>
+            @endif
         </div>
     </section>
 
@@ -3028,16 +2995,37 @@ document.addEventListener('DOMContentLoaded', () => {
             form.querySelector('[data-rate-preview]').textContent = rate > 0 ? 'Novo total desta OS: ' + money(Number(form.dataset.total) + difference) + '. Diferença: ' + money(difference) + '. Nenhum pagamento será registrado por esta ação.' : 'Informe a nova tarifa para conferir o total antes de salvar.';
         });
     });
+    const pendingSubmissions = new Map();
     document.querySelectorAll('.dossier-page form, .dossier-dialog form').forEach(form => form.addEventListener('submit', event => {
+        if (event.defaultPrevented || form.matches('[data-sgc-pdf-form], [target="_blank"]')) return;
         if (form.dataset.submitting) { event.preventDefault(); return; }
         form.dataset.submitting = 'true';
         form.setAttribute('aria-busy', 'true');
-        requestAnimationFrame(() => document.querySelectorAll('button[type="submit"]').forEach(button => {
-            if (button.form !== form) return;
-            button.disabled = true;
-            button.textContent = 'Salvando…';
-        }));
+        requestAnimationFrame(() => {
+            if (event.defaultPrevented) {
+                delete form.dataset.submitting;
+                form.removeAttribute('aria-busy');
+                return;
+            }
+            const buttons = [...form.elements].filter(button => button.type === 'submit' && !button.disabled);
+            pendingSubmissions.set(form, buttons.map(button => [button, button.innerHTML]));
+            buttons.forEach(button => {
+                button.disabled = true;
+                button.textContent = 'Salvando…';
+            });
+        });
     }));
+    window.addEventListener('pageshow', () => {
+        for (const [form, buttons] of pendingSubmissions) {
+            for (const [button, markup] of buttons) {
+                button.innerHTML = markup;
+                button.disabled = false;
+            }
+            delete form.dataset.submitting;
+            form.removeAttribute('aria-busy');
+        }
+        pendingSubmissions.clear();
+    });
     const dialogs = [
         ...document.querySelectorAll(
             '.dossier-dialog'

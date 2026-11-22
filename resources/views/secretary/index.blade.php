@@ -46,51 +46,125 @@
 </style>
 
 <main class="sec-shell">
-    <header class="sec-head"><div><h1>Documentos e atas</h1><p>Crie, revise e organize os documentos da organização.</p></div><div class="sec-actions"><a class="sec-btn" href="{{ route('secretary.layouts.create', ['tenant' => $tenant->slug]) }}" title="Novo cabeçalho ou rodapé"><i data-lucide="panel-top"></i><span>Novo layout</span></a><a class="sec-btn" href="{{ route('secretary.templates.create', ['tenant' => $tenant->slug]) }}" title="Novo modelo"><i data-lucide="layout-template"></i><span>Novo modelo</span></a><a class="sec-btn sec-btn-primary" href="{{ route('secretary.documents.create', ['tenant' => $tenant->slug]) }}" title="Novo documento"><i data-lucide="file-plus-2"></i><span>Novo documento</span></a></div></header>
+    <header class="sec-head">
+        <div><h1>Documentos da Secretaria</h1></div>
+        <div class="sec-actions">
+            @if($canCreate)
+                <a class="sec-btn sec-btn-primary" href="{{ route('secretary.documents.create', ['tenant' => $tenant->slug]) }}"><i class="ph ph-file-plus"></i><span>Novo ofício</span></a>
+            @endif
+        </div>
+    </header>
+    <nav class="sec-tabs" aria-label="Seções da Secretaria">
+        @foreach (['documents' => 'Acervo', 'templates' => 'Modelos', 'layouts' => 'Cabeçalhos e rodapés', 'system' => 'PDFs do sistema'] as $key => $label)
+            <button type="button" class="sec-btn" data-sec-tab="{{ $key }}" aria-pressed="{{ $key === 'documents' ? 'true' : 'false' }}">{{ $label }}</button>
+        @endforeach
+    </nav>
     <div class="sec-toolbar">
-        <input class="sec-control" id="sec-search" type="search" maxlength="120" placeholder="Buscar documento ou modelo" autocomplete="off">
-        <select class="sec-control" id="sec-kind">
-            <option value="all">Tudo</option>
-            <option value="documents">Documentos</option>
-            <option value="templates">Modelos</option>
-            <option value="system">PDFs do sistema</option>
-            <option value="layouts">Cabeçalhos e rodapés</option>
+        <input class="sec-control" id="sec-search" type="search" maxlength="120" placeholder="Buscar assunto, número ou destinatário" aria-label="Buscar documentos e modelos" autocomplete="off">
+        <select class="sec-control" id="sec-status" aria-label="Situação">
+            <option value="">Todas as situações</option><option value="draft">Rascunhos</option>
+            <option value="issued">Emitidos</option><option value="cancelled">Cancelados</option>
+        </select>
+        <select class="sec-control" id="sec-type" aria-label="Tipo de documento">
+            <option value="">Todos os tipos</option>
+            @foreach(\App\Models\DocumentTemplate::TYPES as $type => $label)<option value="{{ $type }}">{{ $label }}</option>@endforeach
         </select>
     </div>
 
-    <section class="sec-stats" aria-label="Resumo">
-        <article class="sec-stat"><span>Documentos</span><strong id="sec-count-documents">-</strong></article>
-        <article class="sec-stat"><span>Assinados</span><strong id="sec-count-signed">-</strong></article>
-        <article class="sec-stat"><span>Modelos ativos</span><strong id="sec-count-templates">-</strong></article>
-        <article class="sec-stat"><span>PDFs configurados</span><strong id="sec-count-system">-</strong></article>
-    </section>
-
     <section class="sec-section" id="sec-documents-section">
-        <header class="sec-section-head"><h2>Documentos recentes</h2></header>
         <div class="sec-list" id="sec-documents"><div class="sec-loading">Carregando...</div></div>
         <div class="sec-pages" id="sec-pages" hidden></div>
     </section>
 
-    <section class="sec-section" id="sec-templates-section">
-        <header class="sec-section-head"><h2>Modelos disponíveis</h2></header>
+    <section class="sec-section" id="sec-templates-section" hidden>
+        @if($canManageTemplates || ($canCreate && $tenant->slug === 'ascoppa'))
+            <div class="sec-section-head sec-section-actions" id="sec-model-actions">
+                @if($canCreate && $tenant->slug === 'ascoppa')
+                    <a class="sec-btn" data-sec-context="templates" href="{{ route('secretary.documents.create', ['tenant' => $tenant->slug, 'example' => 1]) }}"><i class="ph ph-file-text"></i> Exemplo CODEVASF</a>
+                @endif
+                @if($canManageTemplates)
+                    <a class="sec-btn" data-sec-context="templates" href="{{ route('secretary.templates.create', ['tenant' => $tenant->slug]) }}"><i class="ph ph-note-pencil"></i> Novo modelo</a>
+                    <a class="sec-btn" data-sec-context="layouts" href="{{ route('secretary.layouts.create', ['tenant' => $tenant->slug]) }}"><i class="ph ph-layout"></i> Novo cabeçalho ou rodapé</a>
+                @endif
+            </div>
+        @endif
         <div class="sec-list" id="sec-templates"><div class="sec-loading">Carregando...</div></div>
     </section>
 </main>
+<style>
+    .sec-toolbar { grid-template-columns:minmax(0,1fr) repeat(2,minmax(0,auto)) }
+    .sec-control { min-width:0 }
+    .sec-shell [hidden] { display:none }
+    .sec-tabs { display:flex;flex-wrap:wrap;gap:.4rem }
+    .sec-tabs [aria-pressed="true"], .sec-btn-primary { background:var(--campo-lime,#d6ef74);border-color:transparent;color:#203519 }
+    .sec-section-actions { justify-content:flex-end;flex-wrap:wrap }
+    .sec-document-table { width:100%;border-collapse:collapse;text-align:left }
+    .sec-document-table th,.sec-document-table td { padding:.7rem .75rem;vertical-align:top }
+    .sec-document-table th { font-size:.78rem;color:var(--color-text-secondary);background:var(--color-bg) }
+    .sec-document-table tr + tr { border-top:1px solid var(--color-border) }
+    .sec-document-table strong,.sec-document-table small { display:block;overflow-wrap:anywhere }
+    .sec-document-table small { margin-top:.25rem;color:var(--color-text-secondary) }
+    .sec-document-table .ph,.sec-actions .ph { font-size:1.05rem }
+    @media(max-width:720px) {
+        .sec-toolbar { display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) }
+        #sec-search { grid-column:1 / -1 }
+        .sec-document-table,.sec-document-table tbody,.sec-document-table tr { display:block }
+        .sec-document-table thead { position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%) }
+        .sec-document-table tr { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.25rem;padding:.55rem }
+        .sec-document-table td { padding:.15rem .25rem }
+        .sec-document-table td:first-child { grid-column:1 }
+        .sec-document-table td:nth-child(2) { grid-column:2;grid-row:1 }
+        .sec-document-table td:nth-child(3) { grid-column:1;grid-row:2 }
+        .sec-document-table td:nth-child(4) { grid-column:2;grid-row:2 }
+    }
+</style>
 
 <script>
 (() => {
     const endpoint = @js(route('secretary.data', ['tenant' => $tenant->slug]));
     const search = document.getElementById('sec-search');
-    const kind = document.getElementById('sec-kind');
+    const tabs = [...document.querySelectorAll('[data-sec-tab]')];
+    const sections = tabs.map(tab => tab.dataset.secTab);
+    let kind = new URLSearchParams(location.search).get('section');
+    if (!sections.includes(kind)) kind = 'documents';
+    const status = document.getElementById('sec-status');
+    const type = document.getElementById('sec-type');
+    const canCreate = @js($canCreate);
+    const canManageTemplates = @js($canManageTemplates);
     const documents = document.getElementById('sec-documents');
     const templates = document.getElementById('sec-templates');
     let page = 1;
     let timer = null;
     let request = null;
+    function displaySection() {
+        const showDocuments = kind === 'documents';
+        for (const tab of tabs) tab.setAttribute('aria-pressed', String(tab.dataset.secTab === kind));
+        status.hidden = type.hidden = !showDocuments;
+        search.placeholder = showDocuments ? 'Buscar assunto, número ou destinatário' : 'Buscar por nome';
+        search.setAttribute('aria-label', showDocuments ? 'Buscar no acervo' : 'Buscar modelos e layouts');
+        document.getElementById('sec-documents-section').hidden = !showDocuments;
+        document.getElementById('sec-templates-section').hidden = showDocuments;
+        const actions = document.getElementById('sec-model-actions');
+        if (actions) {
+            const links = [...actions.querySelectorAll('[data-sec-context]')];
+            links.forEach(link => { link.hidden = link.dataset.secContext !== kind; });
+            actions.hidden = links.every(link => link.hidden);
+        }
+    }
     const esc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[char]));
 
     function renderRows(target, rows, template) {
         target.innerHTML = rows.length ? rows.map(template).join('') : '<div class="sec-empty">Nenhum registro encontrado.</div>';
+    }
+    function renderDocuments(rows) {
+        if (!rows.length) { renderRows(documents, [], null); return; }
+        const labels = {draft:'Rascunho',issued:'Emitido',cancelled:'Cancelado',signed:'Assinado'};
+        documents.innerHTML = `<table class="sec-document-table"><thead><tr><th scope="col">Documento e destinatário</th><th scope="col">Situação</th><th scope="col">Data e responsável</th><th scope="col">Ações</th></tr></thead><tbody>${rows.map(row => `
+            <tr><td><a href="${esc(row.edit_url)}"><strong>${esc(row.subject || row.title)}</strong></a><small>${esc([row.number || row.type,row.recipient].filter(Boolean).join(' · '))}</small></td>
+            <td><span class="sec-badge">${esc(row.signed ? 'Assinado' : labels[row.status] || row.status)}</span></td>
+            <td class="sec-meta">${esc(row.date ? row.date.split('-').reverse().join('/') : row.updated_at)}${row.author ? `<small>${esc(row.author)}</small>` : ''}</td>
+            <td><span class="sec-row-actions"><a class="sec-action" href="${esc(row.preview_url)}" target="_blank" rel="noopener" aria-label="Visualizar PDF" title="Visualizar PDF"><i class="ph ph-file-pdf"></i></a>
+            <a class="sec-action sec-action-primary" href="${esc(row.edit_url)}" aria-label="Abrir documento" title="Abrir documento"><i class="ph ph-arrow-up-right"></i></a></span></td></tr>`).join('')}</tbody></table>`;
     }
 
     function renderPages(paginator) {
@@ -103,33 +177,40 @@
     async function load() {
         request?.abort();
         request = new AbortController();
-        documents.innerHTML = '<div class="sec-loading">Carregando...</div>';
-        templates.innerHTML = '<div class="sec-loading">Carregando...</div>';
-        const params = new URLSearchParams({kind:kind.value, page:String(page)});
+        const target = kind === 'documents' ? documents : templates;
+        target.innerHTML = '<div class="sec-loading">Carregando...</div>';
+        const params = new URLSearchParams({kind, page:String(page)});
+        if (kind === 'documents' && status.value) params.set('status', status.value);
+        if (kind === 'documents' && type.value) params.set('type', type.value);
         if (search.value.trim()) params.set('search', search.value.trim());
         try {
             const response = await fetch(`${endpoint}?${params}`, {headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest'}, signal:request.signal});
             if (!response.ok) throw new Error('Não foi possível carregar o acervo.');
             const data = await response.json();
-            document.getElementById('sec-count-documents').textContent = data.summary?.documents ?? 0;
-            document.getElementById('sec-count-signed').textContent = data.summary?.signed ?? 0;
-            document.getElementById('sec-count-templates').textContent = data.summary?.templates ?? 0;
-            document.getElementById('sec-count-system').textContent = data.summary?.system ?? 0;
-            document.getElementById('sec-documents-section').hidden = ['templates','system','layouts'].includes(kind.value);
-            document.getElementById('sec-templates-section').hidden = kind.value === 'documents';
-            renderRows(documents, data.documents?.data || [], row => `<article class="sec-row"><div class="sec-title"><strong>${esc(row.title)}</strong><span>${esc(row.template || row.type)}</span></div><span class="sec-badge">${row.signed ? 'Assinado' : 'Rascunho'}</span><span class="sec-meta">${esc(row.updated_at)}</span><span class="sec-row-actions"><a class="sec-action" href="${esc(row.preview_url)}" target="_blank" title="Visualizar PDF"><i data-lucide="eye"></i></a><a class="sec-action sec-action-primary" href="${esc(row.edit_url)}" title="Editar"><i data-lucide="pencil"></i></a></span></article>`);
-            renderRows(templates, data.templates || [], row => `<article class="sec-row"><div class="sec-title"><strong>${esc(row.name)}</strong><span>${esc(row.description || row.type)}</span></div><span class="sec-badge">${row.category === 'system' ? 'PDF do sistema' : esc(row.type)}</span><span class="sec-meta">${esc(row.updated_at)}</span><span class="sec-row-actions">${row.use_url ? `<a class="sec-action" href="${esc(row.use_url)}" title="Usar modelo"><i data-lucide="file-plus-2"></i></a>` : ''}<a class="sec-action sec-action-primary" href="${esc(row.edit_url)}" title="Configurar"><i data-lucide="settings-2"></i></a></span></article>`);
-            window.lucide?.createIcons();
+            if (kind === 'documents') renderDocuments(data.documents?.data || []);
+            renderRows(templates, data.templates || [], row => `<article class="sec-row"><div class="sec-title"><strong>${esc(row.name)}</strong><span>${esc(row.description || row.type)}</span></div><span class="sec-badge">${row.category === 'system' ? 'PDF do sistema' : esc(row.type)}</span><span class="sec-meta">${esc(row.updated_at)}</span><span class="sec-row-actions">${canCreate && row.active && row.use_url ? `<a class="sec-action" href="${esc(row.use_url)}" aria-label="Usar modelo" title="Usar modelo"><i class="ph ph-file-plus"></i></a>` : ''}${canManageTemplates ? `<a class="sec-action sec-action-primary" href="${esc(row.edit_url)}" title="${row.id ? 'Configurar modelo' : 'Personalizar uma cópia'}" aria-label="${row.id ? 'Configurar modelo' : 'Personalizar uma cópia'}"><i class="ph ph-gear"></i></a>` : ''}</span></article>`);
             renderPages(data.documents);
         } catch (error) {
             if (error.name === 'AbortError') return;
-            documents.innerHTML = templates.innerHTML = `<div class="sec-error">${esc(error.message)}</div>`;
+            target.innerHTML = `<div class="sec-error">${esc(error.message)}</div>`;
         }
     }
 
     search.addEventListener('input', () => { clearTimeout(timer); page = 1; timer = setTimeout(load, 280); });
-    kind.addEventListener('change', () => { page = 1; load(); });
+    for (const tab of tabs) tab.addEventListener('click', () => {
+        kind = tab.dataset.secTab;
+        const url = new URL(location.href);
+        url.searchParams.set('section', kind);
+        history.replaceState(null, '', url);
+        clearTimeout(timer);
+        page = 1;
+        search.value = '';
+        displaySection();
+        load();
+    });
+    for (const filter of [status, type]) filter.addEventListener('change', () => { page = 1; load(); });
     document.getElementById('sec-pages').addEventListener('click', event => { const button = event.target.closest('[data-page]'); if (!button || button.disabled) return; page = Number(button.dataset.page); load(); });
+    displaySection();
     load();
 })();
 </script>

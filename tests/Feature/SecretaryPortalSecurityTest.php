@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class SecretaryPortalSecurityTest extends TestCase
@@ -14,7 +16,7 @@ class SecretaryPortalSecurityTest extends TestCase
     {
         parent::setUp();
 
-        foreach (['generated_documents', 'pdf_layout_templates', 'document_templates', 'model_has_roles', 'roles', 'tenant_user', 'tenants', 'users'] as $table) {
+        foreach (['generated_document_revisions', 'generated_documents', 'documents', 'pdf_layout_templates', 'document_templates', 'model_has_permissions', 'role_has_permissions', 'model_has_roles', 'permissions', 'roles', 'tenant_user', 'tenants', 'users'] as $table) {
             Schema::dropIfExists($table);
         }
 
@@ -57,6 +59,15 @@ class SecretaryPortalSecurityTest extends TestCase
             $table->string('model_type');
             $table->unsignedBigInteger('model_id');
         });
+        Schema::create('permissions', function (Blueprint $table): void {
+            $table->id(); $table->string('name'); $table->string('guard_name'); $table->timestamps();
+        });
+        Schema::create('role_has_permissions', function (Blueprint $table): void {
+            $table->unsignedBigInteger('permission_id'); $table->unsignedBigInteger('role_id');
+        });
+        Schema::create('model_has_permissions', function (Blueprint $table): void {
+            $table->unsignedBigInteger('permission_id'); $table->unsignedBigInteger('model_id'); $table->string('model_type');
+        });
         Schema::create('document_templates', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('tenant_id');
@@ -98,6 +109,7 @@ class SecretaryPortalSecurityTest extends TestCase
             $table->id();
             $table->unsignedBigInteger('tenant_id');
             $table->unsignedBigInteger('template_id');
+            $table->string('documentable_type')->nullable();
             $table->string('title');
             $table->longText('content')->nullable();
             $table->string('status')->default('draft');
@@ -109,6 +121,10 @@ class SecretaryPortalSecurityTest extends TestCase
             $table->timestamps();
             $table->softDeletes();
         });
+        (require database_path('migrations/2024_01_01_000023_create_documents_table.php'))->up();
+        Schema::table('documents', fn (Blueprint $table) => $table->unsignedBigInteger('tenant_id'));
+        \Spatie\Permission\Models\Role::findOrCreate('secretario', 'web');
+        (require database_path('migrations/2026_11_22_090000_add_institutional_documents_to_secretary.php'))->up();
 
         DB::table('users')->insert(['id' => 1, 'name' => 'Conta', 'email' => 'admin@example.test', 'status' => true, 'created_at' => now(), 'updated_at' => now()]);
         DB::table('tenants')->insert([
@@ -116,7 +132,7 @@ class SecretaryPortalSecurityTest extends TestCase
             ['id' => 2, 'name' => 'Tenant B', 'slug' => 'tenant-b', 'active' => true, 'created_at' => now(), 'updated_at' => now()],
         ]);
         DB::table('tenant_user')->insert(['tenant_id' => 1, 'user_id' => 1, 'status' => true, 'is_admin' => true, 'roles' => json_encode(['secretario']), 'tenant_name' => 'Secretária A', 'created_at' => now(), 'updated_at' => now()]);
-        DB::table('roles')->insert(['id' => 1, 'name' => 'admin', 'guard_name' => 'web', 'created_at' => now(), 'updated_at' => now()]);
+        \Spatie\Permission\Models\Role::findOrCreate('admin', 'web');
         DB::table('document_templates')->insert([
             ['id' => 10, 'tenant_id' => 1, 'name' => 'Ata Tenant A', 'type' => 'minutes', 'template_category' => 'custom', 'content' => '', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
             ['id' => 20, 'tenant_id' => 2, 'name' => 'Ata Privada Tenant B', 'type' => 'minutes', 'template_category' => 'custom', 'content' => '', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
@@ -154,7 +170,7 @@ class SecretaryPortalSecurityTest extends TestCase
     public function test_tenant_member_without_secretary_role_cannot_open_archive(): void
     {
         $user = User::query()->findOrFail(1);
-        DB::table('tenant_user')->where('tenant_id', 1)->where('user_id', 1)->update(['roles' => json_encode([])]);
+        DB::table('tenant_user')->where('tenant_id', 1)->where('user_id', 1)->update(['roles' => json_encode([]), 'is_admin' => false]);
 
         $this->actingAs($user)->withSession(['tenant_id' => 1])
             ->getJson('/tenant-a/secretary')
@@ -233,5 +249,132 @@ class SecretaryPortalSecurityTest extends TestCase
         $this->assertSame(1, (int) $layout->tenant_id);
         $this->assertStringNotContainsString('onmouseover', $layout->content);
         $this->assertStringNotContainsString('<script', $layout->content);
+        $this->getJson('/tenant-a/secretary/layouts/'.$layout->id.'/fragment')->assertOk()
+            ->assertJsonPath('html', '<div>{{cooperativa.nome}}</div>');
+    }
+
+    public function test_tenant_admin_without_secretary_role_has_access_but_inactive_membership_does_not(): void
+    {
+        DB::table('tenant_user')->where('tenant_id', 1)->update(['roles' => json_encode([])]);
+        $this->actingAs(User::findOrFail(1))->getJson('/tenant-a/secretary/data')->assertOk();
+        DB::table('tenant_user')->where('tenant_id', 1)->update(['status' => false]);
+        $this->getJson('/tenant-a/secretary/data')->assertForbidden();
+    }
+
+    public function test_secretary_without_an_issue_grant_cannot_issue(): void
+    {
+        DB::table('tenant_user')->where('tenant_id', 1)->update(['is_admin' => false]);
+        \Spatie\Permission\Models\Role::findByName('secretario', 'web')->revokePermissionTo('issue_secretary_documents');
+        $this->actingAs(User::findOrFail(1))->getJson('/tenant-a/secretary/data')->assertOk();
+        $this->postJson('/tenant-a/secretary/documents/1/issue', ['revision' => 1])->assertForbidden();
+    }
+
+    public function test_official_letter_draft_autosave_issue_cancel_duplicate_and_history(): void
+    {
+        Storage::fake('local');
+        $this->actingAs(User::findOrFail(1))->withSession(['tenant_id' => 1]);
+        $root = '/tenant-a/secretary';
+        $draft = $this->postJson($root.'/documents', $this->letterPayload())->assertCreated()->assertJsonPath('revision', 1)->json('id');
+        $url = $root.'/documents/'.$draft;
+        $this->get($url.'/edit')->assertOk()->assertSee('Dados do ofício')
+            ->assertSee('id="se-paper-header"', false)->assertSee('id="se-paper-footer"', false);
+        $this->putJson($url, array_replace($this->letterPayload(), [
+            'revision' => 1, 'autosave' => true, 'content' => '<p>Solicitação atualizada para {{recipient.institution}}</p><div style="page-break-after:always"><br></div><p>Página seguinte</p>',
+        ]))->assertOk()->assertJsonPath('revision', 2);
+        $this->putJson($url, $this->letterPayload() + ['revision' => 1])->assertConflict();
+        $this->postJson($url.'/issue', ['revision' => 1])->assertConflict();
+        $preview = $this->get($url.'/preview')->assertOk()->assertHeader('Content-Type', 'application/pdf')->getContent();
+        $this->assertStringStartsWith('%PDF-', $preview);
+        preg_match_all('/\/Type\s*\/Page\b/', $preview, $pages);
+        $this->assertGreaterThanOrEqual(2, count($pages[0]));
+
+        $this->postJson($url.'/issue', ['revision' => 2])->assertOk()->assertJsonPath('number', '001/2026/SEC');
+        $this->postJson($url.'/issue', ['revision' => 2])->assertOk()->assertJsonPath('number', '001/2026/SEC');
+        $archived = $this->get($url.'/preview?download=1')->assertOk()->streamedContent();
+        $this->assertStringStartsWith('%PDF-', $archived);
+        $this->assertSame('CODEVASF', \App\Models\GeneratedDocument::findOrFail($draft)->variables_used['recipient.institution']);
+        $this->putJson($url, $this->letterPayload() + ['revision' => 3])->assertConflict();
+        $this->postJson($url.'/cancel', ['reason' => ''])->assertUnprocessable();
+        $this->postJson($url.'/cancel', ['reason' => 'Substituído por novo ofício.'])->assertOk();
+        $this->assertSame($archived, $this->get($url.'/preview')->assertOk()->streamedContent());
+        $this->get($url.'/revisions/1')->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $this->get($root.'/documents/create?from_document='.$draft)->assertOk()->assertSee('CODEVASF')->assertDontSee('001/2026/SEC');
+        $this->getJson($root.'/data?kind=documents&status=cancelled&search=CODEVASF')->assertOk()->assertJsonPath('documents.data.0.number', '001/2026/SEC');
+        $this->assertDatabaseHas('generated_document_revisions', ['generated_document_id' => $draft, 'event' => 'cancelled', 'revision' => 4]);
+
+        $next = $this->postJson($root.'/documents', $this->letterPayload())->assertCreated()->json('id');
+        $this->postJson($root.'/documents/'.$next.'/issue', ['revision' => 1])->assertOk()->assertJsonPath('number', '002/2026/SEC');
+    }
+
+    public function test_private_images_and_markdown_are_scoped_and_sanitized(): void
+    {
+        Storage::fake('local');
+        $this->actingAs(User::findOrFail(1))->withSession(['tenant_id' => 1]);
+        $root = '/tenant-a/secretary';
+        $image = $this->postJson($root.'/images', ['image' => UploadedFile::fake()->image('campo.png', 20, 20)])->assertCreated()->json('url');
+        $this->get($image)->assertOk()->assertHeader('Content-Type', 'image/png');
+        $this->get(str_replace('/tenant-a/', '/tenant-b/', $image))->assertForbidden();
+        DB::table('tenant_user')->insert(['tenant_id' => 2, 'user_id' => 1, 'status' => true, 'is_admin' => true]);
+        $this->get(str_replace('/tenant-a/', '/tenant-b/', $image))->assertNotFound();
+        $this->getJson($root.'/images')->assertJsonFragment(['url' => $image]);
+        $draft = $this->postJson($root.'/documents', array_replace($this->letterPayload(), [
+            'content' => '<figure><img src="'.$image.'" onerror="alert(1)" alt="Máquina"><figcaption>Máquina</figcaption></figure>'
+                .'<img src="https://example.test/tracker.png"><script>danger</script><table><tr><td>Medição</td></tr></table>',
+        ]))->assertCreated()->json('id');
+        $content = \App\Models\GeneratedDocument::findOrFail($draft)->content;
+        $this->assertStringContainsString($image, $content);
+        $this->assertStringContainsString('<table>', $content);
+        $this->assertStringNotContainsString('tracker.png', $content);
+        $this->assertStringNotContainsString('onerror', $content);
+        $this->get($root.'/documents/'.$draft.'/preview')->assertOk();
+        $markdown = $this->postJson($root.'/markdown', ['markdown' => '**Assunto** <script>perigo</script>'])->assertOk()->json('html');
+        $this->assertStringContainsString('<strong>Assunto</strong>', $markdown);
+        $this->assertStringNotContainsString('<script>', $markdown);
+    }
+
+    public function test_default_template_and_pdf_storage_failure_can_be_retried(): void
+    {
+        $disk = Storage::fake('local');
+        $this->actingAs(User::findOrFail(1))->withSession(['tenant_id' => 1]);
+        $root = '/tenant-a/secretary';
+        $template = [
+            'name' => 'Correspondência da Diretoria', 'description' => 'Modelo padrão', 'type' => 'official_letter',
+            'content' => '<p>Modelo da Diretoria</p>', 'paper_size' => 'a4', 'paper_orientation' => 'portrait',
+            'is_active' => true, 'layout' => array_replace(\App\Services\OfficialLetterService::LAYOUT, ['default' => true, 'department' => 'Diretoria']),
+        ];
+        $created = $this->postJson($root.'/templates', $template)->assertCreated()->json('id');
+        $this->get($root.'/documents/create')->assertOk()->assertSee('Modelo da Diretoria');
+        $this->get($root.'/templates/'.$created.'/preview')->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $draft = $this->postJson($root.'/documents', $this->letterPayload() + ['template_id' => $created])->assertCreated()->json('id');
+        $url = $root.'/documents/'.$draft.'/issue';
+
+        $failingDisk = \Mockery::mock(\Illuminate\Filesystem\FilesystemAdapter::class);
+        $failingDisk->shouldReceive('put')->once()->andReturn(false);
+        $failingDisk->shouldReceive('delete')->once()->andReturn(true);
+        app('filesystem')->set('local', $failingDisk);
+        $this->postJson($url, ['revision' => 1])->assertStatus(507);
+        $this->assertDatabaseHas('generated_documents', ['id' => $draft, 'status' => 'draft', 'institutional_sequence' => null]);
+        $this->assertDatabaseMissing('generated_document_revisions', ['generated_document_id' => $draft, 'event' => 'issued']);
+
+        app('filesystem')->set('local', $disk);
+        $this->postJson($url, ['revision' => 1])->assertOk()->assertJsonPath('number', '001/2026/SEC');
+        $preview = $root.'/documents/'.$draft.'/preview';
+        $original = $this->get($preview)->assertOk()->streamedContent();
+        $this->putJson($root.'/templates/'.$created, array_replace($template, ['content' => '<p>Novo modelo</p>']))->assertOk();
+        $this->assertSame($original, $this->get($preview)->assertOk()->streamedContent());
+    }
+
+    private function letterPayload(): array
+    {
+        return [
+            'title' => 'Manutenção de equipamentos', 'content' => '<p>Solicitamos a manutenção dos equipamentos.</p>',
+            'paper_size' => 'a4', 'paper_orientation' => 'portrait',
+            'letter' => ['institution' => 'CODEVASF', 'subject' => 'Manutenção', 'city' => 'Miravânia',
+                'date' => '2026-11-22', 'salutation' => 'Prezados Senhores,', 'closing' => 'Atenciosamente,',
+                'signatory' => 'Ana de Souza', 'signatory_position' => 'Presidente'],
+            'layout' => array_replace(\App\Services\OfficialLetterService::LAYOUT, [
+                'sector' => 'SEC', 'header_name' => 'Associação de Teste', 'footer' => 'Secretaria institucional',
+            ]),
+        ];
     }
 }

@@ -4,6 +4,11 @@ import {estimate, currency, beneficiaryPdf, sharePdf} from './provider-offline-d
 const get = id => document.getElementById(id);
 const message = get('message'), form = get('order-form'), actions = get('order-actions');
 let bundle, pending = [], active, syncing = false, saving = false;
+let agendaState = '';
+const picker = get('field-picker');
+const pickerSearch = get('field-picker-search');
+const pickerOptions = get('field-picker-options');
+let pickerSelect, pickerButton;
 let requestedCreation = new URL(location.href).searchParams.get('new') === '1' || /\/provider\/orders\/create\/?$/.test(location.pathname);
 let requestedOrderId = new URL(location.href).searchParams.get('os') || location.pathname.match(/\/provider\/orders\/(\d+)$/)?.[1];
 
@@ -33,14 +38,88 @@ function field(parent, label, name, value = '', type = 'text') {
 }
 
 function select(parent, label, name, options, value) {
-    const wrapper = element('label', label), input = element('select');
+    const enhanced = typeof picker.showModal === 'function';
+    const wrapper = element(enhanced ? 'div' : 'label', label), input = element('select');
     input.name = name;
     input.append(new Option('Selecione', ''));
     for (const [id, text] of options) input.append(new Option(text, id));
     input.value = value ?? '';
     wrapper.append(input);
     parent.append(wrapper);
+    if (!enhanced) return input;
+
+    wrapper.classList.add('field-select');
+    input.classList.add('field-select-native');
+    input.tabIndex = -1;
+    input.setAttribute('aria-hidden', 'true');
+    const trigger = button('', () => {
+        pickerSelect = input;
+        pickerButton = trigger;
+        get('field-picker-title').textContent = label;
+        pickerSearch.value = '';
+        pickerSearch.hidden = input.options.length <= 6;
+        renderPicker();
+        picker.showModal();
+        (pickerSearch.hidden ? pickerOptions.querySelector('[aria-pressed=true]') || pickerOptions.querySelector('button') : pickerSearch)?.focus();
+    });
+    trigger.className = 'field-select-trigger';
+    trigger.setAttribute('aria-haspopup', 'dialog');
+    trigger.setAttribute('aria-controls', 'field-picker');
+    trigger.dataset.fieldSelect = label;
+    const error = element('small', 'Selecione uma opção para continuar.');
+    error.className = 'field-select-error';
+    error.hidden = true;
+    input.addEventListener('invalid', event => {
+        event.preventDefault();
+        error.hidden = false;
+        trigger.setAttribute('aria-invalid', 'true');
+        if (!form.querySelector('.field-select-trigger:focus[aria-invalid=true]')) trigger.focus();
+    });
+    input.addEventListener('change', () => {
+        error.hidden = true;
+        trigger.removeAttribute('aria-invalid');
+        refreshSelectTriggers(parent);
+    });
+    wrapper.append(trigger, error);
+    refreshSelectTriggers(wrapper);
     return input;
+}
+
+const searchable = value => String(value ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase('pt-BR').trim();
+
+function refreshSelectTriggers(scope = form) {
+    for (const trigger of scope.querySelectorAll('[data-field-select]')) {
+        const select = trigger.parentElement.querySelector('select');
+        trigger.textContent = select.selectedOptions[0]?.text || 'Selecione';
+        trigger.disabled = select.disabled;
+        trigger.setAttribute('aria-label', trigger.dataset.fieldSelect + ': ' + trigger.textContent);
+    }
+}
+
+function renderPicker() {
+    pickerOptions.replaceChildren();
+    if (!pickerSelect) return;
+    const query = searchable(pickerSearch.value);
+    for (const option of pickerSelect.options) {
+        if (option.disabled || (!option.value && pickerSelect.required) || !searchable(option.text).includes(query)) continue;
+        const choice = button(option.value ? option.text : 'Sem seleção', () => {
+            pickerSelect.value = option.value;
+            pickerSelect.dispatchEvent(new Event('input', {bubbles: true}));
+            pickerSelect.dispatchEvent(new Event('change', {bubbles: true}));
+            picker.close();
+        });
+        choice.setAttribute('aria-pressed', String(option.selected));
+        pickerOptions.append(choice);
+    }
+    if (!pickerOptions.childElementCount) pickerOptions.append(element('p', 'Nenhuma opção encontrada.'));
+}
+
+function formGroup(label) {
+    const group = element('fieldset');
+    group.className = 'order-field-group';
+    group.append(element('legend', label));
+    form.append(group);
+    return group;
 }
 
 const editableState = order => ['draft','in_progress','rejected'].includes(order.execution);
@@ -90,9 +169,11 @@ function renderList() {
 
     const root = get('orders');
     root.replaceChildren();
+    const query = searchable(get('order-search').value);
     const queuedIds = new Set(pending.map(row => row.payload.order_id));
     for (const order of bundle.orders) {
-        if (queuedIds.has(order.id)) continue;
+        if (queuedIds.has(order.id) || (agendaState && agendaState !== order.state)
+            || !searchable([order.number, order.beneficiary, order.service, order.location].filter(Boolean).join(' ')).includes(query)) continue;
         const item = button(order.beneficiary || order.number, () => openOrder(order));
         item.className = 'order-row';
         item.append(element('small', [order.number, order.service, displayDate(order.executionDate || order.scheduled)].filter(Boolean).join(' · ')));
@@ -102,7 +183,7 @@ function renderList() {
         item.append(status);
         root.append(item);
     }
-    if (!root.childElementCount) root.append(element('p', 'Nenhuma ordem agendada ou em execução neste período.'));
+    if (!root.childElementCount) root.append(element('p', query || agendaState ? 'Nenhuma ordem encontrada com esses filtros.' : 'Nenhuma ordem agendada ou em execução neste período.'));
 }
 
 function chosenVersion() {
@@ -142,6 +223,7 @@ function renderFields(catalog, target, values, files, writable, isNew) {
     const startKey = catalog?.meter_pair?.[0], endKey = catalog?.meter_pair?.[1];
     if (startKey && writable && catalog.fields.some(item => item.key === endKey && item.editable_by_provider)) {
         const pauses = element('fieldset');
+        pauses.dataset.meterPauses = '';
         pauses.append(element('legend','Pausas de medição'));
         function addPause(pause = {}) {
             const row = element('div'), inputs = element('div');
@@ -156,6 +238,7 @@ function renderFields(catalog, target, values, files, writable, isNew) {
         try {JSON.parse(values['meter_pauses_'+startKey] || '[]').forEach(addPause);} catch {}
         target.append(pauses);
     }
+    refreshSelectTriggers(target);
 }
 
 function openOrder(order, row = null) {
@@ -167,12 +250,13 @@ function openOrder(order, row = null) {
     form.replaceChildren();
     actions.replaceChildren();
     if (!order) {
-        const version = select(form,'Serviço','service_version_id', bundle.catalog.map(item => [item.id,item.name]),reference.service_version_id);
+        const serviceFields = formGroup('Serviço e prestador');
+        const version = select(serviceFields,'Serviço','service_version_id', bundle.catalog.map(item => [item.id,item.name]),reference.service_version_id);
         version.required = !bundle.catalog.length ? false : writable;
         version.disabled = !writable;
         if (!version.value && bundle.catalog.length === 1) version.value = bundle.catalog[0].id;
         if (bundle.operator) {
-            const assignedProvider = select(form,'Prestador responsável','service_provider_id',
+            const assignedProvider = select(serviceFields,'Prestador responsável','service_provider_id',
                 bundle.providers.map(item => [item.id,item.name]), reference.service_provider_id ?? bundle.providerId);
             assignedProvider.disabled = !writable;
             assignedProvider.required = writable;
@@ -183,22 +267,29 @@ function openOrder(order, row = null) {
                 }
                 if (assignedProvider.selectedOptions[0]?.disabled) assignedProvider.value = '';
                 if (!assignedProvider.value && eligible.length === 1) assignedProvider.value = eligible[0];
+                refreshSelectTriggers();
             };
             version.addEventListener('change',updateProviders);
             updateProviders();
         }
-        const member = select(form,'Membro associado','associate_id', bundle.members.map(item => [item.id,item.name]),reference.associate_id);
+        const contact = formGroup('Beneficiário e contato');
+        const member = select(contact,'Membro associado','associate_id', bundle.members.map(item => [item.id,item.name]),reference.associate_id);
         member.disabled = !writable;
-        const beneficiary = field(form,'Beneficiário','beneficiary_name',reference.beneficiary_name);
+        const beneficiary = field(contact,'Beneficiário','beneficiary_name',reference.beneficiary_name);
         beneficiary.disabled = !writable;
         member.addEventListener('change',() => {
             if (!beneficiary.value) beneficiary.value = bundle.members.find(item => String(item.id) === member.value)?.name || '';
         });
         beneficiary.required = writable;
-        const whatsapp = field(form,'WhatsApp','beneficiary_whatsapp',reference.beneficiary_whatsapp,'tel');
+        const whatsapp = field(contact,'WhatsApp','beneficiary_whatsapp',reference.beneficiary_whatsapp,'tel');
         whatsapp.maxLength = 25; whatsapp.disabled = !writable;
-        field(form,'Agendamento','scheduled_at',reference.scheduled_at,'datetime-local').required = writable;
-        field(form,'Local','location',reference.location).maxLength = 191;
+        const schedule = formGroup('Agendamento e local');
+        const scheduledDate = field(schedule,'Agendamento','scheduled_at',reference.scheduled_at,'datetime-local');
+        scheduledDate.required = writable;
+        scheduledDate.disabled = !writable;
+        const locationField = field(schedule,'Local','location',reference.location);
+        locationField.maxLength = 191;
+        locationField.disabled = !writable;
         version.addEventListener('change',() => {
             member.required = Boolean(chosenVersion()?.membersOnly);
             renderFields(chosenVersion()?.catalog, dynamic, {}, {}, writable, true);
@@ -212,6 +303,7 @@ function openOrder(order, row = null) {
     form.append(dynamic);
     if (!order) form.elements.namedItem('associate_id').required = !!chosenVersion()?.membersOnly && writable;
     renderFields(order?.catalog || chosenVersion()?.catalog, dynamic, {...order?.values,...reference.order_data,...row?.payload.values},row?.files || {},writable,!order);
+    refreshSelectTriggers();
     if (writable) {
         if (!order) actions.append(button(row ? 'Salvar ordem' : 'Criar ordem',() => save('schedule'),true));
         actions.append(button('Salvar rascunho',() => save('draft')));
@@ -276,7 +368,7 @@ function values(catalog) {
     const payload = new FormData(form), pauses = payload.getAll('pause-stop');
     for (const [name,value] of payload) if (name.startsWith('value:') || name.startsWith('order:')) result[name.slice(6)] = value;
     const startKey = catalog?.meter_pair?.[0];
-    if (startKey && form.querySelector('fieldset')) {
+    if (startKey && form.querySelector('[data-meter-pauses]')) {
         const resumes = payload.getAll('pause-resume');
         result['meter_pauses_'+startKey] = JSON.stringify(pauses.map((stop,index) => ({stop,resume:resumes[index]})));
     }
@@ -353,7 +445,10 @@ async function save(action) {
 
 async function redraw() {
     bundle = await getBundle();
-    if (active && active.scope !== bundle?.scope) active = null;
+    if (!bundle || (active && active.scope !== bundle.scope)) {
+        if (picker.open) picker.close();
+        active = null;
+    }
     pending = bundle ? await queued(bundle.scope) : [];
     get('connection').textContent = navigator.onLine ? 'Online' : 'Sem internet';
     get('connection').dataset.online = String(navigator.onLine);
@@ -403,9 +498,26 @@ form.addEventListener('submit',event => {
     if (active && !active.order && !active.row?.sent && !active.row?.conflict) save('schedule');
 });
 form.addEventListener('input',preview);
+pickerSearch.addEventListener('input', renderPicker);
+get('field-picker-close').addEventListener('click', () => picker.close());
+picker.addEventListener('close', () => {
+    pickerButton?.focus();
+    pickerButton = pickerSelect = null;
+    pickerOptions.replaceChildren();
+});
+get('order-search').addEventListener('input', renderList);
+document.querySelectorAll('[data-agenda-state]').forEach(filter => filter.addEventListener('click', () => {
+    agendaState = filter.dataset.agendaState;
+    document.querySelectorAll('[data-agenda-state]').forEach(item => item.setAttribute('aria-pressed', String(item === filter)));
+    renderList();
+}));
 get('create').addEventListener('click',() => openOrder(null));
 get('back').addEventListener('click',() => {active=null;renderList();});
 window.sgcOverlayBack = () => {
+    if (picker.open) {
+        picker.close();
+        return true;
+    }
     if (!active) return false;
     active = null;
     renderList();

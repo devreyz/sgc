@@ -10,7 +10,7 @@ class DocumentContentSanitizer
 {
     private const TAGS = [
         'p', 'div', 'span', 'br', 'hr', 'h1', 'h2', 'h3', 'h4', 'strong', 'b', 'em', 'i', 'u', 's',
-        'blockquote', 'ul', 'ol', 'li', 'a', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'img',
+        'blockquote', 'ul', 'ol', 'li', 'a', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'img', 'figure', 'figcaption',
     ];
 
     private const ATTRIBUTES = [
@@ -22,10 +22,10 @@ class DocumentContentSanitizer
         'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left', 'padding', 'padding-top',
         'padding-right', 'padding-bottom', 'padding-left', 'border', 'border-top', 'border-right', 'border-bottom',
         'border-left', 'border-collapse', 'width', 'height', 'max-width', 'line-height', 'page-break-before',
-        'page-break-after', 'page-break-inside', 'vertical-align',
+        'page-break-after', 'page-break-inside', 'vertical-align', 'text-indent',
     ];
 
-    public function sanitize(?string $html): string
+    public function sanitize(?string $html, ?callable $imageSource = null): string
     {
         $html = trim((string) $html);
         if ($html === '') {
@@ -43,7 +43,7 @@ class DocumentContentSanitizer
             return '<p><br></p>';
         }
 
-        $this->cleanChildren($root);
+        $this->cleanChildren($root, $imageSource);
 
         $result = '';
         foreach ($root->childNodes as $child) {
@@ -53,7 +53,7 @@ class DocumentContentSanitizer
         return trim($result) ?: '<p><br></p>';
     }
 
-    private function cleanChildren(DOMNode $parent): void
+    private function cleanChildren(DOMNode $parent, ?callable $imageSource): void
     {
         foreach (iterator_to_array($parent->childNodes) as $node) {
             if (! $node instanceof DOMElement) {
@@ -62,7 +62,12 @@ class DocumentContentSanitizer
 
             $tag = strtolower($node->tagName);
             if (! in_array($tag, self::TAGS, true)) {
-                $this->unwrap($node);
+                if (in_array($tag, ['script', 'style', 'iframe', 'object', 'svg', 'math', 'template'], true)) {
+                    $node->parentNode?->removeChild($node);
+                } else {
+                    $this->cleanChildren($node, $imageSource);
+                    $this->unwrap($node);
+                }
 
                 continue;
             }
@@ -90,15 +95,18 @@ class DocumentContentSanitizer
 
             if ($tag === 'img') {
                 $src = trim($node->getAttribute('src'));
-                if (! preg_match('/^(\/storage\/|data:image\/(png|jpe?g|webp);base64,)/i', $src)) {
+                $safeSource = $imageSource ? $imageSource($src)
+                    : (preg_match('/^(\/storage\/|data:image\/(png|jpe?g|webp);base64,)/i', $src) ? $src : null);
+                if (! $safeSource) {
                     $node->parentNode?->removeChild($node);
 
                     continue;
                 }
+                $node->setAttribute('src', $safeSource);
                 $node->setAttribute('style', trim($this->sanitizeStyle($node->getAttribute('style')).';max-width:100%;height:auto;', ';'));
             }
 
-            $this->cleanChildren($node);
+            $this->cleanChildren($node, $imageSource);
         }
     }
 
@@ -131,6 +139,5 @@ class DocumentContentSanitizer
             $parent->insertBefore($node->firstChild, $node);
         }
         $parent->removeChild($node);
-        $this->cleanChildren($parent);
     }
 }

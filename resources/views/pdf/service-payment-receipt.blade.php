@@ -1,5 +1,8 @@
 @extends('pdf.partials.header')
 
+@section('extra-styles')
+    @include('pdf.partials.service-document-style')
+@endsection
 @section('content')
 @php
     $paymentLabel = \App\Enums\PaymentMethod::tryFrom($event->payment_method)?->getLabel() ?? $event->payment_method;
@@ -12,26 +15,26 @@
 @if($event->status === 'reversed')
     <div class="info-box"><strong>Recebimento estornado</strong> · Via para consulta do histórico.</div>
 @endif
-<div class="info-box">
-    <table>
-        <tr><td class="label">Pagador</td><td>{{ $payer }}</td></tr>
-        <tr><td class="label">Valor recebido</td><td><strong>{{ $money($event->amount) }}</strong></td></tr>
-        <tr><td class="label">Data do recebimento</td><td>{{ $event->payment_date->format('d/m/Y') }}</td></tr>
-        <tr><td class="label">Data de emissão</td><td>{{ today()->format('d/m/Y') }}</td></tr>
-        <tr><td class="label">Forma de pagamento</td><td>{{ $paymentLabel }}</td></tr>
-        @if(filled(data_get($event->metadata, 'document_number')))
-            <tr><td class="label">Referência do pagamento</td><td>{{ data_get($event->metadata, 'document_number') }}</td></tr>
+<div class="service-document">
+    <table class="service-facts" role="presentation">
+        <tr>
+            <td width="58%"><span>Recebido de</span><strong>{{ $payer }}</strong></td>
+            <td width="42%" class="service-highlight"><span>Valor recebido</span><strong>{{ $money($event->amount) }}</strong></td>
+        </tr>
+        <tr>
+            <td><span>Data do pagamento</span>{{ $event->payment_date->format('d/m/Y') }}</td>
+            <td><span>Forma de pagamento</span>{{ $paymentLabel }}</td>
+        </tr>
+        @if($agreement || filled(data_get($event->metadata, 'document_number')))
+            <tr>
+                <td><span>Referência do pagamento</span>{{ data_get($event->metadata, 'document_number') }}</td>
+                <td><span>Acordo</span>{{ $agreement?->number }}</td>
+            </tr>
         @endif
-        @if($agreement)<tr><td class="label">Acordo</td><td>{{ $agreement->number }}</td></tr>@endif
-        @if($remaining !== null)
-            <tr><td class="label">Saldo após o recebimento</td><td>{{ $money($remaining / 100) }}</td></tr>
-        @endif
-        <tr><td class="label">Registrado por</td><td>{{ data_get($event->metadata, 'registered_by_name') ?: $event->registrar?->name }}</td></tr>
     </table>
-</div>
 
 <div class="section-title">Ordens de serviço</div>
-<table class="data-table">
+<table class="data-table service-table">
     <thead><tr><th>Ordem</th><th class="text-right">Valor destinado</th></tr></thead>
     <tbody>
     @foreach($event->allocations as $allocation)
@@ -42,7 +45,7 @@
 
 @if($installments->isNotEmpty())
     <div class="section-title">Distribuição por parcela</div>
-    <table class="data-table">
+    <table class="data-table service-table">
         <thead><tr><th>Parcela</th><th>Ordem de serviço</th><th class="text-right">Valor destinado</th></tr></thead>
         <tbody>
         @foreach($installments as $item)
@@ -62,5 +65,14 @@
         </tbody>
     </table>
 @endif
-<p style="margin-top:12px;font-size:9px">Recibo administrativo de pagamento · Sem valor fiscal.</p>
+<div class="service-document-section">
+    <h2 class="section-title">Registro do recebimento</h2>
+    <table class="service-facts" role="presentation"><tr>
+        <td><span>Registrado por</span>{{ data_get($event->metadata, 'registered_by_name') ?: $event->registrar?->name }}</td>
+        <td><span>Emissão</span>{{ today()->format('d/m/Y') }}</td>
+        @if($remaining !== null)<td><span>Saldo após o recebimento</span><strong>{{ $money($remaining / 100) }}</strong></td>@endif
+    </tr></table>
+</div>
+<p class="service-disclaimer">Recibo administrativo de pagamento · Sem valor fiscal.</p>
+</div>
 @endsection

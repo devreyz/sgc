@@ -1225,7 +1225,8 @@
                     </div>
                     <h1>{{ $order->service->name }}</h1>
                     @if(($provider || ($operator ?? false)) && !($managementExecution ?? false))
-                        <a href="{{ url('/provider-offline.html').'?'.http_build_query(['tenant' => $tenantSlug, 'os' => $order->id]) }}">Via do beneficiário e modo offline</a>
+                        <a href="{{ route('provider.orders.beneficiary-copy', [$tenantSlug, $order]) }}" target="_blank" rel="noopener" data-sgc-pdf>OS · Via do beneficiário</a>
+                        <a href="{{ url('/provider-offline.html').'?'.http_build_query(['tenant' => $tenantSlug, 'os' => $order->id]) }}">Abrir no modo offline</a>
                     @endif
                     <div class="svc-meta">
                         <span>

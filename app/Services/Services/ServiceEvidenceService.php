@@ -10,7 +10,10 @@ use App\Models\Tenant;
 use App\Models\TenantCloudStorageConnection;
 use App\Models\User;
 use App\Services\TenantGoogleDriveService;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Schema;
@@ -106,5 +109,34 @@ class ServiceEvidenceService
         abort_unless($document->disk === 'local' && Storage::disk('local')->exists($document->path), 404);
 
         return Storage::disk('local')->get($document->path);
+    }
+
+    public function view(Request $request, ServiceExecutionEvidence $evidence): Response
+    {
+        $document = $evidence->document;
+        abort_unless($document && (int) $document->tenant_id === (int) $evidence->tenant_id, 404);
+        $cacheImage = in_array($document->mime_type, ['image/jpeg', 'image/png', 'image/webp'], true);
+        $response = response('', 200, [
+            'Content-Type' => $document->mime_type,
+            'Cache-Control' => $cacheImage ? 'private, no-cache' : 'private, no-store',
+            'Vary' => 'Cookie',
+        ]);
+        $fallbackName = 'evidencia-'.$evidence->id.'.'.$document->extension;
+        $filename = basename(str_replace('\\', '/', (string) $document->original_name)) ?: $fallbackName;
+        $response->headers->set('Content-Disposition',
+            $response->headers->makeDisposition('inline', $filename, $fallbackName));
+        if ($cacheImage) {
+            $version = hash('sha256', implode('|', [$document->tenant_id, $document->id, $document->disk,
+                $document->path, $document->updated_at, $evidence->sha256]));
+            $response->setEtag($version);
+            if ($response->isNotModified($request)) {
+                return $response;
+            }
+            if ((int) $document->size > 0 && (int) $document->size <= 2 * 1024 * 1024) {
+                return $response->setContent(Cache::remember('service-evidence:'.$version, 90, fn () => $this->contents($document)));
+            }
+        }
+
+        return $response->setContent($this->contents($document));
     }
 }

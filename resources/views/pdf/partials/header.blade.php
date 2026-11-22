@@ -363,36 +363,17 @@
 <body>
     {{-- ═══ HEADER ═══ --}}
     @unless($suppress_internal_header)
-    <table class="pdf-header" role="presentation"><tr>
-        @if($hasLogo)
-        <td class="pdf-header-logo">
-            <img src="{{ $logoPath }}" alt="Logo">
-        </td>
-        @endif
-        <td class="pdf-header-info">
-            <div class="org-name">{{ $tenant->name ?? 'Organização' }}</div>
-            @if($tenant)
-                @if($tenant->cnpj)
-                    <div class="org-legal">CNPJ: {{ $tenant->cnpj }}
-                        @if($tenant->state_registration) | IE: {{ $tenant->state_registration }} @endif
-                    </div>
-                @endif
-                <div class="org-contact">
-                    @if($tenant->address){{ $tenant->address }}@if($tenant->address_number), {{ $tenant->address_number }}@endif @if($tenant->neighborhood) - {{ $tenant->neighborhood }}@endif @if($tenant->city) | {{ $tenant->city }}@endif @if($tenant->state)/{{ $tenant->state }}@endif @if($tenant->zip_code) - CEP: {{ $tenant->zip_code }}@endif @endif
-                    @if($tenant->phone || ($tenant->email && !($hide_header_email ?? false)))
-                        <br>@if($tenant->phone)Tel: {{ $tenant->phone }} @endif @if($tenant->email && !($hide_header_email ?? false)){{ $tenant->phone ? '| ' : '' }}{{ $tenant->email }}@endif
-                    @endif
-                </div>
-            @endif
-        </td>
-        <td class="pdf-header-title-cell">
-            <div class="doc-title">{{ $title ?? 'Relatório' }}</div>
-            @if(isset($subtitle))
-                <div class="doc-subtitle">{{ $subtitle }}</div>
-            @endif
-            @unless($suppress_generation_timestamp ?? false)<div class="doc-date">Gerado em: {{ $generated_at ?? now()->format('d/m/Y H:i') }}</div>@endunless
-        </td>
-    </tr></table>
+    @include('pdf.partials.organization-header', [
+        'brandName' => $tenant?->name ?? 'Organização',
+        'brandDocument' => $tenant?->cnpj,
+        'brandLogo' => $hasLogo ? $logoPath : null,
+        'brandLogoHtml' => $pdf_brand_logo_html ?? null,
+        'brandContact' => implode(' · ', array_filter([$tenant?->full_address, $tenant?->phone, ($hide_header_email ?? false) ? null : $tenant?->email])),
+        'headerTitle' => $title ?? 'Relatório',
+        'headerColor' => $primaryColor,
+        'headerSubtitle' => $subtitle ?? null,
+        'headerDate' => ($suppress_generation_timestamp ?? false) ? null : ($generated_at ?? now()->format('d/m/Y H:i')),
+    ])
     @endunless
 
     @yield('content')

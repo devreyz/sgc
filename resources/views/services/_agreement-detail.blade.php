@@ -22,14 +22,9 @@
         @if($isActive && $pending->isNotEmpty() && $canPay)
             <button class="billing-button primary" type="button" data-billing-open="agreement-payment"><i class="ph ph-hand-coins" aria-hidden="true"></i> Registrar pagamento</button>
         @endif
-        @if($agreement->generatedDocument)
-            <a class="billing-button" href="{{ route('services.management.documents.download', [$tenantSlug, $agreement->generatedDocument, 'inline' => 1]) }}" target="_blank" rel="noopener" data-sgc-pdf>
-                <i class="ph ph-file-pdf" aria-hidden="true"></i> Abrir última nota emitida
-            </a>
-        @endif
         <form method="post" action="{{ route('services.management.agreements.document', [$tenantSlug, $agreement]) }}" target="_blank" data-sgc-pdf-form="Nota interna de cobrança">
             @csrf
-            <button class="billing-button" type="submit">{{ $agreement->generatedDocument ? 'Atualizar nota interna' : 'Emitir nota interna' }}</button>
+            <button class="billing-button" type="submit">Nota interna de cobrança</button>
             <small data-sgc-pdf-error role="alert"></small>
         </form>
         @if($canPay && $events->isNotEmpty())<a class="billing-button" href="#agreement-receipts">Recibos</a>@endif

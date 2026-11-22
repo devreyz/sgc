@@ -652,6 +652,11 @@
             border-bottom: 0;
         }
 
+        .expenses-mobile-item { position: relative; }
+        .expense-card-link::after { content: ''; position: absolute; inset: 0; z-index: 1; }
+        .expenses-mobile-item:has(.expense-card-link:focus-visible) { outline: 2px solid var(--sgc-primary, #173c2e); outline-offset: -2px; }
+        .expenses-mobile-item .expense-attachment-link { position: relative; z-index: 2; }
+
         .expenses-mobile-top {
             display: flex;
             min-width: 0;
@@ -2006,7 +2011,7 @@
                         <div class="expenses-mobile-top">
                             <div class="expenses-mobile-main">
                                 <strong>
-                                    <a href="{{ route($management ? 'services.management.expenses.show' : 'provider.expenses.show', ['tenant' => $tenantSlug, 'expense' => $expense->id]) }}">{{ $expense->description }}</a>
+                                    <a class="expense-card-link" href="{{ route($management ? 'services.management.expenses.show' : 'provider.expenses.show', ['tenant' => $tenantSlug, 'expense' => $expense->id]) }}">{{ $expense->description }}</a>
                                 </strong>
 
                                 <small>

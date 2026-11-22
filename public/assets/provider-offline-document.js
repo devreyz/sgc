@@ -82,7 +82,7 @@ const pdfText = text => Array.from(String(text ?? '')).map(char => {
 }).join('');
 
 export function beneficiaryPdf({organization, logo, provider, order, status, totals, provisional}) {
-    const lines = ['0.09 0.24 0.18 rg', '36 683 523 2 re f'];
+    const lines = ['0.09 0.24 0.18 rg'];
     const text = (value,y,size=12,font='F1',x=36) => lines.push('BT /'+font+' '+size+' Tf '+x+' '+y+' Td ('+pdfText(value)+') Tj ET');
     const wrap = (value, max) => {
         const rows = [];
@@ -93,25 +93,42 @@ export function beneficiaryPdf({organization, logo, provider, order, status, tot
         if (row) rows.push(row);
         return rows;
     };
-    if (logo) lines.push('q 42 0 0 42 36 754 cm /Logo Do Q');
-    wrap(organization,45).slice(0,3).forEach((line, i) => text(line,790-i*22,18,'F2',logo ? 89 : 36));
-    text('Via do beneficiário',711,12,'F2');
-    let y = 652;
-    const parts = [
-        ['Ordem',order.number || 'Registro local aguardando sincronização'], ['Situação',status],
-        ['Beneficiário',order.beneficiary], ['Serviço',order.service], ['Prestador',provider],
-        ['Agendamento',order.scheduled && order.scheduled.slice(0,10).split('-').reverse().join('/')+' '+order.scheduled.slice(11,16)],
-        ['Local',order.location], ['Quantidade',totals && totals.quantity+' '+(order.unit || '')],
-        [provisional ? 'Estimativa do serviço' : 'Valor do serviço',totals?.receivable == null ? '' : currency(totals.receivable)],
-    ];
-    for (const [label,value] of parts) {
-        if (!value) continue;
-        text(label,y,10,'F2'); y-=16;
-        for (const line of wrap(value,72).slice(0,3)) {text(line,y);y-=16;}
-        y-=13;
-    }
-    text('Documento informativo. A confirmação de pagamento é emitida separadamente.',59,9);
+    if (logo) lines.push('q 42 0 0 42 36 746 cm /Logo Do Q');
+    wrap(organization, 35).slice(0, 3).forEach((line, i) => text(line, 787 - i * 15, 12, 'F2', logo ? 88 : 36));
+    text('Ordem de serviço', 787, 13, 'F2', 420);
+    text('Via do beneficiário', 769, 10, 'F1', 420);
+    text(order.number || 'Registro local', 753, 10, 'F2', 420);
+
+    const block = (title, x, y, width) => {
+        lines.push('0.91 0.95 0.92 rg', x+' '+(y-8)+' '+width+' 22 re f', '0.09 0.24 0.18 rg');
+        text(title, y, 11, 'F2', x+8);
+    };
+    const field = (label, value, x, y, limit) => {
+        text(label, y, 9, 'F2', x);
+        wrap(value, limit).slice(0, 2).forEach((line,i) => text(line,y-16-i*13,11,'F1',x));
+    };
+    const formatDate = value => value?.slice(0,10).split('-').reverse().join('/');
+    lines.push('36 733 523 2 re f');
+    block('Identificação',36,708,523);
+    field('Beneficiário',order.beneficiary,44,676,37);
+    field('Prestador',provider,331,676,32);
+    field('Local do serviço',order.location,44,626,37);
+    field('Agendamento',order.scheduled ? [formatDate(order.scheduled),order.scheduled.slice(11,16)].filter(Boolean).join(' ') : '',331,626,32);
+
+    block('Serviço e execução',36,573,523);
+    field('Serviço',order.service,44,541,37);
+    field('Data da execução',formatDate(order.executionDate),331,541,32);
+    field('Quantidade',totals ? totals.quantity+' '+(order.unit || '') : '',44,491,37);
+    field(provisional ? 'Estimativa do serviço' : 'Valor do serviço',totals?.receivable == null ? '' : currency(totals.receivable),331,491,32);
+    if (provisional) field('Registro no aparelho',status,44,441,68);
+
+    block('Assinaturas',36,355,523);
+    lines.push('0.09 0.24 0.18 RG','44 304 m 270 304 l S','331 304 m 550 304 l S');
+    text('Beneficiário',290,9,'F1',44);
+    text('Prestador ou associação',290,9,'F1',331);
+    text('Ordem de serviço. O recibo é emitido após o registro do pagamento.',59,9);
     if (provisional) text('Gerado no aparelho com os dados disponíveis neste momento.',42,9);
+
     const stream = lines.join('\n');
     const objects = [
         '<< /Type /Catalog /Pages 2 0 R >>',

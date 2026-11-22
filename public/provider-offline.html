@@ -36,6 +36,16 @@
             <button id="create" type="button" class="primary">+ Nova ordem</button>
         </div>
         <p id="catalog-status" hidden>Nenhum serviço disponível para criar ordens. Conecte-se e atualize o catálogo.</p>
+        <div class="agenda-tools">
+            <label class="agenda-search" for="order-search">Buscar na agenda
+                <input type="search" id="order-search" placeholder="Nome, serviço ou número da OS" autocomplete="off">
+            </label>
+            <div class="agenda-filters" aria-label="Situação das ordens">
+                <button type="button" data-agenda-state="" aria-pressed="true">Todas</button>
+                <button type="button" data-agenda-state="scheduled" aria-pressed="false">Agendadas</button>
+                <button type="button" data-agenda-state="in_progress" aria-pressed="false">Em execução</button>
+            </div>
+        </div>
         <div id="orders" class="order-list"></div>
         <p id="updated"></p>
     </section>
@@ -55,6 +65,16 @@
         <p>As alterações salvas são sincronizadas quando a conexão voltar. Conferência e pagamentos ficam no portal online.</p>
     </details>
 </main>
+<dialog id="field-picker" class="field-picker" aria-labelledby="field-picker-title">
+    <div class="section-head">
+        <h2 id="field-picker-title"></h2>
+        <button type="button" id="field-picker-close">Fechar</button>
+    </div>
+    <label for="field-picker-search">Buscar opção
+        <input id="field-picker-search" type="search" autocomplete="off">
+    </label>
+    <div id="field-picker-options" class="field-picker-options"></div>
+</dialog>
 <script type="module" src="./assets/provider-offline.js"></script>
 </body>
 </html>

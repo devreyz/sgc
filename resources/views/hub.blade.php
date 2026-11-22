@@ -544,13 +544,6 @@
 .hub-page .hub-page-head-site:hover { background: rgb(255 255 255 / .12); }
 
 /* 02 — Faixa editorial após a identificação */
-.hub-page .hub-overview-note { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; padding: 1px 1px 2px; }
-.hub-page .hub-overview-note__copy { display: grid; gap: 4px; }
-.hub-page .hub-overview-note__eyebrow { color: var(--hub-link); font-size: .65rem; font-weight: 850; letter-spacing: .15em; text-transform: uppercase; }
-.hub-page .hub-overview-note__title { margin: 0; font-size: 1.07rem; font-weight: 780; letter-spacing: -.03em; color: var(--hub-ink); }
-.hub-page .hub-overview-note__caption { max-width: 440px; color: var(--hub-muted); font-size: .76rem; line-height: 1.5; }
-.hub-page .hub-overview-note__shortcut { display: inline-flex; align-items: center; gap: 7px; font-size: .72rem; color: var(--hub-muted); white-space: nowrap; }
-.hub-page .hub-overview-note__shortcut i { color: var(--hub-link); font-size: 1.1rem; }
 
 /* 03 — Workspace com áreas bem delimitadas */
 .hub-page > .ui-workspace-grid {
@@ -605,7 +598,6 @@
 .hub-page .hub-portals-list {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    counter-reset: hubPortals;
     gap: 11px;
     align-content: start;
     padding: 6px 18px 18px;
@@ -631,17 +623,6 @@
     color: var(--hub-ink);
     text-decoration: none;
     transition: border-color .14s,background-color .14s,transform .14s;
-    counter-increment: hubPortals;
-}
-.hub-page .hub-portals-list > [data-hub-link]::before {
-    content: 'PORTAL  ' counter(hubPortals, decimal-leading-zero);
-    grid-column: 1 / -1;
-    grid-row: 1;
-    align-self: start;
-    color: var(--hub-faint);
-    font-size: .59rem;
-    font-weight: 900;
-    letter-spacing: .14em;
 }
 .hub-page .hub-portals-list > [data-hub-link]:hover { border-color: var(--hub-link); background: var(--hub-soft); transform: translateY(-1px); }
 .hub-page .hub-portals-list > [data-hub-link]:focus-visible { border-color: var(--hub-focus); }
@@ -754,9 +735,6 @@
     .hub-page .ui-page-head__meta > span { min-width: 0; font-size: .72rem; white-space: normal; overflow-wrap: anywhere; }
     .hub-page .ui-page-head__meta i { flex-shrink: 0; }
     .hub-page .hub-page-head-site { min-height: 34px; padding: 6px 11px; font-size: .68rem; }
-    .hub-page .hub-overview-note { align-items: flex-start; }
-    .hub-page .hub-overview-note__title { font-size: .95rem; }
-    .hub-page .hub-overview-note__shortcut { display: none; }
     .hub-page > .ui-workspace-grid { display: block; }
     .hub-page .hub-main-stack,.hub-page .hub-side-stack { display: contents; }
     .hub-page .hub-screen { display: none; }
@@ -805,12 +783,39 @@
     .hub-page .hub-portals-list > [data-hub-link] { min-height: 98px; grid-template-columns: 40px minmax(0,1fr) 21px; row-gap: 10px; padding: 13px 14px; }
     .hub-page .hub-portals-list > [data-hub-link] .ui-icon-box { width: 39px; height: 39px; }
     .hub-page .hub-portals-list > [data-hub-link] .ui-icon-box i { font-size: 1.24rem; }
-    .hub-page .hub-portals-list > [data-hub-link]::before { font-size: .56rem; }
     .hub-page .hub-portals-list .ui-action-row__title { font-size: .87rem; }
     .hub-page .hub-portals-list .ui-action-row__description { font-size: .7rem; }
     .hub-page .hub-page-head-site span { display: initial; }
 }
 @media (prefers-reduced-motion: reduce) { .hub-page *, .hub-bottom-nav * { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+.hub-page .hub-portals-list > [data-hub-link] {
+    grid-template-columns: 44px minmax(0, 1fr) 20px;
+    grid-template-rows: auto;
+    align-items: center;
+    align-content: center;
+    min-height: 78px;
+    gap: 12px;
+    padding: 12px 14px;
+    color: var(--hub-ink);
+    background: var(--hub-panel);
+    border: 1px solid var(--hub-line);
+    border-radius: 12px;
+}
+.hub-page .hub-portals-list > [data-hub-link] .ui-icon-box {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    color: var(--hub-link);
+    background: var(--hub-light-tint);
+    grid-row: auto;
+}
+.hub-page .hub-portals-list > [data-hub-link] .ui-icon-box i { font-size: 1.4rem; }
+.hub-page .hub-portals-list > [data-hub-link] .ui-action-row__copy { grid-row: auto; grid-column: 2; }
+.hub-page .hub-portals-list > [data-hub-link] .ui-action-row__action { grid-row: auto; grid-column: 3; }
+.hub-page .hub-portals-list .ui-action-row__title { font-size: .94rem; }
+.hub-page .hub-portals-list .ui-action-row__description { font-size: .78rem; }
+.hub-page .hub-portals-list > [data-hub-link]:hover { border-color: var(--hub-link); background: var(--hub-soft); }
+.hub-page > .ui-page-head .ui-page-head__copy::before { content: none; }
 </style>
 
 
@@ -841,13 +846,6 @@
                         <span>{{ $displayName }}</span>
                     </span>
 
-                    <span>
-                        <i class="ph ph-squares-four" aria-hidden="true"></i>
-                        <span>
-                            <strong class="hub-head-meta-count" data-visible-count>{{ $availablePanelsCount }}</strong>
-                            {{ $availablePanelsCount === 1 ? 'portal disponível' : 'portais disponíveis' }}
-                        </span>
-                    </span>
 
                     @if($tenantLocation)
                         <span>
@@ -875,15 +873,6 @@
         @endif
     </header>
 
-    <div class="hub-overview-note" aria-label="Resumo do espaço de trabalho">
-        <div class="hub-overview-note__copy">
-            <span class="hub-overview-note__eyebrow">SEU ESPAÇO / ACESSO ORGANIZADO</span>
-            <h2 class="hub-overview-note__title">Tudo que você precisa, em um só lugar.</h2>
-            <span class="hub-overview-note__caption">Acesse seus portais, consulte os comunicados e encontre os canais oficiais da organização.</span>
-        </div>
-        <span class="hub-overview-note__shortcut"><i class="ph ph-check-circle" aria-hidden="true"></i> Seus acessos aparecem conforme suas permissões</span>
-    </div>
-
     <div class="ui-workspace-grid">
         <div class="ui-stack hub-main-stack">
             <section
@@ -903,8 +892,7 @@
                         </span>
 
                         <div class="ui-section__copy">
-                            <h2 id="hub-portals-title">Áreas de trabalho</h2>
-                            <p>Selecione o portal para continuar suas atividades.</p>
+                            <h2 id="hub-portals-title">Portais</h2>
                         </div>
                     </div>
 
@@ -970,7 +958,7 @@
                                     class="ui-icon-box ui-icon-box--sm"
                                     aria-hidden="true"
                                 >
-                                    <i class="ph {{ $superVisual['icon'] }}"></i>
+                                    <i class="ph-duotone {{ $superVisual['icon'] }}"></i>
                                 </span>
 
                                 <span class="ui-action-row__copy">
@@ -1014,7 +1002,7 @@
                                     class="ui-icon-box ui-icon-box--sm"
                                     aria-hidden="true"
                                 >
-                                    <i class="ph {{ $visual['icon'] }}"></i>
+                                    <i class="ph-duotone {{ $visual['icon'] }}"></i>
                                 </span>
 
                                 <span class="ui-action-row__copy">
@@ -1468,7 +1456,7 @@
         data-hub-screen-target="portals"
         aria-current="page"
     >
-        <i class="ph ph-squares-four" aria-hidden="true"></i>
+        <i class="ph-duotone ph-squares-four" aria-hidden="true"></i>
         <span>Portais</span>
     </button>
 
@@ -1477,7 +1465,7 @@
         type="button"
         data-hub-screen-target="news"
     >
-        <i class="ph ph-megaphone-simple" aria-hidden="true"></i>
+        <i class="ph-duotone ph-megaphone-simple" aria-hidden="true"></i>
         <span>Novidades</span>
     </button>
 
@@ -1486,7 +1474,7 @@
         type="button"
         data-hub-screen-target="resources"
     >
-        <i class="ph ph-compass-tool" aria-hidden="true"></i>
+        <i class="ph-duotone ph-compass-tool" aria-hidden="true"></i>
         <span>Recursos</span>
     </button>
 
@@ -1495,7 +1483,7 @@
         type="button"
         data-hub-screen-target="contact"
     >
-        <i class="ph ph-chats-circle" aria-hidden="true"></i>
+        <i class="ph-duotone ph-chats-circle" aria-hidden="true"></i>
         <span>Contato</span>
     </button>
 </nav>

@@ -759,6 +759,14 @@ document.addEventListener('submit', async (event) => {
     body.delete('_token');
     const button = event.submitter;
     const feedback = form.querySelector('[data-sgc-pdf-error]');
+    const wasDisabled = button?.disabled;
+    let released = false;
+    const releaseForm = () => {
+        if (released) return;
+        released = true;
+        if (button) button.disabled = wasDisabled;
+        delete form.dataset.sgcPdfHandled;
+    };
     form.dataset.sgcPdfHandled = 'true';
     if (button) button.disabled = true;
     if (feedback) feedback.textContent = '';
@@ -768,14 +776,14 @@ document.addEventListener('submit', async (event) => {
             method: 'POST', body, headers: { Accept: 'application/json, application/pdf' },
         });
         if (!pdf) throw new Error('A emissão não retornou um PDF. Confira se sua sessão está ativa.');
+        releaseForm();
         await window.SgcDocuments.openPdf(pdf.blob, pdf.fileName, pdf.title, { relativePath: pdf.relativePath, origin: pdf.origin });
     } catch (error) {
         if (feedback) feedback.textContent = error.message;
         else window.appToast?.(error.message, 'error');
     } finally {
         hideNavigationLoading();
-        if (button) button.disabled = false;
-        delete form.dataset.sgcPdfHandled;
+        releaseForm();
     }
 });
 

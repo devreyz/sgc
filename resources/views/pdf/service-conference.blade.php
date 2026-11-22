@@ -15,7 +15,6 @@
         $columnCount = 2 + count($identityColumns) + count($moneyColumns);
         $lastMonth = $lastStatus = null;
     @endphp
-    <h2>Conferência de serviços</h2>
     <p style="margin-bottom:12px">Período: {{ \Carbon\Carbon::parse($summary['from'])->format('d/m/Y') }} a {{ \Carbon\Carbon::parse($summary['to'])->format('d/m/Y') }}</p>
     <table class="conference">
         <thead><tr>

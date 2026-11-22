@@ -142,13 +142,13 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
 <div class="receipt-copy">
 
 {{-- ═══ CABEÇALHO ═══ --}}
-<div class="hdr">
-    <div class="hdr-logo">
-        @if($hasLogo)
-            <img src="{{ $logoPath }}" alt="Logo">
-        @endif
+<div class="hdr" style="table-layout:fixed;">
+        <div style="display:table-cell;width:63%;vertical-align:top;text-align:left;">
+            <div style="position:relative;@if(filled($pdf_brand_logo_html ?? null) || $hasLogo) padding-left:58px;min-height:50px; @endif">
+    <div class="hdr-logo" style="position:absolute;display:block;left:0;top:0;width:48px;padding:0;">
+        @if(filled($pdf_brand_logo_html ?? null)){!! $pdf_brand_logo_html !!}@elseif($hasLogo)<img src="{{ $logoPath }}" alt="Logo">@endif
     </div>
-    <div class="hdr-org">
+    <div class="hdr-org" style="display:block;text-align:left;padding-left:0;word-wrap:break-word;">
         <div class="org-name">{{ $tenant->name ?? '' }}</div>
         <div class="org-meta">
             @if($tenant?->cnpj)
@@ -162,7 +162,9 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
             @endif
         </div>
     </div>
-    <div class="hdr-right">
+            </div>
+        </div>
+    <div class="hdr-right" style="white-space:normal;padding-left:14px;">
         <span class="doc-type">Comprovante de Entrega{{ $copyLabel ? ' — '.$copyLabel : '' }}</span>
         <span class="doc-num">Nº {{ $receiptLabel }}</span>
     

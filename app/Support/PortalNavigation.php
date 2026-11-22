@@ -72,10 +72,7 @@ class PortalNavigation
                     : []),
             ],
             'secretary' => [
-                ['key' => 'documents', 'label' => 'Documentos', 'route' => 'secretary.index', 'icon' => 'files'],
-                ['key' => 'new-document', 'label' => 'Novo documento', 'route' => 'secretary.documents.create', 'icon' => 'file-plus'],
-                ['key' => 'new-template', 'label' => 'Novo modelo', 'route' => 'secretary.templates.create', 'icon' => 'note-pencil'],
-                ['key' => 'new-layout', 'label' => 'Cabeçalho ou rodapé', 'route' => 'secretary.layouts.create', 'icon' => 'layout'],
+                ['key' => 'documents', 'label' => 'Secretaria', 'route' => 'secretary.index', 'icon' => 'files'],
                 ['key' => 'home', 'label' => 'Painéis', 'route' => 'home', 'icon' => 'squares-four'],
             ],
             'buyer' => [

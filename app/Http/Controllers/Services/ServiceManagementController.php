@@ -352,13 +352,7 @@ class ServiceManagementController extends Controller
         $order->loadMissing(['execution.obligations.allocations.paymentEvent.bankAccount']);
         $accounts = BankAccount::query()->where('tenant_id', $tenant->id)->active()->orderBy('name')->get();
 
-        $notes = $request->user()->checkPermissionTo('view_service_financials') && $order->execution
-            ? GeneratedDocument::query()->where('tenant_id', $tenant->id)
-                ->where('documentable_type', $order->execution::class)->where('documentable_id', $order->execution->id)
-                ->where('document_settings->template_key', 'service_internal_note')->latest('id')->limit(5)->get()
-            : collect();
-
-        return view('services.management-show', compact('tenant', 'order', 'accounts', 'statuses', 'notes'));
+        return view('services.management-show', compact('tenant', 'order', 'accounts', 'statuses'));
     }
 
     public function execute(Request $request, Tenant $tenant, int $order): View
@@ -786,10 +780,11 @@ class ServiceManagementController extends Controller
         $agreement = ServiceNegotiation::query()->where('tenant_id', $tenant->id)
             ->where('payment_plan_id', data_get($event->metadata, 'payment_plan_id', 0))->with('plan.installments')->first();
         $installments = $agreement?->plan?->installments?->filter(fn ($installment) => $installment->eventCents($event) > 0) ?? collect();
-        $title = 'Recibo de pagamento REC-SVC-'.str_pad((string) $event->id, 6, '0', STR_PAD_LEFT);
-        $document = $pdf->generateSystemPdf('pdf.service-payment-receipt', compact('tenant', 'event', 'agreement', 'installments', 'title'),
-            ['title' => $title, 'paper' => 'a4', 'prefer_runtime_layout' => true]);
-        $filename = str($title)->slug().'.pdf';
+        $title = 'Recibo de pagamento';
+        $subtitle = 'REC-SVC-'.str_pad((string) $event->id, 6, '0', STR_PAD_LEFT);
+        $document = $pdf->generateSystemPdf('pdf.service-payment-receipt', compact('tenant', 'event', 'agreement', 'installments', 'title', 'subtitle'),
+            ['title' => $title, 'header_subtitle' => $subtitle, 'paper' => 'a4', 'prefer_runtime_layout' => true, 'standard_header' => true]);
+        $filename = str($title.' '.$subtitle)->slug().'.pdf';
         $response = $request->boolean('inline') ? $document->stream($filename) : $document->download($filename);
         $response->headers->set('Cache-Control', 'no-store, private');
 
@@ -827,60 +822,40 @@ class ServiceManagementController extends Controller
         return back()->with('success', 'Acordo cancelado. Os saldos estão disponíveis para nova negociação.');
     }
 
-    public function regenerateAgreementDocument(Request $request, Tenant $tenant, int $agreement, ServiceDocumentService $documents): RedirectResponse
+    public function regenerateAgreementDocument(Request $request, Tenant $tenant, int $agreement, ServiceDocumentService $documents)
     {
         $this->allow($request, 'manage_service_agreements');
         $agreement = ServiceNegotiation::query()->where('tenant_id', $tenant->id)->whereKey($agreement)->with('plan.installments')->firstOrFail();
-        $document = $documents->generate($agreement, 'service_negotiation', 'Nota interna de cobrança '.$agreement->number, $this->negotiationDocumentVariables($tenant, $agreement), $request->user());
-        $agreement->update(['generated_document_id' => $document->id]);
 
-        return redirect()->route('services.management.documents.download', [$tenant->slug, $document, 'inline' => 1]);
+        return $documents->pdf($tenant, 'service_negotiation', 'Nota interna de cobrança '.$agreement->number,
+            $this->negotiationDocumentVariables($tenant, $agreement), $request->boolean('inline', true),
+            'Nota interna de cobrança', $agreement->number);
     }
 
-    public function generateOrderDocument(Request $request, Tenant $tenant, int $order, ServiceDocumentService $documents): RedirectResponse
+    public function generateOrderDocument(Request $request, Tenant $tenant, int $order, ServiceDocumentService $documents)
     {
         $this->allow($request, 'view_service_management');
         $order = $this->order($tenant, $order);
         $data = $request->validate([
             'type' => 'required|in:order,execution,note',
-            'copy' => 'nullable|in:beneficiary|prohibited_unless:type,order',
+            'copy' => 'nullable|in:association,beneficiary|prohibited_unless:type,order',
         ]);
         $type = $data['type'];
-        $beneficiaryOnly = ($data['copy'] ?? null) === 'beneficiary';
+        $inline = $request->boolean('inline', true);
+        abort_unless($order->execution && $order->operational_status !== 'cancelled', 409, 'Esta ordem não permite emissão.');
         if ($type !== 'order') {
             $this->allow($request, 'view_service_financials');
-        }
-        abort_unless($order->execution && $order->operational_status !== 'cancelled', 409, 'Esta ordem não permite emissão.');
-        if ($type === 'note') {
-            abort_unless($order->execution->isFrozen(), 409, 'Valide a execução antes de emitir a nota interna.');
-            $variables = $this->executionDocumentVariables($order) + [
-                'order_number' => $order->number, 'service_name' => $order->service?->name,
-                'provider_name' => data_get($order->provider_snapshot, 'name') ?: '—',
-                'beneficiary_name' => data_get($order->beneficiary_snapshot, 'name') ?: '—',
-                'scheduled_at' => $order->scheduled_at?->format('d/m/Y H:i') ?: '—',
-                'validated_at' => $order->execution->validated_at?->format('d/m/Y H:i') ?: '—',
-                'quantity' => \App\Support\PdfQuantityFormatter::format($order->execution->quantity),
-                'unit' => $order->execution->unit, 'location' => $order->location ?: '—',
-                'notes' => data_get($order->order_data, 'notes') ?: '—',
-            ];
-            $document = $documents->generate($order->execution, 'service_internal_note', 'Nota interna '.$order->number, $variables, $request->user());
+            abort_unless($order->execution->isFrozen(), 409, 'Valide a execução antes de abrir a nota interna.');
 
-            return redirect()->route('services.management.documents.download', [$tenant->slug, $document, 'inline' => 1]);
+            return $documents->pdf($tenant, 'service_internal_note', 'Nota interna de cobrança '.$order->number,
+                $documents->orderVariables($order, true), $inline, 'Nota interna de cobrança', $order->number);
         }
-        $subject = $type === 'order' ? $order : $order->execution;
-        $variables = ['order_number' => $order->number, 'service_name' => $order->service->name, 'provider_name' => $order->provider_snapshot['name'] ?? '', 'beneficiary_name' => $order->beneficiary_snapshot['name'] ?? '', 'scheduled_at' => $order->scheduled_at?->format('d/m/Y H:i'), 'location' => $order->location, 'status' => app(ServiceHumanStatusResolver::class)->resolve($order), 'quantity' => $order->execution->quantity === null ? null : \App\Support\PdfQuantityFormatter::format($order->execution->quantity), 'unit' => $order->execution->unit, 'validated_at' => $order->execution->validated_at?->format('d/m/Y H:i')]
-            + $this->executionDocumentVariables($order);
-        if (! $request->user()->checkPermissionTo('view_service_financials')) {
-            $variables = array_replace($variables, array_fill_keys(['composicao_receber', 'composicao_pagar', 'total_receber', 'total_pagar'], '—'));
+        if ($request->user()->checkPermissionTo('view_service_financials')) {
+            $this->attachFinancialPreview($order);
         }
-        $variables['beneficiary_only'] = $beneficiaryOnly;
-        $title = $type === 'order' ? 'Ordem '.$order->number : 'Execução '.$order->number;
-        if ($beneficiaryOnly) {
-            $title .= ' · Via do beneficiário';
-        }
-        $document = $documents->generate($subject, $type === 'order' ? 'service_order' : 'service_execution', $title, $variables, $request->user());
 
-        return redirect()->route('services.management.documents.download', [$tenant->slug, $document, 'inline' => 1]);
+        return $documents->orderPdf($tenant, $order, $data['copy'] ?? 'association',
+            $request->user()->checkPermissionTo('view_service_financials'), $inline);
     }
 
     public function document(Request $request, Tenant $tenant, int $document, TemplatedPdfService $pdf)
@@ -901,7 +876,7 @@ class ServiceManagementController extends Controller
         $documentPdf = $systemView ? $pdf->generateSystemPdf('pdf.service-issued-document', [
             'tenant' => $tenant, 'title' => $record->title, 'body' => $record->content,
             'suppress_internal_footer' => true,
-        ], ['configuration_view' => $systemView, 'title' => $record->title]) : $pdf->generateFrozenDocument($record);
+        ], ['configuration_view' => $systemView, 'title' => $record->title, 'standard_header' => true]) : $pdf->generateFrozenDocument($record);
 
         $response = $request->boolean('inline')
             ? $documentPdf->stream($filename)
@@ -921,9 +896,7 @@ class ServiceManagementController extends Controller
     {
         $this->allow($request, 'view_service_management');
         $record = ServiceExecutionEvidence::query()->where('tenant_id', $tenant->id)->whereKey($evidence)->with('document')->firstOrFail();
-        abort_unless($record->document->tenant_id === $tenant->id, 403);
-
-        return response($files->contents($record->document), 200, ['Content-Type' => $record->document->mime_type, 'Content-Disposition' => 'inline; filename="'.str_replace('"', '', $record->document->original_name).'"']);
+        return $files->view($request, $record);
     }
 
     private function order(Tenant $tenant, int $id): ServiceOrder
@@ -944,81 +917,6 @@ class ServiceManagementController extends Controller
                 $order->execution->setAttribute('management_preview', ['error' => collect($exception->errors())->flatten()->first()]);
             }
         }
-    }
-
-    private function executionDocumentVariables(ServiceOrder $order): array
-    {
-        $execution = $order->execution;
-        if ($execution->status === 'submitted') {
-            $this->attachFinancialPreview($order);
-        }
-        $preview = (array) ($execution->management_preview ?? []);
-        $documentLines = $execution->isFrozen() ? $execution->compositionLines : collect(array_merge($preview['receivable'] ?? [], $preview['payable'] ?? []))->map(fn ($line) => (object) $line);
-        $documentTotal = static function (string $direction) use ($execution, $preview, $documentLines): string {
-            $obligations = $execution->obligations->where('direction', $direction);
-            $total = $execution->isFrozen() ? ($obligations->isNotEmpty() ? $obligations->sum('total_amount') : $documentLines->where('direction', $direction)->sum('amount')) : ($preview[$direction.'_total'] ?? null);
-            return $total === null ? '' : 'R$ '.number_format((float) $total, 2, ',', '.');
-        };
-        $variables = [];
-        $fieldRows = '';
-
-        foreach ((array) data_get($execution->catalog_snapshot, 'fields', []) as $field) {
-            if (! ($field['include_in_documents'] ?? false)) {
-                continue;
-            }
-            $key = (string) ($field['key'] ?? '');
-            $value = data_get($execution->values, $key);
-            if (in_array($field['type'] ?? null, ['file', 'image', 'signature'], true)) {
-                continue;
-            } elseif (is_bool($value)) {
-                $value = $value ? 'Sim' : 'Não';
-            } elseif (is_array($value)) {
-                $value = implode(', ', $value);
-            }
-            $value = filled($value) ? (string) $value : '';
-            if (in_array(trim($value), ['-', '–', '—'], true)) {
-                $value = '';
-            }
-            $variables['campo.'.$key] = $value;
-            $fieldRows .= '<tr><td>'.e($field['label'] ?? $key).'</td><td>'.e($value).'</td><td>'.e($value === '' ? '' : ($field['unit'] ?? '')).'</td></tr>';
-        }
-
-        [$meterStart] = \App\Services\Services\ServiceCalculationRules::meterPair((array) $execution->catalog_snapshot);
-        $pauseRows = [];
-        if ($meterStart) {
-            $saved = json_decode((string) data_get($execution->values, 'meter_pauses_'.$meterStart, '[]'), true);
-            $pauseRows = is_array($saved) ? array_filter($saved, 'is_array') : [];
-        }
-        $composition = ['receivable' => '', 'payable' => ''];
-        foreach ($documentLines as $line) {
-            $formula = data_get($line->rule_snapshot, 'formula') ?: trim(($line->quantity ?? '').' × '.($line->unit_price ?? ''));
-            $composition[$line->direction] .= '<tr><td>'.e($line->description).'</td><td>'.e($formula).'</td><td style="text-align:right">'.($line->amount < 0 ? '− ' : '').'R$ '.number_format(abs((float) $line->amount), 2, ',', '.').'</td></tr>';
-        }
-        foreach ($execution->obligations as $obligation) {
-            foreach ($obligation->adjustments as $adjustment) {
-                $composition[$obligation->direction] .= '<tr><td>'.e($adjustment->reason).'</td><td>Ajuste registrado</td><td style="text-align:right">'.($adjustment->amount < 0 ? '- ' : '').'R$ '.number_format(abs((float) $adjustment->amount), 2, ',', '.').'</td></tr>';
-            }
-        }
-
-        $table = static fn (string $rows): string => $rows === ''
-            ? '<p>Nenhum item.</p>'
-            : '<table class="data-table"><thead><tr><th>Descrição</th><th>Fórmula</th><th class="text-right">Total</th></tr></thead><tbody>'.$rows.'</tbody></table>';
-
-        return $variables + [
-            'meter_enabled' => filled($meterStart), 'meter_pauses' => $pauseRows,
-            'payment_received' => 'R$ '.number_format((float) $execution->obligations->where('direction', 'receivable')->sum('paid_amount'), 2, ',', '.'),
-            'payment_balance' => $execution->isFrozen() ? 'R$ '.number_format((float) $execution->obligations->where('direction', 'receivable')->sum('balance'), 2, ',', '.') : 'A confirmar após conferência',
-            'financial_visible' => auth()->user()?->checkPermissionTo('view_service_financials') ?? false,
-            'execution_date' => $order->execution_date?->format('d/m/Y'),
-            'start_time' => $order->start_time ? substr($order->start_time, 0, 5) : null,
-            'end_time' => $order->end_time ? substr($order->end_time, 0, 5) : null,
-            'notes' => data_get($order->order_data, 'notes'),
-            'campos_execucao' => $fieldRows === '' ? '<div style="height:22px;border-bottom:1px solid #bbb"></div>' : '<table class="data-table"><thead><tr><th>Campo</th><th>Valor</th><th>Unidade</th></tr></thead><tbody>'.$fieldRows.'</tbody></table>',
-            'composicao_receber' => $table($composition['receivable']),
-            'composicao_pagar' => $table($composition['payable']),
-            'total_receber' => $documentTotal('receivable'),
-            'total_pagar' => $documentTotal('payable'),
-        ];
     }
 
     private function negotiationDocumentVariables(Tenant $tenant, ServiceNegotiation $agreement): array

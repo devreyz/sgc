@@ -89,6 +89,7 @@ class DocumentTemplate extends Model
         'table_scale',
         'section_order',
         'color_theme',
+        'institutional_settings',
     ];
 
     protected function casts(): array
@@ -105,6 +106,7 @@ class DocumentTemplate extends Model
             'show_recipient_signature' => 'boolean',
             'show_representative_signature' => 'boolean',
             'table_scale' => 'integer',
+            'institutional_settings' => 'array',
         ];
     }
 
@@ -131,6 +133,7 @@ class DocumentTemplate extends Model
 
     // Available template types
     public const TYPES = [
+        'official_letter' => 'Ofício',
         'contract' => 'Contrato',
         'declaration' => 'Declaração',
         'receipt' => 'Recibo',

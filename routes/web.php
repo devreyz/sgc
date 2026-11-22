@@ -465,7 +465,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::post('/{sheet}/cancel', [DeliveryConferenceSheetController::class, 'cancel'])->middleware('throttle:10,1')->whereNumber('sheet')->name('cancel');
     });
 
-    Route::prefix('secretary')->name('secretary.')->middleware(['any.role:secretario'])->group(function () {
+    Route::prefix('secretary')->name('secretary.')->group(function () {
         Route::get('/', [SecretaryPortalController::class, 'index'])->name('index');
         Route::get('/data', [SecretaryPortalController::class, 'data'])->name('data');
         Route::get('/templates/create', [SecretaryPortalController::class, 'createTemplate'])->name('templates.create');
@@ -477,6 +477,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/layouts/create', [SecretaryPortalController::class, 'createLayout'])->name('layouts.create');
         Route::post('/layouts', [SecretaryPortalController::class, 'storeLayout'])->middleware('throttle:30,1')->name('layouts.store');
         Route::get('/layouts/{layout}/edit', [SecretaryPortalController::class, 'editLayout'])->name('layouts.edit');
+        Route::get('/layouts/{layout}/fragment', [SecretaryPortalController::class, 'layoutFragment'])->whereNumber('layout')->name('layouts.fragment');
         Route::put('/layouts/{layout}', [SecretaryPortalController::class, 'updateLayout'])->middleware('throttle:30,1')->name('layouts.update');
         Route::delete('/layouts/{layout}', [SecretaryPortalController::class, 'destroyLayout'])->middleware('throttle:12,1')->name('layouts.destroy');
         Route::get('/documents/create', [SecretaryPortalController::class, 'createDocument'])->name('documents.create');
@@ -485,7 +486,13 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::put('/documents/{document}', [SecretaryPortalController::class, 'updateDocument'])->middleware('throttle:30,1')->name('documents.update');
         Route::delete('/documents/{document}', [SecretaryPortalController::class, 'destroyDocument'])->middleware('throttle:12,1')->name('documents.destroy');
         Route::get('/documents/{document}/preview', [SecretaryPortalController::class, 'previewDocument'])->name('documents.preview');
+        Route::get('/documents/{document}/revisions/{revision}', [SecretaryPortalController::class, 'previewRevision'])->whereNumber('revision')->name('documents.revisions.preview');
+        Route::post('/documents/{document}/issue', [SecretaryPortalController::class, 'issueDocument'])->middleware('throttle:12,1')->name('documents.issue');
+        Route::post('/documents/{document}/cancel', [SecretaryPortalController::class, 'cancelDocument'])->middleware('throttle:12,1')->name('documents.cancel');
+        Route::get('/images', [SecretaryPortalController::class, 'listImages'])->name('images.index');
+        Route::get('/images/{image}', [SecretaryPortalController::class, 'showImage'])->whereNumber('image')->name('images.show');
         Route::post('/images', [SecretaryPortalController::class, 'uploadImage'])->middleware('throttle:20,1')->name('images.store');
+        Route::post('/markdown', [SecretaryPortalController::class, 'importMarkdown'])->middleware('throttle:30,1')->name('markdown');
     });
 
     // Report Routes (Authenticated — relying on session tenant_id)
@@ -548,6 +555,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::post('/agreements/{agreement}/document', [ServiceManagementController::class, 'regenerateAgreementDocument'])->middleware('throttle:10,1')->whereNumber('agreement')->name('management.agreements.document');
         Route::post('/agreements/{agreement}/installments/{installment}/payment', [ServiceManagementController::class, 'payAgreementInstallment'])->middleware('throttle:20,1')->whereNumber('agreement')->whereNumber('installment')->name('management.agreements.installments.payment');
         Route::post('/orders/{order}/documents', [ServiceManagementController::class, 'generateOrderDocument'])->middleware('throttle:10,1')->whereNumber('order')->name('management.documents.generate');
+        Route::get('/orders/{order}/documents', [ServiceManagementController::class, 'generateOrderDocument'])->middleware('throttle:30,1')->whereNumber('order')->name('management.orders.documents');
         Route::get('/documents/{document}', [ServiceManagementController::class, 'document'])->whereNumber('document')->name('management.documents.download');
         Route::get('/evidences/{evidence}', [ServiceManagementController::class, 'evidence'])->whereNumber('evidence')->name('management.evidences.download');
         Route::get('/catalog', [ServiceCatalogController::class, 'index'])->name('catalog.index');
@@ -582,6 +590,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/orders/create', [ServiceProviderPortalController::class, 'create'])->name('orders.create');
         Route::post('/orders', [ServiceProviderPortalController::class, 'store'])->middleware('throttle:30,1')->name('orders.store');
         Route::get('/orders/{order}', [ServiceProviderPortalController::class, 'show'])->whereNumber('order')->name('orders.show');
+        Route::get('/orders/{order}/beneficiary-copy', [ServiceProviderPortalController::class, 'beneficiaryOrderPdf'])->middleware('throttle:30,1')->whereNumber('order')->name('orders.beneficiary-copy');
         Route::post('/orders/{order}/start', [ServiceProviderPortalController::class, 'start'])->middleware('throttle:20,1')->whereNumber('order')->name('orders.start');
         Route::put('/orders/{order}/draft', [ServiceProviderPortalController::class, 'draft'])->middleware('throttle:60,1')->whereNumber('order')->name('orders.draft');
         Route::post('/orders/{order}/submit', [ServiceProviderPortalController::class, 'submit'])->middleware('throttle:20,1')->whereNumber('order')->name('orders.submit');

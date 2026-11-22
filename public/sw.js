@@ -2,7 +2,7 @@
 
 const OFFLINE_CACHE = 'sgc-offline-2';
 const ASSET_CACHE = 'sgc-static-3';
-const PROVIDER_CACHE = 'sgc-provider-shell-3';
+const PROVIDER_CACHE = 'sgc-provider-shell-5';
 const OFFLINE_URL = '/offline';
 const PROVIDER_PAGE = '/provider-offline.html';
 const PROVIDER_ASSETS = [PROVIDER_PAGE, '/assets/provider-offline.css', '/assets/provider-offline.js',

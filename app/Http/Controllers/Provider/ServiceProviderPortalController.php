@@ -15,6 +15,7 @@ use App\Models\ServiceVersion;
 use App\Models\Tenant;
 use App\Services\Services\CreateServiceOrder;
 use App\Services\Services\ServiceCompositionCalculator;
+use App\Services\Services\ServiceDocumentService;
 use App\Services\Services\ServiceEvidenceService;
 use App\Services\Services\ServiceExecutionWorkflow;
 use App\Services\Services\ServiceExpenseAttachmentService;
@@ -476,7 +477,7 @@ class ServiceProviderPortalController extends Controller
         [$provider, $operator] = $this->access($request, $tenant);
         $record = ServiceExecutionEvidence::query()->where('tenant_id', $tenant->id)->whereKey($evidence)->when(! $operator, fn ($query) => $query->whereHas('execution', fn ($q) => $q->where('service_provider_id', $provider->id)))->with('document')->firstOrFail();
 
-        return response($files->contents($record->document), 200, ['Content-Type' => $record->document->mime_type, 'Content-Disposition' => 'inline; filename="'.str_replace('"', '', $record->document->original_name).'"']);
+        return $files->view($request, $record);
     }
 
     public function expenses(Request $request, Tenant $tenant): View
@@ -677,6 +678,15 @@ class ServiceProviderPortalController extends Controller
         abort_unless($provider, 403, 'Seu acesso não está vinculado a um prestador ativo.');
 
         return $provider;
+    }
+
+    public function beneficiaryOrderPdf(Request $request, Tenant $tenant, int $order, ServiceDocumentService $documents)
+    {
+        [$provider, $operator] = $this->access($request, $tenant);
+        $record = $this->order($tenant, $provider, $operator, $order);
+        abort_unless($record->execution && $record->operational_status !== 'cancelled', 409, 'Esta ordem não permite emissão.');
+
+        return $documents->orderPdf($tenant, $record, 'beneficiary', true, $request->boolean('inline', true));
     }
 
     private function order(Tenant $tenant, ?ServiceProvider $provider, bool $operator, int $id): ServiceOrder

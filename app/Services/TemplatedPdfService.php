@@ -335,7 +335,7 @@ HTML;
 
         $orgName = $tenant?->name ?? config('app.name', 'SGC');
         $orgCnpj = $tenant?->cnpj ?? '';
-        $logoHtml = (string) ($allVars['{{cooperativa.logo_img}}'] ?? '');
+        $logoHtml = str_replace(['max-width:150px', 'max-width:54px'], 'max-width:48px', (string) ($allVars['{{cooperativa.logo_img}}'] ?? ''));
 
         if ($type === 'footer') {
             $generated = $this->today();
@@ -352,20 +352,12 @@ HTML;
 HTML;
         }
 
-        $generationHtml = $suppressGenerationTimestamp ? '' : '<div style="font-size:8px;color:#9ca3af;">Gerado em: '.$this->today().'</div>';
-        return <<<HTML
-<div class="pdf-header-custom" style="display:table;table-layout:fixed;width:100%;border-bottom:2px solid {$primaryColor};padding-bottom:7px;">
-    <div style="display:table-cell;width:66px;padding-right:8px;vertical-align:top;">{$logoHtml}</div>
-    <div style="display:table-cell;vertical-align:top;word-wrap:break-word;">
-        <div style="font-size:14px;font-weight:bold;color:#1f2937;">{$orgName}</div>
-        <div style="font-size:8px;color:#6b7280;">{$orgCnpj}</div>
-    </div>
-    <div style="display:table-cell;width:34%;padding-left:16px;text-align:right;vertical-align:top;word-wrap:break-word;">
-        <div style="font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;">{$docTitle}</div>
-        {$generationHtml}
-    </div>
-</div>
-HTML;
+        return '<div class="pdf-header-custom">'.view('pdf.partials.organization-header', [
+            'brandName' => $orgName, 'brandDocument' => $orgCnpj, 'brandLogoHtml' => $logoHtml,
+            'headerTitle' => $docTitle, 'headerColor' => $primaryColor,
+            'headerDate' => $suppressGenerationTimestamp ? null : $this->today(),
+            'headerSubtitle' => $allVars['{{documento.subtitulo}}'] ?? null,
+        ])->render().'</div>';
     }
 
     /**
@@ -424,6 +416,7 @@ HTML;
         // The active system template is authoritative. Call-site options may
         // still provide a title, but cannot silently replace persisted layout.
         $tenant = $configured['tenant'] ?? $tenant;
+        $viewData['pdf_brand_logo_html'] = str_replace(['max-width:150px', 'max-width:54px'], 'max-width:48px', $this->tenantLogoHtml($tenant));
         $primaryColor = $configured['primary_color'] ?? '#374151';
         $accentColor = $configured['accent_color'] ?? '#64786f';
         $preferRuntimeLayout = (bool) ($options['prefer_runtime_layout'] ?? false);
@@ -436,7 +429,13 @@ HTML;
         $configurePdf = fn (DomPDF $pdf): DomPDF => $pdf->setPaper($paper, $orientation)
             ->setOption($options['dompdf_options'] ?? []);
         $title = $options['title'] ?? '';
-        $headerLayoutId = $configured['header_layout_id'] ?? null;
+        if ($title !== '') {
+            $viewData['title'] ??= $title;
+        }
+        $forceStandardHeader = ($options['standard_header'] ?? false) || in_array($configurationView, [
+            'pdf.service-accountability', 'pdf.service-conference', 'pdf.service-provider-statement', 'pdf.service-providers-report',
+        ], true);
+        $headerLayoutId = $forceStandardHeader ? null : ($configured['header_layout_id'] ?? null);
         $footerLayoutId = $configured['footer_layout_id'] ?? null;
 
         if (! empty($configured)) {
@@ -483,6 +482,7 @@ HTML;
         $allVars['{{cor.destaque}}'] = $accentColor;
         $allVars['{{documento.titulo}}'] = $title;
         $allVars['{{documento.tipo}}'] = $title;
+        $allVars['{{documento.subtitulo}}'] = $options['header_subtitle'] ?? '';
 
         // Render blade view with suppress flags so it hides its own header/footer
         $bladeHtml = View::make($view, array_merge($viewData, [

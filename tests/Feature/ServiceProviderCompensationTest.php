@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\BankAccount;
+use App\Models\Document;
 use App\Models\ServiceExecution;
 use App\Models\ServiceExecutionEvidence;
 use App\Models\ServiceExecutionResource;
@@ -22,6 +23,8 @@ use App\Services\TemplatedPdfService;
 use App\Services\Services\ServiceReportService;
 use App\Services\Services\ServiceCatalogService;
 use App\Services\Services\ServiceCompositionCalculator;
+use App\Services\Services\ServiceDocumentService;
+use App\Services\Services\ServiceEvidenceService;
 use App\Services\Services\ServiceExecutionWorkflow;
 use App\Services\Services\ServiceFieldValidator;
 use App\Services\Services\ServicePaymentService;
@@ -723,6 +726,88 @@ class ServiceProviderCompensationTest extends TestCase
         $eligible = ServiceOrder::query()->where('tenant_id', 1)->forOfflineFieldwork(now()->parse('2026-10-31'))->pluck('id')->all();
         $this->assertEqualsCanonicalizing($inside, $eligible);
         $this->assertSame([], array_intersect($outside, $eligible));
+    }
+
+    public function test_order_copies_and_live_charge_note_are_separate_pdfs_without_new_snapshots(): void
+    {
+        $this->negotiationSchema();
+        [$execution] = $this->execution(1, 100, null);
+        $order = $execution->order;
+        $order->update(['beneficiary_snapshot' => ['name' => 'Beneficiário do teste'], 'execution_date' => '2026-11-21']);
+        $this->receivableObligation($execution, 'REC-01', 100);
+        Schema::table('tenants', function (Blueprint $table): void {
+            $table->string('name')->nullable();
+            $table->string('logo')->nullable();
+            $table->string('cnpj')->nullable();
+        });
+        DB::table('tenants')->where('id', 1)->update([
+            'name' => 'Associação Comunitária dos Produtores Panelinhenses',
+            'logo' => 'assets/icons/campo-dark-192.png', 'cnpj' => '00.000.000/0000-00',
+        ]);
+        $tenant = Tenant::withoutGlobalScopes()->findOrFail(1);
+        Schema::create('generated_documents', fn (Blueprint $table) => $this->base($table));
+        DB::table('generated_documents')->insert(['id' => 42]);
+        $actor = new class extends User {
+            public function checkPermissionTo($permission, $guardName = null): bool { return true; }
+        };
+        $controller = app(ServiceManagementController::class);
+        $documents = app(ServiceDocumentService::class);
+        foreach ([
+            ['type' => 'order', 'copy' => 'beneficiary', 'filename' => 'via-do-beneficiario'],
+            ['type' => 'order', 'copy' => 'association', 'filename' => 'via-da-associacao'],
+            ['type' => 'note', 'filename' => 'nota-interna-de-cobranca'],
+            ['type' => 'note', 'filename' => 'nota-interna-de-cobranca'],
+        ] as $data) {
+            $request = Request::create('/', 'GET', $data);
+            $request->setUserResolver(fn () => $actor);
+            $response = $controller->generateOrderDocument($request, $tenant, $order->id, $documents);
+            $this->assertStringStartsWith('%PDF', $response->getContent());
+            $this->assertStringContainsString($data['filename'], $response->headers->get('Content-Disposition'));
+            $this->assertSame(1, preg_match_all('~/Type\s*/Page\b~', $response->getContent()));
+        }
+        foreach (['conference', 'accountability'] as $reportType) {
+            $request = Request::create('/', 'GET', ['from' => '2026-11-01', 'to' => '2026-11-30', 'report_type' => $reportType]);
+            $request->setUserResolver(fn () => $actor);
+            $response = $controller->generateReport($request, $tenant, app(ServiceReportService::class));
+            $this->assertSame(1, preg_match('~/MediaBox\s*\[0(?:\.0+)?\s+0(?:\.0+)?\s+([\d.]+)\s+([\d.]+)\]~', $response->getContent(), $size));
+            $this->assertGreaterThan((float) $size[2], (float) $size[1]);
+        }
+        $this->assertSame([42], DB::table('generated_documents')->pluck('id')->all());
+    }
+
+    public function test_evidence_image_is_revalidated_and_uses_the_same_short_cache_for_both_portals(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('services/image.webp', 'first version');
+        $document = new Document([
+            'disk' => 'local', 'path' => 'services/image.webp', 'original_name' => 'Evidência.webp',
+            'size' => 13, 'mime_type' => 'image/webp', 'extension' => 'webp',
+        ]);
+        $document->id = 555;
+        $document->tenant_id = 1;
+        $evidence = new ServiceExecutionEvidence(['sha256' => hash('sha256', 'first version')]);
+        $evidence->id = 301;
+        $evidence->tenant_id = 1;
+        $evidence->setRelation('document', $document);
+        $files = app(ServiceEvidenceService::class);
+
+        $response = $files->view(Request::create('/gestao/evidencias/301'), $evidence);
+        $this->assertSame('first version', $response->getContent());
+        $this->assertStringContainsString('private', $response->headers->get('Cache-Control'));
+        $this->assertStringContainsString('no-cache', $response->headers->get('Cache-Control'));
+        $etag = $response->getEtag();
+        $this->assertNotNull($etag);
+        $request = Request::create('/prestador/evidencias/301', server: ['HTTP_IF_NONE_MATCH' => $etag]);
+        $this->assertSame(304, $files->view($request, $evidence)->getStatusCode());
+
+        Storage::disk('local')->put('services/image.webp', 'second version');
+        $this->assertSame('first version', $files->view(Request::create('/prestador/evidencias/301'), $evidence)->getContent());
+        $evidence->sha256 = hash('sha256', 'second version');
+        $this->assertSame('second version', $files->view($request, $evidence)->getContent());
+
+        $evidence->tenant_id = 2;
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class);
+        $files->view($request, $evidence);
     }
 
     private function negotiationSchema(): void

@@ -121,7 +121,7 @@ class HubController extends Controller
             ];
         }
 
-        if ($hasAdministration || $user->hasRoleInTenant('secretario', $currentTenant->id)) {
+        if (app(\App\Services\SecretaryAccess::class)->allows($user, $currentTenant)) {
             $roles[] = [
                 'name' => 'Secretaria',
                 'description' => 'Atas, modelos e documentos da organização',

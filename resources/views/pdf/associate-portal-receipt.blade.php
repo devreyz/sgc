@@ -129,15 +129,19 @@ body {
 </style>
 </head>
 <body>
-<div class="portal-header">
-    <div class="portal-logo">
-        @if($logoPath)<img src="{{ $logoPath }}" alt="Logo">@endif
+<div class="portal-header" style="table-layout:fixed;">
+        <div style="display:table-cell;width:63%;vertical-align:top;text-align:left;">
+            <div style="position:relative;@if(filled($pdf_brand_logo_html ?? null) || $logoPath) padding-left:58px;min-height:50px; @endif">
+    <div class="portal-logo" style="position:absolute;display:block;left:0;top:0;width:48px;padding:0;">
+        @if(filled($pdf_brand_logo_html ?? null)){!! $pdf_brand_logo_html !!}@elseif($logoPath)<img src="{{ $logoPath }}" alt="Logo">@endif
     </div>
-    <div class="portal-org">
+    <div class="portal-org" style="display:block;text-align:left;padding-left:0;word-wrap:break-word;">
         <strong>{{ $tenant->name ?? '' }}</strong>
         <span>Comprovante disponibilizado ao {{ $associateTermLower }}</span>
     </div>
-    <div class="portal-doc">
+            </div>
+        </div>
+    <div class="portal-doc" style="white-space:normal;padding-left:14px;">
         <span>Comprovante</span>
         <strong>{{ $receiptLabel }}</strong>
         <span>Emitido em {{ $issuedAt }}</span>
