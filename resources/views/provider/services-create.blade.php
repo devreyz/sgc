@@ -686,11 +686,14 @@
                             Digite o nome de quem vai receber o serviço, mesmo que não seja membro.
                         </small>
                     </label>
-                    <label class="svc-field">
-                        <span>WhatsApp do beneficiário</span>
-                        <input type="tel" name="beneficiary_whatsapp" autocomplete="tel" maxlength="25"
-                            value="{{ old('beneficiary_whatsapp') }}" placeholder="(00) 00000-0000">
-                    </label>
+                    <div class="svc-field">
+                        <label class="svc-label" for="beneficiary-whatsapp"><i class="ph ph-whatsapp-logo" aria-hidden="true"></i> WhatsApp do beneficiário</label>
+                        <div class="svc-input person">
+                            <span class="svc-input-icon" aria-hidden="true"><i class="ph ph-whatsapp-logo"></i></span>
+                            <input id="beneficiary-whatsapp" type="tel" name="beneficiary_whatsapp" inputmode="tel"
+                                autocomplete="tel-national" maxlength="25" value="{{ old('beneficiary_whatsapp') }}" placeholder="(38) 9 9999-9999">
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1204,6 +1207,32 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    const whatsapp = document.getElementById('beneficiary-whatsapp');
+    function formatWhatsapp() {
+        const raw = whatsapp.value;
+        const caret = whatsapp.selectionStart ?? raw.length;
+        const rawDigits = raw.replace(/\D/g, '');
+        const prefixLength = rawDigits.startsWith('55') && (/^\s*\+55/.test(raw) || rawDigits.length > 11) ? 2 : 0;
+        const digits = rawDigits.slice(prefixLength, prefixLength + 11);
+        const digitPosition = Math.max(0, raw.slice(0, caret).replace(/\D/g, '').length - prefixLength);
+        const local = digits.slice(2);
+        const mobile = local.length === 9;
+        const subscriber = mobile ? local.slice(1) : local;
+        const formatted = (digits.length > 0 ? '(' + digits.slice(0, 2) : '')
+            + (local ? ') ' + (mobile ? local[0] + ' ' : '') + subscriber.slice(0, 4) : '')
+            + (subscriber.length > 4 ? '-' + subscriber.slice(4) : '');
+        whatsapp.value = formatted;
+        if (document.activeElement === whatsapp) {
+            let position = 0;
+            let count = 0;
+            while (position < formatted.length && count < digitPosition) {
+                if (/\d/.test(formatted[position++])) count++;
+            }
+            whatsapp.setSelectionRange(position, position);
+        }
+    }
+    whatsapp?.addEventListener('input', formatWhatsapp);
+    if (whatsapp) formatWhatsapp();
     const managementEntry = {{ \Illuminate\Support\Js::from($managementEntry) }};
     const form =
         document.getElementById('service-order-create-form');

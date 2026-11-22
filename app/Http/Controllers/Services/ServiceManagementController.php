@@ -59,6 +59,7 @@ class ServiceManagementController extends Controller
         ]);
         $serviceDate = 'COALESCE(execution_date, scheduled_date, DATE(scheduled_at))';
         $orders = ServiceOrder::query()->where('tenant_id', $tenant->id)->whereNotNull('service_version_id')
+            ->when($request->input('status') === 'cancelled' && $request->user()->checkPermissionTo('edit_service_order'), fn ($query) => $query->withTrashed())
             ->with(['service', 'execution.compositionLines', 'execution.obligations' => fn ($query) => $query->withSum([
                 'allocations as settled_amount' => fn ($allocations) => $allocations->whereHas('paymentEvent', fn ($events) => $events->whereIn('status', ['confirmed', 'reversed'])),
             ], 'amount')])
@@ -224,7 +225,25 @@ class ServiceManagementController extends Controller
     public function remove(Request $request, Tenant $tenant, int $order, ServiceOrderNumberService $numbers, FinancialDocumentIdentityService $identities): RedirectResponse
     {
         $this->allow($request, 'edit_service_order');
-        $data = $request->validate(['reason' => 'required|string|min:5|max:500', 'action' => 'required|in:delete,cancel,cancel_replace']);
+        $data = $request->validate([
+            'reason' => 'required|string|min:5|max:500',
+            'action' => 'required|in:delete,cancel,cancel_replace,reopen,purge',
+            'confirmation' => 'required_if:action,purge|nullable|string|max:64',
+        ]);
+        if (in_array($data['action'], ['reopen', 'purge'], true)) {
+            $order = ServiceOrder::withTrashed()->where('tenant_id', $tenant->id)->whereNotNull('service_version_id')->findOrFail($order);
+            if ($data['action'] === 'purge' && $data['confirmation'] !== $order->number) {
+                throw ValidationException::withMessages(['confirmation' => 'Digite o número exato da ordem.']);
+            }
+            app(\App\Services\Services\ServiceOrderCorrection::class)->handle($order, $data['action'], $data['reason'], $request->user());
+            if ($data['action'] === 'reopen') {
+                return redirect()->route('services.management.edit', [$tenant->slug, $order])
+                    ->with('success', 'Ordem reaberta com o mesmo número. Corrija os dados e finalize novamente.');
+            }
+
+            return redirect()->route('services.management.index', [$tenant->slug, 'status' => 'cancelled'])
+                ->with('success', 'Ordem excluída definitivamente. O número foi liberado para reutilização no ano da ordem.');
+        }
         if ($data['action'] === 'cancel_replace') {
             $this->allow($request, 'create_service_order');
         }

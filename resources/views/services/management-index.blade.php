@@ -496,7 +496,8 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                             $canEditOrder = $canEdit && \App\Services\Services\ServiceOrderDetails::editable($order);
                             $canEditExecution = $canEdit && in_array($order->execution?->status, ['draft', 'in_progress', 'submitted', 'rejected'], true);
                             $canValidateOrder = $canApprove && $order->execution?->status === 'submitted';
-                            $canRemoveOrder = $canEdit && in_array($order->execution?->status, ['draft', 'in_progress', 'submitted', 'rejected', 'validated'], true);
+                            $executionStatus = $order->execution?->status;
+                            $canRemoveOrder = $canEdit && in_array($executionStatus, ['draft', 'in_progress', 'submitted', 'rejected', 'validated', 'cancelled'], true);
                             $financialState = $statuses->financialState($order);
                             $executionDate = $order->execution_date ?? $order->scheduled_at ?? $order->scheduled_date;
                             $displayQuantity = $order->execution?->management_preview['primary_quantity'] ?? $order->execution?->quantity;
@@ -507,7 +508,8 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                                 <div class="cm-person">
                                     <span class="cm-avatar" aria-hidden="true">{{ $initial ?: '?' }}</span>
                                     <div>
-                                        <a class="cm-person-name" href="{{ $orderUrl }}">{{ $beneficiaryName }}</a>
+                                        @if($order->trashed())<span class="cm-person-name">{{ $beneficiaryName }}</span>
+                                        @else<a class="cm-person-name" href="{{ $orderUrl }}">{{ $beneficiaryName }}</a>@endif
                                         <span class="cm-person-ref">{{ $order->number }}</span>
                                     </div>
                                 </div>
@@ -555,7 +557,7 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                             @endif
                             <td class="cm-col-actions">
                                 <div class="cm-order-actions" role="group" aria-label="Ações da ordem {{ $order->number }}">
-                                    <a class="cm-icon-action cm-icon-primary" href="{{ $orderUrl }}" aria-label="Abrir ordem" title="Abrir ordem"><i class="ph ph-eye" aria-hidden="true"></i><span aria-hidden="true">Abrir</span></a>
+                                    @unless($order->trashed())<a class="cm-icon-action cm-icon-primary" href="{{ $orderUrl }}" aria-label="Abrir ordem" title="Abrir ordem"><i class="ph ph-eye" aria-hidden="true"></i><span aria-hidden="true">Abrir</span></a>@endunless
                                     @if($canEditOrder)
                                         <button class="cm-icon-action" type="button" data-order-dialog="details-{{ $order->id }}" aria-controls="details-{{ $order->id }}" aria-label="Editar detalhes da ordem" title="Editar detalhes"><i class="ph ph-note-pencil" aria-hidden="true"></i><span aria-hidden="true">Editar</span></button>
                                     @endif
@@ -580,11 +582,13 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                                             <button class="cm-icon-action" data-money-flow="{{ $obligation->direction === 'payable' ? 'outgoing' : 'incoming' }}" type="button" data-order-dialog="payment-{{ $obligation->id }}" aria-controls="payment-{{ $obligation->id }}" aria-label="{{ $paymentLabel }}" title="{{ $paymentLabel }}"><i class="ph {{ $obligation->direction === 'payable' ? 'ph-wallet' : 'ph-hand-coins' }}" aria-hidden="true"></i><span aria-hidden="true">{{ $obligation->direction === 'payable' ? 'Pagar' : 'Receber' }}</span></button>
                                         @endforeach
                                     @endif
-                                    @if($canExpense)
+                                    @if($canExpense && !$order->trashed())
                                         <a class="cm-icon-action" href="{{ route('services.management.expenses', ['tenant' => $tenant->slug, 'order' => $order->id]) }}" aria-label="Despesas da ordem" title="Despesas da ordem"><i class="ph ph-receipt" aria-hidden="true"></i><span aria-hidden="true">Despesas</span></a>
                                     @endif
                                     @if($canRemoveOrder)
-                                        <button class="cm-icon-action cm-icon-danger" type="button" data-remove-url="{{ route('services.management.remove', [$tenant->slug, $order]) }}" data-order="{{ $order->number }}" data-order-id="{{ $order->id }}" data-can-delete="{{ in_array($order->execution->status, ['draft', 'submitted'], true) ? '1' : '0' }}" aria-haspopup="dialog" aria-label="Anular ou excluir ordem" title="Anular ou excluir ordem"><i class="ph ph-prohibit" aria-hidden="true"></i><span aria-hidden="true">Anular</span></button>
+                                        <button class="cm-icon-action" type="button" data-remove-url="{{ route('services.management.remove', [$tenant->slug, $order]) }}"
+                                            data-order="{{ $order->number }}" data-order-id="{{ $order->id }}" data-execution-status="{{ $executionStatus }}"
+                                            aria-haspopup="dialog" aria-label="Opções da ordem" title="Opções da ordem"><i class="ph ph-dots-three" aria-hidden="true"></i><span aria-hidden="true">Opções</span></button>
                                     @endif
                                 </div>
                             </td>
@@ -633,8 +637,8 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
             <form method="post">
                 @csrf
                 @method('DELETE')
-                <h3 id="sg-remove-title">Anular ou remover <span data-order-number></span></h3>
-                <p>Ao anular, a ordem fica visível nas listas com a situação Anulada. Ao excluir, ela sai das listas e fica no registro de exclusões da prestação de contas.</p>
+                <h3 id="sg-remove-title">Opções da ordem <span data-order-number></span></h3>
+                <p data-removal-help></p>
                 <input type="hidden" name="removal_order" value="{{ old('removal_order') }}">
                 @if(old('removal_order') && $errors->any())
                     <ul class="cm-dialog-errors" role="alert">
@@ -648,10 +652,15 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                             <option value="cancel_replace" @selected(old('action') === 'cancel_replace')>Anular e abrir rascunho para corrigir</option>
                         @endif
                         <option value="delete" @selected(old('action') === 'delete')>Excluir da lista e guardar registro</option>
+                        <option value="reopen" @selected(old('action') === 'reopen')>Reabrir para corrigir com o mesmo número</option>
+                        <option value="purge" @selected(old('action') === 'purge')>Excluir definitivamente e liberar número</option>
                     </select>
                 </label>
                 <label>Motivo
                     <textarea name="reason" required minlength="5" maxlength="500" rows="3" placeholder="Descreva o motivo">{{ old('reason') }}</textarea>
+                </label>
+                <label data-purge-confirmation hidden>Digite o número da ordem para confirmar
+                    <input type="text" name="confirmation" maxlength="64" autocomplete="off" value="{{ old('confirmation') }}">
                 </label>
                 <div class="cm-dialog-actions">
                     <button class="cm-btn" type="button" data-dialog-close>Voltar</button>
@@ -744,21 +753,41 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
         const form = dialog.querySelector('form');
         const orderInput = form.elements.removal_order;
         const retryOrder = orderInput.value;
+        const confirmation = form.querySelector('[data-purge-confirmation]');
+        const descriptions = {
+            reopen: 'A ordem volta para edição com o mesmo número. Finalize novamente depois de corrigir.',
+            purge: 'A ordem e os dados da execução serão apagados. O número poderá ser usado em outra ordem.',
+            cancel: 'A ordem fica na lista de anuladas e mantém seu número.',
+            delete: 'A ordem sai da lista principal. O número fica reservado.',
+            cancel_replace: 'A ordem original fica anulada e uma nova ordem é criada.',
+        };
+        function showActionInstructions() {
+            const action = form.elements.action.value;
+            confirmation.hidden = action !== 'purge';
+            form.elements.confirmation.required = action === 'purge';
+            form.elements.confirmation.disabled = action !== 'purge';
+            form.querySelector('[data-removal-help]').textContent = descriptions[action] || '';
+        }
+        form.elements.action.addEventListener('change', showActionInstructions);
         root.querySelectorAll('[data-remove-url]').forEach((button) => {
             function showRemoval(restore = false) {
                 if (!restore) {
                     form.elements.reason.value = '';
-                    form.elements.action.value = 'cancel';
+                    form.elements.confirmation.value = '';
                     form.querySelector('.cm-dialog-errors')?.remove();
                 }
                 orderInput.value = button.dataset.orderId;
                 form.setAttribute('action', button.dataset.removeUrl);
                 form.querySelector('[data-order-number]').textContent = button.dataset.order;
-                const deleteOption = form.elements.action.querySelector('option[value="delete"]');
-                deleteOption.hidden = deleteOption.disabled = button.dataset.canDelete !== '1';
-                if (deleteOption.disabled && form.elements.action.value === 'delete') {
-                    form.elements.action.value = 'cancel';
+                const status = button.dataset.executionStatus;
+                const allowed = status === 'cancelled' ? ['reopen', 'purge']
+                    : status === 'validated' ? ['reopen', 'cancel', 'cancel_replace']
+                    : ['cancel', 'cancel_replace', ...(['draft', 'submitted'].includes(status) ? ['delete'] : [])];
+                for (const option of form.elements.action.options) {
+                    option.hidden = option.disabled = !allowed.includes(option.value);
                 }
+                if (!restore || !allowed.includes(form.elements.action.value)) form.elements.action.value = allowed[0];
+                showActionInstructions();
                 openDialog(dialog, button);
             }
             button.addEventListener('click', () => showRemoval());
