@@ -1851,9 +1851,14 @@
         @endif
 
         <div class="ds-doc-actions" style="margin:.6rem 0">
-            @if(auth()->user()->checkPermissionTo('edit_service_order') && in_array($execution?->status, ['validated', 'cancelled'], true))
+            @if(auth()->user()->checkPermissionTo('edit_service_order') && in_array($execution?->status, ['in_progress', 'validated', 'cancelled'], true))
                 <a class="ds-button secondary" href="{{ route('services.management.index', ['tenant' => $tenantSlug, 'q' => $order->number, 'status' => $order->operational_status, 'order_options' => $order->id]) }}">
-                    <i class="ph ph-pencil-simple" aria-hidden="true"></i>{{ $execution->status === 'cancelled' ? 'Reabrir ou excluir ordem' : 'Corrigir execução' }}
+                    <i class="ph ph-dots-three" aria-hidden="true"></i>
+                    {{ match($execution->status) {
+                        'cancelled' => 'Reabrir ou excluir ordem',
+                        'validated' => 'Corrigir execução',
+                        default => 'Opções da ordem',
+                    } }}
                 </a>
             @endif
             @if(\App\Services\Services\ServiceOrderDetails::editable($order) && auth()->user()->checkPermissionTo('edit_service_order'))

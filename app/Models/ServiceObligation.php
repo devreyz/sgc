@@ -7,6 +7,7 @@ use App\Services\Services\ServiceMoney;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
@@ -56,6 +57,12 @@ class ServiceObligation extends Model
     public function adjustments(): HasMany
     {
         return $this->hasMany(ServiceObligationAdjustment::class);
+    }
+
+    public function latestProviderRateAdjustment(): HasOne
+    {
+        return $this->adjustments()->one()->ofMany(['id' => 'max'], fn ($query) =>
+            $query->where('metadata->kind', 'provider_rate'));
     }
 
     public function verificationIdentity(): MorphOne

@@ -25,7 +25,7 @@ class ServiceOrderCorrection
         DB::transaction(function () use ($order, $action, $reason, $actor): void {
             $execution = $order->execution()->where('tenant_id', $order->tenant_id)->lockForUpdate()->firstOrFail();
             $order = ServiceOrder::withTrashed()->where('tenant_id', $order->tenant_id)->lockForUpdate()->findOrFail($order->id);
-            $allowed = $action === 'purge' ? ['cancelled'] : ['validated', 'cancelled'];
+            $allowed = $action === 'purge' ? ['cancelled', 'in_progress'] : ['validated', 'cancelled'];
             if (! in_array($execution->status, $allowed, true)) {
                 throw ValidationException::withMessages(['reason' => 'A situação da ordem mudou. Atualize a lista antes de continuar.']);
             }

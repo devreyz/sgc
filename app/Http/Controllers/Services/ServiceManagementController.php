@@ -60,7 +60,7 @@ class ServiceManagementController extends Controller
         $serviceDate = 'COALESCE(execution_date, scheduled_date, DATE(scheduled_at))';
         $orders = ServiceOrder::query()->where('tenant_id', $tenant->id)->whereNotNull('service_version_id')
             ->when($request->input('status') === 'cancelled' && $request->user()->checkPermissionTo('edit_service_order'), fn ($query) => $query->withTrashed())
-            ->with(['service', 'execution.compositionLines', 'execution.obligations' => fn ($query) => $query->withSum([
+            ->with(['service', 'execution.compositionLines', 'execution.obligations' => fn ($query) => $query->with('latestProviderRateAdjustment')->withSum([
                 'allocations as settled_amount' => fn ($allocations) => $allocations->whereHas('paymentEvent', fn ($events) => $events->whereIn('status', ['confirmed', 'reversed'])),
             ], 'amount')])
             ->when($request->boolean('undated'), fn ($query) => $query->whereRaw("$serviceDate IS NULL"))
@@ -241,7 +241,7 @@ class ServiceManagementController extends Controller
                     ->with('success', 'Ordem reaberta com o mesmo número. Corrija os dados e finalize novamente.');
             }
 
-            return redirect()->route('services.management.index', [$tenant->slug, 'status' => 'cancelled'])
+            return redirect()->route('services.management.index', [$tenant->slug, 'status' => $order->operational_status])
                 ->with('success', 'Ordem excluída definitivamente. O número foi liberado para reutilização no ano da ordem.');
         }
         if ($data['action'] === 'cancel_replace') {
@@ -254,7 +254,8 @@ class ServiceManagementController extends Controller
             $wasValidated = $execution->isFrozen();
             $obligations = $execution->obligations()->orderBy('id')->lockForUpdate()->get();
             if (! in_array($execution->status, ['draft', 'in_progress', 'submitted', 'rejected', 'validated'], true)
-                || $lockedOrder->payments()->exists() || $lockedOrder->ledgerEntries()->exists() || $lockedOrder->paid) {
+                || $lockedOrder->payments()->exists() || $lockedOrder->ledgerEntries()->withTrashed()->exists()
+                || $lockedOrder->paid || $lockedOrder->paid_date || $lockedOrder->associate_paid_at || $lockedOrder->provider_paid_at) {
                 throw ValidationException::withMessages(['reason' => 'Esta ordem já foi cancelada ou tem movimentação financeira anterior. Consulte o dossiê.']);
             }
             if ($obligations->contains(fn ($obligation) => $obligation->paid_amount !== 0.0 || $obligation->activePaymentPlan())
@@ -263,8 +264,8 @@ class ServiceManagementController extends Controller
                 throw ValidationException::withMessages(['reason' => 'Antes de anular, resolva os pagamentos, acordos ou solicitações de repasse ativos no dossiê.']);
             }
             if ($data['action'] === 'delete') {
-                if (! in_array($execution->status, ['draft', 'submitted'], true)) {
-                    throw ValidationException::withMessages(['reason' => 'Só é possível excluir rascunhos e ordens que aguardam conferência. Para os outros casos, use a anulação.']);
+                if (! in_array($execution->status, ['draft', 'in_progress', 'submitted'], true)) {
+                    throw ValidationException::withMessages(['reason' => 'A situação da ordem mudou. Atualize a lista antes de continuar.']);
                 }
                 $hasExpense = $lockedOrder->expenses()->exists()
                     || Expense::query()->where('tenant_id', $lockedOrder->tenant_id)
@@ -277,8 +278,8 @@ class ServiceManagementController extends Controller
                 if ($hasExpense || $hasDocument) {
                     throw ValidationException::withMessages(['reason' => 'Esta ordem tem despesa ou documento vinculado. Use a anulação para manter os vínculos disponíveis no dossiê.']);
                 }
-                if ($execution->status === 'draft' && ($execution->evidences()->exists() || $execution->resources()->exists())) {
-                    throw ValidationException::withMessages(['reason' => 'Este rascunho tem anexos ou recursos vinculados. Use a anulação para manter os vínculos disponíveis no dossiê.']);
+                if ($execution->status !== 'submitted' && ($execution->evidences()->exists() || $execution->resources()->exists())) {
+                    throw ValidationException::withMessages(['reason' => 'Esta ordem tem anexos ou recursos vinculados. Use a anulação para manter os vínculos disponíveis no dossiê.']);
                 }
             }
             $execution->update(['status' => 'cancelled', 'lock_version' => $execution->lock_version + 1]);
@@ -369,7 +370,7 @@ class ServiceManagementController extends Controller
         $this->allow($request, 'view_service_management');
         $order = $this->order($tenant, $order);
         if ($request->user()->checkPermissionTo('view_service_financials')) $this->attachFinancialPreview($order);
-        $order->loadMissing(['execution.obligations.allocations.paymentEvent.bankAccount']);
+        $order->loadMissing(['execution.obligations.allocations.paymentEvent.bankAccount', 'execution.obligations.latestProviderRateAdjustment']);
         $accounts = BankAccount::query()->where('tenant_id', $tenant->id)->active()->orderBy('name')->get();
 
         return view('services.management-show', compact('tenant', 'order', 'accounts', 'statuses'));

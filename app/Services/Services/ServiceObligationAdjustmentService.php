@@ -38,8 +38,7 @@ class ServiceObligationAdjustmentService
             if ($quantity <= 0) {
                 throw ValidationException::withMessages(['provider_rate' => 'Confira a quantidade executada antes de reajustar.']);
             }
-            $previous = $locked->adjustments()->whereNotNull('metadata')->orderByDesc('id')->get()
-                ->first(fn ($item) => data_get($item->metadata, 'kind') === 'provider_rate');
+            $previous = $locked->latestProviderRateAdjustment()->first();
             $oldBase = $previous ? (float) data_get($previous->metadata, 'new_base') : (float) $base['amount'];
             $newBase = round($quantity * $rate, 2);
             if ($newBase <= 0 || $newBase > 999999999999.99) {

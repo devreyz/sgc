@@ -784,6 +784,7 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                 const status = button.dataset.executionStatus;
                 const allowed = status === 'cancelled' ? ['reopen', 'purge']
                     : status === 'validated' ? ['reopen', 'cancel', 'cancel_replace']
+                    : status === 'in_progress' ? ['delete', 'purge', 'cancel', 'cancel_replace']
                     : ['cancel', 'cancel_replace', ...(['draft', 'submitted'].includes(status) ? ['delete'] : [])];
                 for (const option of form.elements.action.options) {
                     option.hidden = option.disabled = !allowed.includes(option.value);

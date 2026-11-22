@@ -1394,6 +1394,21 @@ class ServiceProviderCompensationTest extends TestCase
         $this->assertSame(1220.0, $obligation->fresh()->total_amount);
         $this->assertSame('900.00', $obligation->fresh()->principal_amount);
         $this->assertSame(3, $obligation->adjustments()->count());
+
+        $service->add($obligation, 'decrease', 10, 'Desconto posterior', (string) Str::uuid(), $actor);
+        $line = $obligation->fresh()->composition_snapshot['lines'][0];
+        $composition = $obligation->execution->compositionLines()->make($line + [
+            'direction' => 'payable', 'source_type' => 'rule', 'description' => 'Remuneração do prestador',
+            'financial_effect' => 'increase',
+        ]);
+        $composition->tenant_id = $obligation->tenant_id;
+        $composition->save();
+        $order = $obligation->execution->order->load('execution.compositionLines', 'execution.obligations.latestProviderRateAdjustment');
+        $html = view('services._order-value', ['order' => $order, 'valueDirection' => 'payable'])->render();
+
+        $this->assertStringContainsString('hora × R$ 400,00', $html);
+        $this->assertStringNotContainsString('hora × R$ 300,00', $html);
+        $this->assertStringContainsString('A pagar: R$ 1.210,00', $html);
     }
 
     public function test_direct_provider_rate_cannot_reduce_total_below_paid_amount(): void
@@ -1657,6 +1672,63 @@ class ServiceProviderCompensationTest extends TestCase
             $this->assertSame($order->number, $numbers->next(1, 2026));
             $this->assertSame('OS-2026-000021', $numbers->next(1, 2026));
         });
+    }
+
+    public function test_an_order_in_progress_can_be_excluded_from_the_list_and_keep_its_number(): void
+    {
+        [$obligation, , $actor] = $this->payable();
+        $this->prepareRateAdjustment($obligation);
+        $this->prepareOrderCorrection();
+        $execution = ServiceExecution::findOrFail($obligation->service_execution_id);
+        $order = $execution->order;
+        $database = Schema::getConnection();
+        $database->table('service_obligations')->where('id', $obligation->id)->delete();
+        $database->table('service_executions')->where('id', $execution->id)->update(['status' => 'in_progress', 'started_at' => now()]);
+        $database->table('service_orders')->where('id', $order->id)->update(['operational_status' => 'in_progress']);
+        $manager = \Mockery::mock($actor);
+        $manager->shouldReceive('checkPermissionTo')->with('edit_service_order')->andReturn(true);
+        $tenant = new \App\Models\Tenant(['slug' => 'cooperativa']);
+        $tenant->id = 1;
+        $request = \Illuminate\Http\Request::create('/', 'DELETE', ['action' => 'delete', 'reason' => 'Cadastro duplicado']);
+        $request->setUserResolver(fn () => $manager);
+
+        app(\App\Http\Controllers\Services\ServiceManagementController::class)->remove(
+            $request, $tenant, $order->id, app(\App\Services\Services\ServiceOrderNumberService::class),
+            app(\App\Services\FinancialDocumentIdentityService::class),
+        );
+
+        $this->assertSoftDeleted('service_orders', ['id' => $order->id, 'number' => $order->number]);
+        $this->assertSame('cancelled', $execution->fresh()->status);
+        $this->assertDatabaseCount('released_service_order_numbers', 0);
+    }
+
+    public function test_an_order_in_progress_can_be_permanently_deleted_after_checking_linked_records(): void
+    {
+        [$obligation, , $actor] = $this->payable();
+        $this->prepareRateAdjustment($obligation);
+        $this->prepareOrderCorrection();
+        $execution = ServiceExecution::findOrFail($obligation->service_execution_id);
+        $order = $execution->order;
+        $database = Schema::getConnection();
+        $database->table('service_obligations')->where('id', $obligation->id)->delete();
+        $database->table('service_executions')->where('id', $execution->id)->update(['status' => 'in_progress', 'started_at' => now()]);
+        $database->table('expenses')->insert(['tenant_id' => 1, 'expenseable_type' => $order->getMorphClass(), 'expenseable_id' => $order->id]);
+        $correction = app(\App\Services\Services\ServiceOrderCorrection::class);
+
+        try {
+            $correction->handle($order, 'purge', 'Cadastro duplicado', $actor);
+            $this->fail('A linked expense must block permanent removal.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->assertArrayHasKey('reason', $exception->errors());
+        }
+        $this->assertSame('in_progress', $execution->fresh()->status);
+        $database->table('expenses')->delete();
+
+        $correction->handle($order, 'purge', 'Cadastro duplicado', $actor);
+
+        $this->assertDatabaseMissing('service_executions', ['id' => $execution->id]);
+        $this->assertDatabaseMissing('service_orders', ['id' => $order->id]);
+        $this->assertDatabaseHas('released_service_order_numbers', ['tenant_id' => 1, 'year' => 2026, 'number' => 1]);
     }
 
     private function prepareOrderCorrection(): void

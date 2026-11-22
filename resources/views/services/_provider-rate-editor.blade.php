@@ -1,7 +1,7 @@
 @php
     $rateBase = collect(data_get($obligation->composition_snapshot, 'lines', []))->first(fn ($line) => ($line['type'] ?? null) === 'base' && ($line['source_key'] ?? null) === 'provider_compensation');
     $rateMethod = data_get($rateBase, 'rule_snapshot.method');
-    $lastRateChange = $obligation->adjustments->sortByDesc('id')->first(fn ($item) => data_get($item->metadata, 'kind') === 'provider_rate');
+    $lastRateChange = $obligation->latestProviderRateAdjustment;
     $currentProviderRate = $lastRateChange ? data_get($lastRateChange->metadata, 'new_rate') : ($rateBase['unit_price'] ?? 0);
     $rateQuantity = $rateMethod === 'fixed' ? 1 : (float) ($rateBase['quantity'] ?? 0);
     $oldProviderBase = $lastRateChange ? data_get($lastRateChange->metadata, 'new_base') : ($rateBase['amount'] ?? 0);

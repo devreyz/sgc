@@ -11,12 +11,15 @@
     $valueBalance = round($valueObligations->sum(fn ($item) => max(0, $item->total_amount - $paidForValue($item))), 2);
     $valueMoney = static fn ($amount) => 'R$ '.number_format($amount, 2, ',', '.');
     $valueMethod = data_get($valueBase, 'rule_snapshot.method');
+    $valueRateAdjustment = $valueDirection === 'payable' ? $valueObligations->first()?->latestProviderRateAdjustment : null;
+    $valueRate = data_get($valueRateAdjustment, 'metadata.new_rate') ?? ($valueBase['unit_price'] ?? 0);
+    $valueRateFormatted = preg_replace('/(,\d{2,}?)0+$/', '$1', number_format((float) $valueRate, 4, ',', '.'));
 @endphp
 <strong>{{ $valueTotal === null ? 'A calcular' : 'R$ '.number_format((float) $valueTotal, 2, ',', '.') }}</strong>
 @if($valueBase && $valueMethod === 'quantity_x_rate')
-    <small style="display:block">{{ \App\Support\PdfQuantityFormatter::format($valueBase['quantity']) }} {{ $valueBase['unit'] ?? $valueExecution->unit }} × R$ {{ number_format((float) ($valueBase['unit_price'] ?? 0), 2, ',', '.') }}</small>
+    <small style="display:block">{{ \App\Support\PdfQuantityFormatter::format($valueBase['quantity']) }} {{ $valueBase['unit'] ?? $valueExecution->unit }} × R$ {{ $valueRateFormatted }}</small>
 @elseif($valueBase && $valueMethod === 'fixed')
-    <small style="display:block">Valor por serviço</small>
+    <small style="display:block">{{ $valueRateAdjustment ? 'Valor por serviço: R$ '.$valueRateFormatted : 'Valor por serviço' }}</small>
 @endif
 @if($valueObligations->isNotEmpty())
     @if($valuePaid > 0 || $valueBalance === 0.0)
