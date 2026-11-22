@@ -305,6 +305,22 @@ class SecretaryPortalSecurityTest extends TestCase
         $this->postJson('/tenant-a/secretary/documents/1/issue', ['revision' => 1])->assertForbidden();
     }
 
+    public function test_letter_can_be_previewed_without_creating_a_record_and_draft_can_be_deleted(): void
+    {
+        $this->actingAs(User::findOrFail(1))->withSession(['tenant_id' => 1]);
+        $root = '/tenant-a/secretary/documents';
+        $this->get($root.'/create')->assertOk()->assertSee('data-inline-letter="subject"', false)->assertSee('Fonte do documento');
+        $before = DB::table('generated_documents')->count();
+        $payload = $this->letterPayload();
+        $payload['layout']['font'] = 'mono';
+        $this->postJson($root.'/letter-preview', $payload)->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $this->assertSame($before, DB::table('generated_documents')->count());
+        $draft = $this->postJson($root, $payload)->assertCreated()->json('id');
+        $this->get($root.'/'.$draft.'/edit')->assertOk()->assertSee('Excluir rascunho');
+        $this->deleteJson($root.'/'.$draft)->assertOk();
+        $this->assertSoftDeleted('generated_documents', ['id' => $draft]);
+    }
+
     public function test_official_letter_draft_autosave_issue_cancel_duplicate_and_history(): void
     {
         Storage::fake('local');
@@ -331,7 +347,10 @@ class SecretaryPortalSecurityTest extends TestCase
         $this->assertSame('CODEVASF', \App\Models\GeneratedDocument::findOrFail($draft)->variables_used['recipient.institution']);
         $this->putJson($url, $this->letterPayload() + ['revision' => 3])->assertConflict();
         $this->postJson($url.'/cancel', ['reason' => ''])->assertUnprocessable();
-        $this->postJson($url.'/cancel', ['reason' => 'Substituído por novo ofício.'])->assertOk();
+        $this->deleteJson($url)->assertConflict();
+        $this->postJson($url.'/cancel', ['reason' => 'Substituído por novo ofício.', 'confirmation' => '002/2026/SEC'])
+            ->assertUnprocessable()->assertJsonValidationErrors('confirmation');
+        $this->postJson($url.'/cancel', ['reason' => 'Substituído por novo ofício.', 'confirmation' => '001/2026/SEC'])->assertOk();
         $this->assertSame($archived, $this->get($url.'/preview')->assertOk()->streamedContent());
         $this->get($url.'/revisions/1')->assertOk()->assertHeader('Content-Type', 'application/pdf');
         $this->get($root.'/documents/create?from_document='.$draft)->assertOk()->assertSee('CODEVASF')->assertDontSee('001/2026/SEC');

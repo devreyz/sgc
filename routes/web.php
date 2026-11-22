@@ -486,13 +486,14 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::delete('/layouts/{layout}', [SecretaryPortalController::class, 'destroyLayout'])->middleware('throttle:12,1')->name('layouts.destroy');
         Route::get('/documents/create', [SecretaryPortalController::class, 'createDocument'])->name('documents.create');
         Route::post('/documents', [SecretaryPortalController::class, 'storeDocument'])->middleware('throttle:30,1')->name('documents.store');
+        Route::post('/documents/letter-preview', [SecretaryPortalController::class, 'previewLetterContents'])->middleware('throttle:20,1')->name('documents.letter-preview');
         Route::get('/documents/{document}/edit', [SecretaryPortalController::class, 'editDocument'])->name('documents.edit');
         Route::put('/documents/{document}', [SecretaryPortalController::class, 'updateDocument'])->middleware('throttle:30,1')->name('documents.update');
-        Route::delete('/documents/{document}', [SecretaryPortalController::class, 'destroyDocument'])->middleware('throttle:12,1')->name('documents.destroy');
+        Route::delete('/documents/{document}', [SecretaryPortalController::class, 'destroyDocument'])->middleware('throttle:12,1,secretary-delete')->name('documents.destroy');
         Route::get('/documents/{document}/preview', [SecretaryPortalController::class, 'previewDocument'])->name('documents.preview');
         Route::get('/documents/{document}/revisions/{revision}', [SecretaryPortalController::class, 'previewRevision'])->whereNumber('revision')->name('documents.revisions.preview');
-        Route::post('/documents/{document}/issue', [SecretaryPortalController::class, 'issueDocument'])->middleware('throttle:12,1')->name('documents.issue');
-        Route::post('/documents/{document}/cancel', [SecretaryPortalController::class, 'cancelDocument'])->middleware('throttle:12,1')->name('documents.cancel');
+        Route::post('/documents/{document}/issue', [SecretaryPortalController::class, 'issueDocument'])->middleware('throttle:12,1,secretary-issue')->name('documents.issue');
+        Route::post('/documents/{document}/cancel', [SecretaryPortalController::class, 'cancelDocument'])->middleware('throttle:12,1,secretary-cancel')->name('documents.cancel');
         Route::get('/images', [SecretaryPortalController::class, 'listImages'])->name('images.index');
         Route::get('/images/{image}', [SecretaryPortalController::class, 'showImage'])->whereNumber('image')->name('images.show');
         Route::post('/images', [SecretaryPortalController::class, 'uploadImage'])->middleware('throttle:20,1')->name('images.store');

@@ -8,7 +8,7 @@
             margin: {{ $layout['top'] + ($layout['repeat_header'] ? 26 : 0) }}mm {{ $layout['right'] }}mm {{ $layout['bottom'] + (($contacts || $layout['footer'] || $partials['footer']) ? 13 : 0) }}mm {{ $layout['left'] }}mm;
         }
         body {
-            font: {{ $layout['font_size'] }}pt/{{ $layout['line_height'] }} {{ $layout['font'] === 'serif' ? '"DejaVu Serif", serif' : 'Calibri, Carlito, "DejaVu Sans", sans-serif' }};
+            font: {{ $layout['font_size'] }}pt/{{ $layout['line_height'] }} "{{ $fontFamily }}";
             color: #151515;
         }
         p { margin: 0 0 {{ $layout['spacing'] }}pt; }
@@ -16,9 +16,11 @@
         .institution.repeat { position: fixed; top: -26mm; left: 0; right: 0; max-height: 23mm; overflow: hidden; }
         .institution.border { border-bottom: 1px solid #737a75; padding-bottom: 2mm; }
         .letterhead { display: inline-table; width: auto; }
-        .letterhead td { padding: 0; vertical-align: middle; }
+        .letterhead td { padding: 0; vertical-align: middle; text-align: left; }
+        .letterhead .brand-name { font-size: 11pt; line-height: 1.2; }
         .letterhead img { max-width: {{ $layout['logo_width'] }}mm; max-height: 17mm; margin-right: 4mm; }
         .letterhead small { display: block; font-size: 8.5pt; color: #526057; margin-top: 1mm; }
+        .letter-number { margin-bottom: 4mm; letter-spacing: .2pt; }
         .date { text-align: right; margin-top: 4mm; }
         .recipient { margin: 5mm 0; white-space: pre-line; }
         .subject { margin-bottom: 5mm; }
@@ -44,7 +46,7 @@
             <table class="letterhead"><tr>
                 @if ($logo)<td><img src="{{ $logo }}" alt=""></td>@endif
                 <td>
-                    <strong>{{ $name }}{{ $layout['acronym'] && !\Illuminate\Support\Str::contains($name, $layout['acronym'], ignoreCase: true) ? ' · '.$layout['acronym'] : '' }}</strong>
+                    <strong class="brand-name">{{ $name }}{{ $layout['acronym'] && !\Illuminate\Support\Str::contains($name, $layout['acronym'], ignoreCase: true) ? ' · '.$layout['acronym'] : '' }}</strong>
                     @if ($layout['department'])<br>{{ $layout['department'] }}@endif
                     @if ($branding['registration'])<small>{{ $branding['registration'] }}</small>@endif
                 </td>
@@ -58,7 +60,7 @@
             @if ($contacts)<p>{{ implode(' · ', $contacts) }}</p>@endif
         </footer>
     @endif
-    @if ($number)<strong>OFÍCIO Nº {{ $number }}</strong>@endif
+    <p class="letter-number"><strong>OFÍCIO Nº {{ $number ?? '____/'.(substr($letter['date'] ?? '', 0, 4) ?: now('America/Sao_Paulo')->year) }}</strong></p>
     @if (!empty($letter['city']) || $date)
         <p class="date">{{ implode(', ', array_filter([$letter['city'] ?? '', $date])) }}{{ $date ? '.' : '' }}</p>
     @endif

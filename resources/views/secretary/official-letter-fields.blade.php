@@ -5,8 +5,8 @@
         'Formato do texto' => [
             'top' => ['Margem superior (mm)', 15, 45], 'bottom' => ['Margem inferior (mm)', 20, 55],
             'left' => ['Margem esquerda (mm)', 10, 45], 'right' => ['Margem direita (mm)', 10, 45],
-            'font' => ['Fonte', ['sans' => 'Sem serifa', 'serif' => 'Com serifa']],
-            'font_size' => ['Tamanho (pt)', 9, 18], 'line_height' => ['Entrelinhas', 1, 2, 0.1],
+            'font' => ['Fonte', array_map(fn ($font) => $font[0], \App\Services\OfficialLetterService::FONTS)],
+            'font_size' => ['Tamanho (pt)', 9, 18], 'line_height' => ['Entrelinhas', 1, 2, 0.05],
             'spacing' => ['Após parágrafo (pt)', 0, 18], 'indent' => ['Recuo inicial (mm)', 0, 35],
         ],
         'Cabeçalho institucional' => [
@@ -18,13 +18,13 @@
         ],
         'Rodapé e paginação' => [
             'footer' => ['Texto institucional', 240], 'address' => ['Endereço'], 'registration' => ['CNPJ'],
-            'phone' => ['Telefone'], 'email' => ['E-mail'], 'website' => ['Site'], 'page_numbers' => ['Numerar a partir da segunda página'],
+            'phone' => ['Telefone'], 'email' => ['E-mail'], 'website' => ['Site'], 'page_numbers' => ['Mostrar “Página X de Y”'],
         ],
     ];
 @endphp
 
 @if (!empty($letterFieldsOnly))
-    <details class="se-panel se-letter-details" @if (!$editing) open @endif>
+    <details class="se-panel se-letter-details">
         <summary>Dados do ofício <i class="ph ph-caret-down" aria-hidden="true"></i></summary>
         <div class="se-panel-body se-field-grid">
             @foreach (\App\Services\OfficialLetterService::FIELDS as $field => $label)

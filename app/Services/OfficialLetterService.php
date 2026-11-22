@@ -29,12 +29,17 @@ class OfficialLetterService
     ];
     public const LAYOUT = [
         'top' => 20, 'right' => 15, 'bottom' => 20, 'left' => 30,
-        'font' => 'sans', 'font_size' => 12, 'line_height' => 1, 'spacing' => 6, 'indent' => 25,
+        'font' => 'sans', 'font_size' => 12, 'line_height' => 1.15, 'spacing' => 6, 'indent' => 12,
         'logo' => true, 'logo_width' => 18, 'header_spacing' => 7, 'header_alignment' => 'left',
         'header_name' => '', 'acronym' => '', 'sector' => '', 'department' => '', 'repeat_header' => false,
         'separator' => false, 'footer' => '', 'address' => false, 'registration' => false,
         'phone' => false, 'email' => false, 'website' => false, 'page_numbers' => true,
         'default' => false,
+    ];
+    public const FONTS = [
+        'sans' => ['Arial / Helvetica', 'Arial, Helvetica, sans-serif', 'Helvetica'],
+        'serif' => ['Times New Roman', '"Times New Roman", Times, serif', 'Times-Roman'],
+        'mono' => ['Courier New', '"Courier New", Courier, monospace', 'Courier'],
     ];
     public const VARIABLES = [
         'organization.name', 'organization.acronym', 'organization.logo', 'organization.address',
@@ -101,7 +106,7 @@ class OfficialLetterService
             'logo_width' => [8, 24], 'header_spacing' => [0, 15]];
         foreach (self::LAYOUT as $field => $value) {
             $rules['layout.'.$field] = match ($field) {
-                'font' => ['required_with:layout', 'in:sans,serif'],
+                'font' => ['required_with:layout', \Illuminate\Validation\Rule::in(array_keys(self::FONTS))],
                 'header_alignment' => ['required_with:layout', 'in:left,center,right'],
                 'acronym', 'sector' => ['nullable', 'string', 'max:24', 'regex:/^[A-Za-z0-9-]+$/D'],
                 default => match (true) {
@@ -211,6 +216,7 @@ class OfficialLetterService
         $layout = array_replace(self::LAYOUT, $settings['layout'] ?? []);
         $date = ! empty($letter['date']) ? Carbon::parse($letter['date'])->locale('pt_BR')->translatedFormat('j \d\e F \d\e Y') : '';
         $branding = $this->branding($tenant);
+        $fontFamily = (self::FONTS[$layout['font']] ?? self::FONTS['sans'])[2];
         $name = $layout['header_name'] ?: $branding['name'];
         $logo = $layout['logo'] ? $this->assets->logo($tenant) : null;
         $variables = [
@@ -233,18 +239,11 @@ class OfficialLetterService
             $partials[$kind] = $partial ? $resolve($this->assets->clean($tenant, $partial->content, true, $partial->content)) : null;
         }
         $contacts = array_filter(array_intersect_key($branding, array_filter(array_intersect_key($layout, array_flip(['address', 'registration', 'phone', 'email', 'website'])))));
-        $pdf = Pdf::loadView('pdf.secretary-official-letter', compact('document', 'layout', 'letter', 'number', 'date', 'name', 'logo', 'contacts', 'content', 'partials', 'branding'))
+        $pdf = Pdf::loadView('pdf.secretary-official-letter', compact('document', 'layout', 'letter', 'number', 'date', 'name', 'logo', 'contacts', 'content', 'partials', 'branding', 'fontFamily'))
             ->setOption(['isRemoteEnabled' => false, 'isPhpEnabled' => false])
             ->setPaper($settings['paper_size'] ?? 'a4', $settings['paper_orientation'] ?? 'portrait');
-        $pdf->render();
         if ($layout['page_numbers']) {
-            $pdf->getDomPDF()->get_canvas()->page_script(function ($page, $total, $canvas, $fonts): void {
-                if ($page > 1) {
-                    $font = $fonts->getFont('DejaVu Sans', 'normal');
-                    $text = (string) $page;
-                    $canvas->text(($canvas->get_width() - $fonts->getTextWidth($text, $font, 9)) / 2, $canvas->get_height() - 23, $text, $font, 9);
-                }
-            });
+            app(PdfUpdateFooterService::class)->paginate($pdf);
         }
 
         return ['bytes' => $pdf->output(), 'variables' => $variables];

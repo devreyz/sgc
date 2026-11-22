@@ -36,7 +36,9 @@
         'signed' => (bool) ($record['signed'] ?? false),
         'saveUrl' => $saveUrl,
         'previewUrl' => $previewUrl,
+        'livePdfUrl' => $isOfficialDocument && !$closed ? route('secretary.documents.letter-preview', ['tenant' => $tenant->slug]) : null,
         'deleteUrl' => $deleteUrl,
+        'backUrl' => route('secretary.index', ['tenant' => $tenant->slug, 'section' => $isLayout ? 'layouts' : ($isTemplate ? 'templates' : 'documents')]),
         'imageUrl' => route('secretary.images.store', ['tenant' => $tenant->slug]),
         'csrf' => csrf_token(),
         'variables' => $variables,
@@ -45,11 +47,14 @@
         'recoveryKey' => $isOfficialDocument && !$closed ? 'sgc-secretary:'.auth()->id().':'.$tenant->id.':'.($recordId ?? 'new-'.substr(sha1(request()->getRequestUri()), 0, 12)) : null,
         'issueUrl' => $isOfficialDocument && $editing ? route('secretary.documents.issue', ['tenant' => $tenant->slug, 'document' => $recordId]) : null,
         'cancelUrl' => $isOfficialDocument && $editing ? route('secretary.documents.cancel', ['tenant' => $tenant->slug, 'document' => $recordId]) : null,
+        'number' => $record['number'] ?? null,
         'markdownUrl' => route('secretary.markdown', ['tenant' => $tenant->slug]),
         'letterPreview' => (!$archiveOnly && $isOfficialDocument) || ($isTemplate) ? [
             'branding' => $branding,
             'logo' => $letterLogo,
             'number' => $record['number'] ?? null,
+            'year' => now('America/Sao_Paulo')->year,
+            'fonts' => array_map(fn ($font) => $font[1], \App\Services\OfficialLetterService::FONTS),
             'fragmentUrl' => route('secretary.layouts.fragment', ['tenant' => $tenant->slug, 'layout' => 0]),
         ] : null,
     ];
@@ -93,7 +98,20 @@
     .se-side { max-height:calc(100dvh - 150px);overflow:auto }
     .se-document-stage { overflow:auto; }
     .se-toolbar .se-select { flex:none; width:auto; }
+    .se-tool[aria-pressed="true"] { color:#203519;background:#d6ef74; }
     .se-paper-controls { display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.35rem .6rem;border-bottom:1px solid var(--color-border);font-size:.75rem;color:var(--color-text-secondary); }
+    .se-paper-controls .se-select { min-height:40px;max-width:100%; }
+    .se-paper-options { display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.3rem; }
+    .se-sheet [hidden] { display:none; }
+    .se-document-stage { touch-action:pan-x pan-y; }
+    .se-inline-field { white-space:pre-wrap;outline:none;border-radius:.15em;overflow-wrap:anywhere; }
+    .se-inline-field:empty::before { content:attr(data-hint);color:#526057;font-weight:400; }
+    .se-inline-field:focus-visible,.se-date-picker:focus-within { outline:2px solid #507656;outline-offset:3px;background:#eff6ec; }
+    .se-inline-date { display:flex;justify-content:flex-end;align-items:baseline;flex-wrap:wrap;gap:.28em; }
+    .se-date-picker { position:relative;display:inline-block;cursor:pointer; }
+    .se-date-picker input { position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:16pt; }
+    .se-date-picker span { pointer-events:none; }
+    .se-paper-brand strong { font-size:11pt;line-height:1.2; }
     .se-document-paper { box-sizing:border-box;width:var(--paper-width,210mm);min-height:var(--paper-height,297mm);margin-inline:auto;padding:var(--paper-top,20mm) var(--paper-right,15mm) var(--paper-bottom,20mm) var(--paper-left,30mm);background:#fff;color:#151515;border:1px solid #e0e4df;box-shadow:0 2px 10px rgb(0 0 0 / .08);display:flex;flex-direction:column;overflow-wrap:break-word;font:var(--letter-size,12pt)/var(--letter-line,1.25) var(--letter-font,Calibri,Carlito,Arial,sans-serif) }
     .se-document-paper[data-enabled="0"] .se-letter-chrome { display:none }
     .se-document-paper[data-enabled="0"] { font:14px/1.6 Arial,sans-serif }
@@ -109,10 +127,12 @@
     .se-paper-brand small { display:block;font-size:8.5pt;color:#526057;margin-top:1mm }
     .se-paper-header.has-rule { border-bottom:1px solid #737a75;padding-bottom:2mm }
     .se-paper-number,.se-paper-subject { font-weight:700 }
+    .se-paper-number { margin-bottom:4mm;letter-spacing:.2pt; }
     .se-paper-date { text-align:right;margin-top:4mm }
     .se-paper-recipient { margin:5mm 0;white-space:pre-line }
     .se-paper-recipient:empty { display:none; }
     .se-paper-recipient p { margin:0 0 var(--letter-spacing,6pt) }
+    .se-paper-recipient > div { margin-bottom:2pt }
     .se-paper-subject { margin:0 0 5mm }
     .se-paper-paragraph,.se-document-paper[data-enabled="1"] .se-paper-body > p { text-indent:var(--letter-indent,25mm) }
     .se-paper-body { min-height:2em;outline:none;line-height:inherit;text-align:left;max-width:100% }
@@ -169,6 +189,7 @@
             @endif
             @if($abilities['create'])<a class="se-btn" href="{{ route('secretary.documents.create', ['tenant' => $tenant->slug, 'from_document' => $recordId]) }}"><i class="ph ph-copy" aria-hidden="true"></i> Duplicar</a>@endif
             @if(($record['status'] ?? '') === 'issued' && $abilities['cancel'])<button type="button" class="se-btn se-btn-danger" id="se-cancel">Cancelar ofício</button>@endif
+            @if($deleteUrl && !$closed)<button class="se-btn se-btn-danger" id="se-delete-open" type="button"><i class="ph ph-trash" aria-hidden="true"></i> Excluir rascunho</button>@endif
             @if(!empty($record['cancellation']))<p>{{ $record['cancellation'] }}</p>@endif
         </div>
     @elseif($isTemplate && $editing && $abilities['templates'])
@@ -183,7 +204,7 @@
                 <div class="se-editor-notice">
                     <strong>PDF arquivado</strong>
                     <p class="se-help">Abra o documento emitido para conferir o cabeçalho, o corpo e o rodapé registrados na emissão.</p>
-                    <a class="se-btn" href="{{ $previewUrl }}" target="_blank" rel="noopener"><i class="ph ph-file-pdf" aria-hidden="true"></i> Abrir PDF arquivado</a>
+                    <a class="se-btn" href="{{ $previewUrl }}" target="_blank" rel="noopener" data-sgc-pdf><i class="ph ph-file-pdf" aria-hidden="true"></i> Abrir PDF arquivado</a>
                 </div>
             @else
                 @if(!$closed)<div class="se-toolbar" role="toolbar" aria-label="Formatação de texto">
@@ -262,7 +283,7 @@
             @if(!$closed)
                 <details class="se-panel"><summary>Variáveis <i data-lucide="chevron-down" style="width:15px"></i></summary><div class="se-panel-body"><div class="se-vars">@foreach($variables as $group => $items)<div class="se-var-group"><strong>{{ $group }}</strong><div class="se-var-list">@foreach($items as $token => $label)<button class="se-var" type="button" data-variable="{{ $token }}" title="{{ $label }}">{{ $token }}</button>@endforeach</div></div>@endforeach</div></div></details>
             @endif
-            @if($deleteUrl && !($record['signed'] ?? false))<div id="se-delete-wrap"><button class="se-btn se-btn-danger" id="se-delete-open" type="button" style="width:100%"><i data-lucide="trash-2"></i> Excluir</button></div>@endif
+            @if($deleteUrl && !$closed && !$isOfficialDocument)<button class="se-btn se-btn-danger" id="se-delete-open" type="button"><i class="ph ph-trash" aria-hidden="true"></i> {{ $mode === 'document' ? 'Excluir rascunho' : 'Excluir' }}</button>@endif
         </aside>
     </div>
 </main>
@@ -287,6 +308,10 @@
 <dialog class="se-sheet" id="se-letter-action">
     <h2 id="se-letter-action-title"></h2><p id="se-letter-action-text"></p>
     <label class="se-field" id="se-cancel-reason-wrap" hidden>Justificativa<textarea id="se-cancel-reason" class="se-control" maxlength="500" rows="3"></textarea></label>
+    <label class="se-field" id="se-cancel-number-wrap" hidden>Digite {{ $record['number'] ?? 'o número do ofício' }} para confirmar
+        <input class="se-control" id="se-cancel-number" type="text" autocomplete="off" spellcheck="false" maxlength="45">
+    </label>
+    <p id="se-action-error" class="se-help" role="alert"></p>
     <form method="dialog" class="se-sheet-actions"><button class="se-btn" type="submit">Voltar</button><button class="se-btn se-btn-primary" type="button" id="se-letter-confirm">Confirmar</button></form>
 </dialog>
 <dialog class="se-sheet" id="se-markdown-dialog">
@@ -425,11 +450,46 @@
         }
     }
     function restoreSelection() { if (!lastRange || !editor.contains(lastRange.commonAncestorContainer)) return; const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(lastRange); }
-    function rememberSelection() { const selection = window.getSelection(); if (selection.rangeCount && editor?.contains(selection.anchorNode)) lastRange = selection.getRangeAt(0).cloneRange(); }
+    const toggles = Array.from(document.querySelectorAll('[data-command]')).filter(button =>
+        /^(bold|italic|underline|strikeThrough|justify|insert.*List)/.test(button.dataset.command));
+    function rememberSelection() {
+        const selection = window.getSelection();
+        if (!selection.rangeCount || !editor?.contains(selection.anchorNode)) return;
+        lastRange = selection.getRangeAt(0).cloneRange();
+        for (const button of toggles) button.setAttribute('aria-pressed', String(document.queryCommandState(button.dataset.command)));
+    }
+    for (const button of toggles) button.setAttribute('aria-pressed', 'false');
+    document.addEventListener('selectionchange', rememberSelection);
+    document.querySelector('.se-toolbar')?.addEventListener('mousedown', event => {
+        if (event.target.closest('button')) event.preventDefault();
+    });
     function insertHtml(html) { editor.focus(); restoreSelection(); document.execCommand('insertHTML', false, html); markDirty(); rememberSelection(); }
 
     saveButton?.addEventListener('click', () => save(false));
-    previewButton?.addEventListener('click', () => config.signed ? window.open(config.previewUrl, '_blank', 'noopener') : save(true));
+    previewButton?.addEventListener('click', async () => {
+        if (!config.livePdfUrl) {
+            if (config.signed) window.open(config.previewUrl, '_blank', 'noopener');
+            else await save(true);
+            return;
+        }
+        previewButton.disabled = true;
+        try {
+            const response = await fetch(config.livePdfUrl, {
+                method:'POST', headers:{Accept:'application/json','Content-Type':'application/json','X-CSRF-TOKEN':config.csrf},
+                body:JSON.stringify(payload()),
+            });
+            if (!response.ok || !response.headers.get('Content-Type')?.includes('application/pdf')) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(Object.values(data.errors || {})[0]?.[0] || data.message || 'Não foi possível gerar a prévia.');
+            }
+            const blob = await response.blob();
+            await window.SgcDocuments.openPdf(blob, 'previa-oficio.pdf', 'Prévia do ofício');
+        } catch (error) {
+            toast(error.message, true);
+        } finally {
+            previewButton.disabled = false;
+        }
+    });
     document.querySelectorAll('input,select,textarea').forEach(input => input.addEventListener('change', () => { markDirty(); if (input.id === 'se-orientation' && editor) editor.dataset.paper = input.value; }));
     document.getElementById('se-title').addEventListener('input', markDirty);
     document.querySelectorAll('[data-letter], [data-layout]').forEach(input => input.addEventListener('input', markDirty));
@@ -645,14 +705,17 @@
         const fragments = new Map();
         const dimensions = {a4:[210,297],a3:[297,420],letter:[215.9,279.4],legal:[215.9,355.6]};
         const stage = paper.closest('.se-document-stage');
+        const zoomControl = byId('se-zoom');
+        let gesture = null;
+        let customZoom = null;
         let layoutRequest = 0;
         function fitPaper() {
             const [short, long] = dimensions[byId('se-paper').value] || dimensions.a4;
             const width = byId('se-orientation').value === 'landscape' ? long : short;
             const style = getComputedStyle(stage);
             const available = stage.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-            const zoom = byId('se-zoom')?.value || 'fit';
-            if (available > 0) paper.style.zoom = zoom === 'fit' ? Math.min(1, available / (width * 96 / 25.4)) : Number(zoom);
+            const zoom = zoomControl.value;
+            if (available > 0) paper.style.zoom = customZoom ?? (zoom === 'fit' ? Math.min(1, available / (width * 96 / 25.4)) : Number(zoom));
         }
         function element(tag, text = '', className = '') {
             const node = document.createElement(tag);
@@ -662,6 +725,7 @@
         }
         function setLine(id, text) {
             const node = byId(id);
+            if (!node) return;
             node.hidden = !text;
             node.textContent = text || '';
         }
@@ -707,7 +771,8 @@
             paper.style.setProperty('--letter-spacing', `${Number(layout.spacing)}pt`);
             paper.style.setProperty('--letter-size', `${Number(layout.font_size)}pt`);
             paper.style.setProperty('--letter-line', Number(layout.line_height));
-            paper.style.setProperty('--letter-font', layout.font === 'serif' ? 'Georgia, serif' : 'Calibri, Carlito, Arial, sans-serif');
+            paper.style.setProperty('--letter-font', config.letterPreview.fonts[layout.font] || config.letterPreview.fonts.sans);
+            if (byId('se-paper-font')) byId('se-paper-font').value = layout.font || 'sans';
             paper.style.setProperty('--paper-logo-width', `${Number(layout.logo_width)}mm`);
             paper.style.setProperty('--paper-header-spacing', `${Number(layout.header_spacing)}mm`);
             if (paper.dataset.enabled === '0') return;
@@ -740,17 +805,26 @@
                 brand.append(lines);
                 header.replaceChildren(brand);
             }
-            setLine('se-paper-number', fixedNumber ? 'OFÍCIO Nº ' + fixedNumber : '');
+            setLine('se-paper-number', 'OFÍCIO Nº ' + (fixedNumber || '____/' + (letter.date?.slice(0,4) || config.letterPreview.year)));
             const cityDate = [letter.city,date].filter(Boolean).join(', ');
             setLine('se-paper-date', date ? cityDate + '.' : cityDate);
-            byId('se-paper-recipient').replaceChildren(...['recipient','recipient_position','institution','recipient_address']
+            if (byId('se-paper-date-label')) byId('se-paper-date-label').textContent = date ? (letter.city ? ', ' : '') + date + '.' : 'Data do ofício';
+            byId('se-paper-recipient')?.replaceChildren(...['recipient','recipient_position','institution','recipient_address']
                 .map(key => letter[key]).filter(Boolean).map(text => element('p',text)));
             setLine('se-paper-subject', letter.subject ? 'Assunto: ' + letter.subject : '');
             setLine('se-paper-salutation', letter.salutation);
             setLine('se-paper-closing', letter.closing);
             const signature = byId('se-paper-signature');
-            signature.hidden = !letter.signatory;
-            signature.replaceChildren(element('strong',letter.signatory),element('br'),document.createTextNode(letter.signatory_position || ''));
+            if (signature) {
+                signature.hidden = !letter.signatory;
+                signature.replaceChildren(element('strong',letter.signatory),element('br'),document.createTextNode(letter.signatory_position || ''));
+            }
+            for (const field of paper.querySelectorAll('[data-inline-letter]')) {
+                if (document.activeElement === field) continue;
+                const value = letter[field.dataset.inlineLetter] || '';
+                if (field.tagName === 'INPUT') field.value = value;
+                else if (field.textContent !== value) field.textContent = value;
+            }
             const footer = byId('se-paper-footer');
             const customFooter = fragments.get(byId('se-footer').value);
             const contacts = ['address','registration','phone','email','website'].filter(key => layout[key] && branding[key]).map(key => branding[key]).join(' · ');
@@ -777,7 +851,59 @@
         });
         for (const id of ['se-header','se-footer']) byId(id).addEventListener('change', updateFragments);
         byId('se-signatory')?.addEventListener('click', drawPaper);
-        byId('se-zoom')?.addEventListener('change', fitPaper);
+        byId('se-paper-font')?.addEventListener('change', event => {
+            const field = byId('letter-layout-font');
+            field.value = event.target.value;
+            field.dispatchEvent(new Event('input', {bubbles:true}));
+        });
+        for (const inline of paper.querySelectorAll('[data-inline-letter]')) {
+            const key = inline.dataset.inlineLetter;
+            const field = byId('letter-' + key);
+            const dateInput = inline.tagName === 'INPUT';
+            inline.addEventListener('input', () => {
+                field.value = dateInput ? inline.value : inline.innerText.replace(/\u00a0/g, ' ').slice(0, field.maxLength);
+                field.dispatchEvent(new Event('input', {bubbles:true}));
+            });
+            inline.addEventListener('blur', drawPaper);
+            inline.addEventListener('keydown', event => {
+                if (!dateInput && key !== 'recipient_address' && event.key === 'Enter') {
+                    event.preventDefault();
+                    inline.blur();
+                }
+            });
+        }
+        zoomControl.addEventListener('change', () => { customZoom = null; fitPaper(); });
+        const distance = touches => Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+        stage.addEventListener('touchstart', event => {
+            if (event.touches.length !== 2) return;
+            const rect = paper.getBoundingClientRect();
+            const x = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+            const y = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+            gesture = {distance:distance(event.touches), zoom:Number(paper.style.zoom) || 1,
+                x, y, left:(x - rect.left) / rect.width, top:(y - rect.top) / rect.height};
+        }, {passive:true});
+        stage.addEventListener('touchmove', event => {
+            if (!gesture || !gesture.distance || event.touches.length !== 2 || !event.cancelable) return;
+            event.preventDefault();
+            customZoom = Math.max(.25, Math.min(2.5, gesture.zoom * distance(event.touches) / gesture.distance));
+            fitPaper();
+            const rect = paper.getBoundingClientRect();
+            stage.scrollLeft += rect.left + rect.width * gesture.left - gesture.x;
+            window.scrollBy(0, rect.top + rect.height * gesture.top - gesture.y);
+        }, {passive:false});
+        const stopZoom = () => {
+            if (!gesture) return;
+            gesture = null;
+            if (customZoom === null) return;
+            const option = zoomControl.querySelector('[data-gesture-zoom]') || new Option();
+            option.dataset.gestureZoom = '';
+            option.value = String(customZoom);
+            option.text = Math.round(customZoom * 100) + '%';
+            if (!option.parentNode) zoomControl.add(option);
+            zoomControl.value = option.value;
+        };
+        stage.addEventListener('touchend', stopZoom);
+        stage.addEventListener('touchcancel', stopZoom);
         if ('ResizeObserver' in window) new ResizeObserver(fitPaper).observe(stage);
         else window.addEventListener('resize', fitPaper);
         updateFragments();
@@ -823,12 +949,24 @@
 
     let letterAction = null;
     const actionDialog = byId('se-letter-action');
-    for (const action of ['issue','cancel']) {
-        byId(`se-${action}`)?.addEventListener('click', () => {
+    const actionCopy = {
+        issue:['Emitir ofício','O ofício receberá um número definitivo e o PDF será arquivado.','Emitir'],
+        cancel:['Cancelar ofício','O número e o PDF original ficam no histórico do documento cancelado.','Cancelar ofício'],
+        delete:config.mode === 'document'
+            ? ['Excluir rascunho','O rascunho será removido do Acervo.','Excluir rascunho']
+            : ['Excluir','O item será removido da Secretaria.','Excluir'],
+    };
+    for (const [action, id] of Object.entries({issue:'se-issue',cancel:'se-cancel',delete:'se-delete-open'})) {
+        byId(id)?.addEventListener('click', () => {
             letterAction = action;
-            byId('se-letter-action-title').textContent = action === 'issue' ? 'Emitir ofício' : 'Cancelar ofício';
-            byId('se-letter-action-text').textContent = action === 'issue' ? 'O ofício receberá um número definitivo e o PDF ficará arquivado.' : 'O número e o PDF original ficam no histórico.';
+            const [title, description, label] = actionCopy[action];
+            byId('se-letter-action-title').textContent = title;
+            byId('se-letter-action-text').textContent = description;
+            byId('se-letter-confirm').textContent = label;
+            byId('se-letter-confirm').classList.toggle('se-btn-danger', action !== 'issue');
             byId('se-cancel-reason-wrap').hidden = action !== 'cancel';
+            byId('se-cancel-number-wrap').hidden = action !== 'cancel';
+            byId('se-action-error').textContent = '';
             actionDialog.showModal();
         });
     }
@@ -836,15 +974,31 @@
         const button = byId('se-letter-confirm');
         button.disabled = true;
         try {
+            byId('se-action-error').textContent = '';
             if (letterAction === 'issue' && (dirty || activeSave) && !await save()) return;
             if (letterAction === 'issue' && dirty) return;
+            if (letterAction === 'delete') {
+                clearTimeout(autosaveTimer);
+                if (activeSave) await activeSave;
+                clearTimeout(autosaveTimer);
+                await request(config.deleteUrl, {method:'DELETE'});
+                dirty = false;
+                checkpoint();
+                location.assign(config.backUrl);
+                return;
+            }
+            const confirmation = byId('se-cancel-number').value.trim();
+            if (letterAction === 'cancel' && confirmation !== config.number) {
+                byId('se-cancel-number').focus();
+                throw new Error('Digite o número do ofício para confirmar.');
+            }
             await request(letterAction === 'issue' ? config.issueUrl : config.cancelUrl, {
-                method:'POST',body:JSON.stringify({revision,reason:byId('se-cancel-reason').value.trim()}),
+                method:'POST',body:JSON.stringify({revision,reason:byId('se-cancel-reason').value.trim(),confirmation}),
             });
             dirty = false;
             checkpoint();
             location.reload();
-        } catch (error) { toast(error.message, true); }
+        } catch (error) { byId('se-action-error').textContent = error.message; }
         finally { button.disabled = false; }
     });
 
@@ -857,8 +1011,6 @@
     }
     document.addEventListener('click', event => { const box=document.getElementById('se-suggest'); if(!box.contains(event.target)&&event.target!==editor)box.hidden=true; });
 
-    const deleteOpen=document.getElementById('se-delete-open');
-    deleteOpen?.addEventListener('click',()=>{document.getElementById('se-delete-wrap').innerHTML='<div class="se-delete-confirm"><span>Excluir definitivamente?</span><span><button class="se-btn" id="se-delete-cancel" type="button">Cancelar</button> <button class="se-btn se-btn-danger" id="se-delete-confirm" type="button">Excluir</button></span></div>';document.getElementById('se-delete-cancel').onclick=()=>location.reload();document.getElementById('se-delete-confirm').onclick=async()=>{loading.hidden=false;try{const data=await request(config.deleteUrl,{method:'DELETE'});toast(data.message);dirty=false;setTimeout(()=>location.replace(@js(route('secretary.index',['tenant'=>$tenant->slug]))),400)}catch(error){toast(error.message,true);loading.hidden=false}finally{loading.hidden=true}}});
     window.addEventListener('beforeunload', event => { if (!dirty || saving) return; event.preventDefault(); event.returnValue=''; });
     document.addEventListener('keydown', event => { if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='s'){event.preventDefault();save(false)} });
 })();

@@ -559,6 +559,20 @@ class SecretaryPortalController extends Controller
         return $this->inlinePdf($pdfService->generateCustomTemplate($template), Str::slug($template->name).'.pdf');
     }
 
+    public function previewLetterContents(Request $request)
+    {
+        $tenant = $this->tenant($request);
+        abort_unless($this->access->allows($request->user(), $tenant, 'create')
+            || $this->access->allows($request->user(), $tenant, 'edit'), 403);
+        $fields = $this->validateDocument($request, $tenant);
+        $document = new GeneratedDocument([
+            'title' => $fields['title'], 'content' => $fields['content'],
+            'document_settings' => $this->documentSettings($fields, true, null),
+        ]);
+
+        return $this->pdfResponse($this->letters->render($tenant, $document)['bytes'], 'previa-oficio.pdf');
+    }
+
     public function previewDocument(Request $request, Tenant $routeTenant, GeneratedDocument $document, TemplatedPdfService $pdfService)
     {
         $tenant = $this->tenant($request);
@@ -608,11 +622,17 @@ class SecretaryPortalController extends Controller
     {
         $tenant = $this->tenant($request);
         $this->assertSecretaryDocument($document, $tenant);
-        $data = $request->validate(['reason' => ['required', 'string', 'min:5', 'max:500']]);
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:5', 'max:500'],
+            'confirmation' => ['required', 'string', 'max:45'],
+        ], ['confirmation.required' => 'Digite o número do ofício para confirmar.']);
         DB::transaction(function () use ($document, $tenant, $data, $request): void {
             $document = GeneratedDocument::query()->where('tenant_id', $tenant->id)->lockForUpdate()->findOrFail($document->id);
             abort_unless($this->isLetter($document) && $document->status === 'issued', 409, 'Somente ofícios emitidos podem ser cancelados.');
             $settings = $document->document_settings;
+            if ($data['confirmation'] !== ($settings['number'] ?? null)) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['confirmation' => 'Digite o número do ofício para confirmar.']);
+            }
             $settings['cancellation_reason'] = $data['reason'];
             $settings['cancelled_at'] = now()->toIso8601String();
             $settings['cancelled_by'] = $request->user()->id;
