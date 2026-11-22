@@ -1716,9 +1716,34 @@ class ServiceProviderCompensationTest extends TestCase
         $order->delete();
         $database->table('service_order_sequences')->insert(['tenant_id' => 1, 'year' => 2026, 'last_number' => 20]);
 
-        app(\App\Services\Services\ServiceOrderCorrection::class)->handle($order, 'purge', 'Cancelar duplicidade', $actor);
+        $notes = $database->table('generated_documents');
+        $note = ['tenant_id' => 1, 'documentable_type' => $execution->getMorphClass(), 'status' => 'draft',
+            'document_settings' => json_encode(['template_key' => 'service_internal_note'])];
+        $noteId = $notes->insertGetId($note + ['documentable_id' => $execution->id, 'deleted_at' => now(), 'signed_at' => now()]);
+        $unrelated = $notes->insertGetId($note + ['documentable_id' => $execution->id + 1]);
+        $correction = app(\App\Services\Services\ServiceOrderCorrection::class);
+
+        try {
+            $correction->handle($order, 'purge', 'Cancelar duplicidade', $actor, true);
+            $this->fail('A signed note must prevent permanent deletion.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('reason', $exception->errors());
+        }
+        $database->table('generated_documents')->where('id', $noteId)->update(['signed_at' => null]);
+        try {
+            $correction->handle($order, 'purge', 'Cancelar duplicidade', $actor);
+            $this->fail('Deleting the note requires separate confirmation.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('delete_generated_notes', $exception->errors());
+        }
+        $this->assertDatabaseHas('generated_documents', ['id' => $noteId]);
+        $this->assertDatabaseCount('released_service_order_numbers', 0);
+
+        $correction->handle($order, 'purge', 'Cancelar duplicidade', $actor, true);
 
         $this->assertDatabaseMissing('service_orders', ['id' => $order->id]);
+        $this->assertDatabaseMissing('generated_documents', ['id' => $noteId]);
+        $this->assertDatabaseHas('generated_documents', ['id' => $unrelated]);
         $numbers = app(\App\Services\Services\ServiceOrderNumberService::class);
         $database->transaction(function () use ($numbers, $order): void {
             $this->assertSame('OS-2027-000001', $numbers->next(1, 2027));
@@ -1808,13 +1833,21 @@ class ServiceProviderCompensationTest extends TestCase
             $table->morphs('expenseable');
             $table->softDeletes();
         });
-        foreach (['generated_documents', 'cloud_documents'] as $name) {
+        foreach (['generated_documents', 'cloud_documents', 'documents'] as $name) {
             Schema::create($name, function (Blueprint $table): void {
+                $table->id();
                 $table->unsignedBigInteger('tenant_id');
                 $table->morphs('documentable');
                 $table->softDeletes();
             });
         }
+        Schema::table('generated_documents', function (Blueprint $table): void {
+            $table->string('status');
+            $table->json('document_settings');
+            $table->timestamp('signed_at')->nullable();
+            $table->string('signature_file')->nullable();
+        });
+        Schema::create('service_negotiations', fn (Blueprint $table) => $table->unsignedBigInteger('generated_document_id'));
         Schema::create('service_order_sequences', function (Blueprint $table): void {
             $table->unsignedBigInteger('tenant_id');
             $table->unsignedSmallInteger('year');

@@ -229,13 +229,16 @@ class ServiceManagementController extends Controller
             'reason' => 'required|string|min:5|max:500',
             'action' => 'required|in:delete,cancel,cancel_replace,reopen,purge',
             'confirmation' => 'required_if:action,purge|nullable|string|max:64',
+            'delete_generated_notes' => 'sometimes|boolean|prohibited_unless:action,purge',
         ]);
         if (in_array($data['action'], ['reopen', 'purge'], true)) {
             $order = ServiceOrder::withTrashed()->where('tenant_id', $tenant->id)->whereNotNull('service_version_id')->findOrFail($order);
             if ($data['action'] === 'purge' && $data['confirmation'] !== $order->number) {
                 throw ValidationException::withMessages(['confirmation' => 'Digite o número exato da ordem.']);
             }
-            app(\App\Services\Services\ServiceOrderCorrection::class)->handle($order, $data['action'], $data['reason'], $request->user());
+            app(\App\Services\Services\ServiceOrderCorrection::class)->handle(
+                $order, $data['action'], $data['reason'], $request->user(), $request->boolean('delete_generated_notes'),
+            );
             if ($data['action'] === 'reopen') {
                 return redirect()->route('services.management.edit', [$tenant->slug, $order])
                     ->with('success', 'Ordem reaberta com o mesmo número. Corrija os dados e finalize novamente.');

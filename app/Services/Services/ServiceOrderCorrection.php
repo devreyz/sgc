@@ -4,6 +4,7 @@ namespace App\Services\Services;
 
 use App\Enums\ServiceOrderStatus;
 use App\Models\CloudDocument;
+use App\Models\Document;
 use App\Models\Expense;
 use App\Models\GeneratedDocument;
 use App\Models\ServiceExecution;
@@ -20,9 +21,9 @@ class ServiceOrderCorrection
         private FinancialDocumentIdentityService $identities,
     ) {}
 
-    public function handle(ServiceOrder $order, string $action, string $reason, User $actor): void
+    public function handle(ServiceOrder $order, string $action, string $reason, User $actor, bool $deleteGeneratedNotes = false): void
     {
-        DB::transaction(function () use ($order, $action, $reason, $actor): void {
+        DB::transaction(function () use ($order, $action, $reason, $actor, $deleteGeneratedNotes): void {
             $execution = $order->execution()->where('tenant_id', $order->tenant_id)->lockForUpdate()->firstOrFail();
             $order = ServiceOrder::withTrashed()->where('tenant_id', $order->tenant_id)->lockForUpdate()->findOrFail($order->id);
             $allowed = $action === 'purge' ? ['cancelled', 'in_progress'] : ['validated', 'cancelled'];
@@ -41,12 +42,10 @@ class ServiceOrderCorrection
                 throw ValidationException::withMessages(['reason' => 'Esta ordem tem histórico de pagamento, ajuste, negociação ou repasse. Consulte o dossiê.']);
             }
 
-            if ($action === 'purge' && $this->hasLinkedRecords($order, $execution)) {
-                throw ValidationException::withMessages(['reason' => 'A ordem tem documentos, despesas, anexos, recursos ou registros de prestador vinculados.']);
-            }
-
             $properties = ['tenant_id' => $order->tenant_id, 'number' => $order->number, 'reason' => $reason];
-            if ($action === 'reopen') {
+            if ($action === 'purge') {
+                $properties['deleted_generated_document_ids'] = $this->removeGeneratedNotes($order, $execution, $deleteGeneratedNotes);
+            } else {
                 $properties += ['previous_execution' => $execution->getAttributes(), 'previous_obligations' => $obligations->toArray(),
                     'previous_composition' => $execution->compositionLines()->get()->toArray()];
             }
@@ -84,19 +83,40 @@ class ServiceOrderCorrection
         }, 3);
     }
 
-    private function hasLinkedRecords(ServiceOrder $order, ServiceExecution $execution): bool
+    private function removeGeneratedNotes(ServiceOrder $order, ServiceExecution $execution, bool $confirmed): array
     {
-        if ($order->expenses()->withTrashed()->exists() || $order->additions()->exists()
-            || $execution->evidences()->exists() || $execution->resources()->exists()
-            || $order->works()->withTrashed()->exists()
-            || Expense::withTrashed()->where('tenant_id', $order->tenant_id)
-                ->where('expenseable_type', $execution->getMorphClass())->where('expenseable_id', $execution->id)->exists()) {
-            return true;
-        }
-
         $linked = fn ($query) => $query->where('tenant_id', $order->tenant_id)->where(fn ($query) => $query
             ->whereMorphedTo('documentable', $order)->orWhereMorphedTo('documentable', $execution));
 
-        return $linked(GeneratedDocument::withTrashed())->exists() || $linked(CloudDocument::query())->exists();
+        if ($order->receipt_path || $order->expenses()->withTrashed()->exists() || $order->additions()->exists()
+            || $execution->evidences()->exists() || $execution->resources()->exists()
+            || $order->works()->withTrashed()->exists()
+            || $linked(Document::withTrashed())->exists() || $linked(CloudDocument::query())->exists()
+            || Expense::withTrashed()->where('tenant_id', $order->tenant_id)
+                ->where('expenseable_type', $execution->getMorphClass())->where('expenseable_id', $execution->id)->exists()) {
+            throw ValidationException::withMessages(['reason' => 'A ordem tem comprovantes, arquivos, despesas, anexos, recursos ou registros de prestador vinculados.']);
+        }
+
+        $notes = $linked(GeneratedDocument::withTrashed())->orderBy('id')->lockForUpdate()->get();
+        if ($notes->isEmpty()) {
+            return [];
+        }
+
+        $ids = $notes->modelKeys();
+        if ($notes->contains(fn (GeneratedDocument $note) => $note->status !== 'draft' || $note->isSigned() || $note->signature_file
+                || ! in_array(data_get($note->document_settings, 'template_key'), ['service_order', 'service_internal_note', 'service_execution'], true))
+            || DB::table('service_negotiations')->whereIn('generated_document_id', $ids)->exists()
+            || CloudDocument::query()->where('tenant_id', $order->tenant_id)
+                ->where('documentable_type', $notes->first()->getMorphClass())->whereIn('documentable_id', $ids)->exists()) {
+            throw ValidationException::withMessages(['reason' => 'A ordem tem documentos protegidos. Somente notas e vias da OS geradas como rascunho podem ser excluídas por aqui.']);
+        }
+
+        if (! $confirmed) {
+            throw ValidationException::withMessages(['delete_generated_notes' => 'Marque a opção de excluir as notas e vias em rascunho para liberar o número.']);
+        }
+
+        $notes->each->forceDelete();
+
+        return $ids;
     }
 }

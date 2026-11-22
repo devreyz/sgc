@@ -271,6 +271,8 @@
 .cm-dialog p { margin: -.5rem 0 0; color: var(--cm-muted); font-size: .78rem; line-height: 1.5; }
 .cm-dialog label { display: grid; gap: .36rem; color: var(--cm-ink); font-size: .74rem; font-weight: 750; }
 .cm-dialog label[hidden] { display: none; }
+.cm-dialog label[data-purge-notes]:not([hidden]) { display: flex; align-items: center; gap: .55rem; }
+.cm-dialog [data-purge-notes] input { accent-color: var(--cm-brand); flex: none; }
 .cm-dialog textarea { min-height: 92px; resize: vertical; }
 .cm-dialog-actions { display: flex; gap: .55rem; justify-content: flex-end; padding-top: .45rem; border-top: 1px solid var(--cm-line); }
 .cm-dialog-actions .cm-btn { border-color: var(--cm-line); }
@@ -663,6 +665,10 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                 <label data-purge-confirmation hidden>Digite o número da ordem para confirmar
                     <input type="text" name="confirmation" maxlength="64" autocomplete="off" value="{{ old('confirmation') }}">
                 </label>
+                <label data-purge-notes hidden>
+                    <input type="checkbox" name="delete_generated_notes" value="1" @checked(old('delete_generated_notes')) disabled>
+                    Excluir também as notas e vias da OS em rascunho
+                </label>
                 <div class="cm-dialog-actions">
                     <button class="cm-btn" type="button" data-dialog-close>Voltar</button>
                     <button class="cm-btn cm-btn-danger" type="submit">Confirmar</button>
@@ -756,6 +762,7 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
         const retryOrder = orderInput.value;
         const requestedOrder = new URLSearchParams(window.location.search).get('order_options');
         const confirmation = form.querySelector('[data-purge-confirmation]');
+        const notes = form.querySelector('[data-purge-notes]');
         const descriptions = {
             reopen: 'A ordem volta para edição com o mesmo número. Finalize novamente depois de corrigir.',
             purge: 'A ordem e os dados da execução serão apagados. O número poderá ser usado em outra ordem.',
@@ -768,6 +775,8 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
             confirmation.hidden = action !== 'purge';
             form.elements.confirmation.required = action === 'purge';
             form.elements.confirmation.disabled = action !== 'purge';
+            notes.hidden = action !== 'purge';
+            form.elements.delete_generated_notes.disabled = action !== 'purge';
             form.querySelector('[data-removal-help]').textContent = descriptions[action] || '';
         }
         form.elements.action.addEventListener('change', showActionInstructions);
@@ -776,6 +785,7 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                 if (!restore) {
                     form.elements.reason.value = '';
                     form.elements.confirmation.value = '';
+                    form.elements.delete_generated_notes.checked = false;
                     form.querySelector('.cm-dialog-errors')?.remove();
                 }
                 orderInput.value = button.dataset.orderId;
