@@ -464,6 +464,16 @@ dialog.se-sheet:is(#se-settings,#se-letter-data)[open]{display:flex!important;fl
 @media(prefers-reduced-motion:reduce){.se-sheet-scroll{scroll-behavior:auto}}
 
 
+/* Campo v6 · reserva dinâmica para a barra expandida, sem sobrepor a folha. */
+/* Evita o browser ancorar a folha e compensar a altura do painel com um salto de scroll. */
+body:has(.se-shell) .se-shell,body:has(.se-shell) .se-main { overflow-anchor:none; }
+html:has(.se-shell){scroll-padding-top:calc(var(--se-header-offset,66px) + var(--se-toolbar-height,52px) + 10px)}
+body:has(.se-shell) .se-toolbar-spacer {
+  height: var(--se-toolbar-height, 52px);
+  min-height: 0 !important;
+  flex: 0 0 auto;
+  transition: none;
+}
 /* Campo v5 · barra útil, painel compacto e hierarquia de ferramentas. */
 html:has(.se-shell),body:has(.se-shell){overscroll-behavior-y:none;touch-action:pan-x pan-y}
 body:has(.se-shell) :is(button,a,select){touch-action:manipulation}
@@ -521,7 +531,7 @@ body:has(.se-shell) #se-format-toolbar.se-toolbar{
 }
 #se-format-toolbar .se-more-caret{font-size:.76rem;transition:transform .14s ease}
 #se-format-toolbar [aria-expanded="true"] .se-more-caret{transform:rotate(180deg)}
-/* Drawer independent of the page. Two columns even on phones; each cell is compact. */
+/* Drawer attached to the fixed bar; its height is mirrored by the document spacer. */
 body:has(.se-shell) #se-format-toolbar .se-expanded{
  display:none!important;max-height:min(39dvh,var(--se-available-height,340px),340px);
  overflow:auto!important;overscroll-behavior:contain;touch-action:pan-y;
@@ -579,7 +589,7 @@ body:has(.se-shell) #se-format-toolbar[data-expanded="true"] .se-expanded:not([h
  max-width:100%!important;min-height:37px!important;
 }
 #se-format-toolbar .se-page-tools #se-paper-dimensions{display:none!important}
-.se-toolbar-spacer + .se-page-wrap{scroll-margin-top:calc(var(--se-header-offset,66px) + 52px)}
+.se-toolbar-spacer + .se-page-wrap{scroll-margin-top:calc(var(--se-header-offset,66px) + var(--se-toolbar-height,52px))}
 @media(max-width:1100px){
  #se-format-toolbar .se-expanded-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 0}
  #se-format-toolbar .se-toolset:nth-child(even){border-inline-end:0}
@@ -1020,8 +1030,8 @@ body:has(.se-shell) #se-format-toolbar[data-expanded="true"] .se-expanded:not([h
         paperControls.classList.add('se-paper-controls-inline');
         document.getElementById('se-page-tools')?.append(paperControls);
     }
-    // A faixa rápida permanece fixa abaixo do cabeçalho; as demais opções
-    // ficam num painel rolável que não altera o espaço reservado à folha.
+    // A barra continua fixa sob o cabeçalho, mas um espaço no fluxo acompanha
+    // sua altura TOTAL (inclusive expandida) para deslocar a folha para baixo.
     const toolbarToggle = document.getElementById('se-toolbar-more');
     const toolbarDrawer = document.getElementById('se-toolbar-extra');
     const toolbarSpacer = document.getElementById('se-toolbar-spacer');
@@ -1033,13 +1043,21 @@ body:has(.se-shell) #se-format-toolbar[data-expanded="true"] .se-expanded:not([h
         toolbarToggle.setAttribute('aria-label', expanded ? 'Recolher ferramentas' : 'Mostrar todas as ferramentas');
         toolbarToggle.title = expanded ? 'Recolher ferramentas' : 'Mais ferramentas';
         toolbarToggle.querySelector('span').textContent = expanded ? 'Recolher' : 'Mais';
+        // Atualizar já no mesmo quadro evita o documento ficar coberto até o observer disparar.
+        syncToolbarLayout();
     };
     const syncToolbarLayout = () => {
         if (!toolbar) return;
         const measuredHeader = header?.getBoundingClientRect().height || 66;
         document.documentElement.style.setProperty('--se-header-offset', `${measuredHeader}px`);
-        if (toolbarSpacer) toolbarSpacer.style.height = `${toolbar.querySelector('.se-quick')?.offsetHeight || 56}px`;
         toolbar.style.setProperty('--se-available-height', `${Math.max(160, window.innerHeight - measuredHeader - 72)}px`);
+        // A área do documento precisa começar depois de TODAS as ferramentas visíveis,
+        // não apenas depois da barra rápida. A altura efetiva inclui o drawer aberto.
+        if (toolbarSpacer) {
+            const height = Math.ceil(toolbar.getBoundingClientRect().height);
+            toolbarSpacer.style.height = `${Math.max(50, height)}px`;
+            document.documentElement.style.setProperty('--se-toolbar-height', `${Math.max(50, height)}px`);
+        }
     };
     // Atalhos rápidos usam os mesmos comandos originais do editor,
     // evitando IDs duplicados e preservando as ações de inserir e suas validações.
@@ -1061,7 +1079,9 @@ body:has(.se-shell) #se-format-toolbar[data-expanded="true"] .se-expanded:not([h
         if (toolbar?.dataset.expanded === 'true' && !toolbar.contains(event.target)) setToolbarExpanded(false);
     });
     if (toolbar && 'ResizeObserver' in window) {
-        new ResizeObserver(syncToolbarLayout).observe(toolbar.querySelector('.se-quick'));
+        // Observa a barra COMPLETA: ao abrir, recolher, redimensionar ou mudar
+        // o tamanho dos controles, a folha recebe automaticamente o espaço certo.
+        new ResizeObserver(syncToolbarLayout).observe(toolbar);
         if (header) new ResizeObserver(syncToolbarLayout).observe(header);
     }
     window.addEventListener('resize', syncToolbarLayout, {passive:true});
