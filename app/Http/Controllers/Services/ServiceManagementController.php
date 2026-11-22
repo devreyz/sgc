@@ -330,6 +330,7 @@ class ServiceManagementController extends Controller
     {
         return ['service_version_id' => 'required|integer', 'associate_id' => 'nullable|integer',
             'beneficiary_name' => 'nullable|string|max:191|required_without:associate_id',
+            'beneficiary_whatsapp' => 'nullable|regex:/\A\+?[0-9 ()-]{10,25}\z/',
             'service_provider_id' => 'nullable|integer', 'asset_id' => 'nullable|integer',
             'scheduled_at' => 'nullable|date', 'execution_date' => 'nullable|date_format:Y-m-d|before_or_equal:today',
             'location' => 'nullable|string|max:191', 'order_data' => 'nullable|array|max:100',

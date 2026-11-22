@@ -1216,7 +1216,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const digits = rawDigits.slice(prefixLength, prefixLength + 11);
         const digitPosition = Math.max(0, raw.slice(0, caret).replace(/\D/g, '').length - prefixLength);
         const local = digits.slice(2);
-        const mobile = local.length === 9;
+        const mobile = local.startsWith('9') || local.length === 9;
         const subscriber = mobile ? local.slice(1) : local;
         const formatted = (digits.length > 0 ? '(' + digits.slice(0, 2) : '')
             + (local ? ') ' + (mobile ? local[0] + ' ' : '') + subscriber.slice(0, 4) : '')

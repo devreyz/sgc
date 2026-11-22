@@ -1605,6 +1605,101 @@ class ServiceProviderCompensationTest extends TestCase
         app(ServiceExecutionWorkflow::class)->approve($result, (string) Str::uuid(), $actor, 0);
     }
 
+    public function test_validated_order_can_be_reopened_with_its_measurements_and_number_until_paid(): void
+    {
+        [$obligation, , $actor] = $this->payable();
+        $this->prepareRateAdjustment($obligation);
+        $this->prepareOrderCorrection();
+        $execution = ServiceExecution::findOrFail($obligation->service_execution_id);
+        $order = $execution->order;
+        $database = Schema::getConnection();
+        $database->table('service_executions')->where('id', $execution->id)->update([
+            'started_at' => now(), 'values' => json_encode(['meter_start' => 10, 'meter_end' => 13]),
+        ]);
+        $database->table('service_order_payments')->insert(['service_order_id' => $order->id, 'tenant_id' => 1]);
+        $correction = app(\App\Services\Services\ServiceOrderCorrection::class);
+
+        try {
+            $correction->handle($order, 'reopen', 'Corrigir horímetro', $actor);
+            $this->fail('A recorded payment must block reopening.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->assertArrayHasKey('reason', $exception->errors());
+        }
+        $this->assertSame('validated', $execution->fresh()->status);
+        $database->table('service_order_payments')->delete();
+
+        $correction->handle($order, 'reopen', 'Corrigir horímetro', $actor);
+
+        $this->assertSame($order->number, $order->fresh()->number);
+        $this->assertSame('in_progress', $execution->fresh()->status);
+        $this->assertSame(['meter_start' => 10, 'meter_end' => 13], $execution->fresh()->values);
+        $this->assertDatabaseMissing('service_obligations', ['id' => $obligation->id]);
+    }
+
+    public function test_permanent_removal_of_a_cancelled_order_releases_its_number_within_the_same_year(): void
+    {
+        [$obligation, , $actor] = $this->payable();
+        $this->prepareRateAdjustment($obligation);
+        $this->prepareOrderCorrection();
+        $execution = ServiceExecution::findOrFail($obligation->service_execution_id);
+        $order = $execution->order;
+        $database = Schema::getConnection();
+        $database->table('service_executions')->where('id', $execution->id)->update(['status' => 'cancelled']);
+        $order->delete();
+        $database->table('service_order_sequences')->insert(['tenant_id' => 1, 'year' => 2026, 'last_number' => 20]);
+
+        app(\App\Services\Services\ServiceOrderCorrection::class)->handle($order, 'purge', 'Cancelar duplicidade', $actor);
+
+        $this->assertDatabaseMissing('service_orders', ['id' => $order->id]);
+        $numbers = app(\App\Services\Services\ServiceOrderNumberService::class);
+        $database->transaction(function () use ($numbers, $order): void {
+            $this->assertSame('OS-2027-000001', $numbers->next(1, 2027));
+            $this->assertSame($order->number, $numbers->next(1, 2026));
+            $this->assertSame('OS-2026-000021', $numbers->next(1, 2026));
+        });
+    }
+
+    private function prepareOrderCorrection(): void
+    {
+        Schema::table('service_orders', function (Blueprint $table): void {
+            $table->timestamp('cancelled_at')->nullable();
+            $table->unsignedBigInteger('cancelled_by')->nullable();
+            $table->text('cancellation_reason')->nullable();
+        });
+        foreach (['provider_payment_requests', 'service_order_payments', 'service_order_additions', 'service_provider_works'] as $name) {
+            Schema::create($name, function (Blueprint $table): void {
+                $table->unsignedBigInteger('service_order_id');
+                $table->unsignedBigInteger('tenant_id');
+                $table->softDeletes();
+            });
+        }
+        Schema::create('associate_ledgers', function (Blueprint $table): void {
+            $table->morphs('reference');
+            $table->unsignedBigInteger('tenant_id');
+            $table->softDeletes();
+        });
+        Schema::create('expenses', function (Blueprint $table): void {
+            $table->unsignedBigInteger('tenant_id');
+            $table->morphs('expenseable');
+            $table->softDeletes();
+        });
+        foreach (['generated_documents', 'cloud_documents'] as $name) {
+            Schema::create($name, function (Blueprint $table): void {
+                $table->unsignedBigInteger('tenant_id');
+                $table->morphs('documentable');
+                $table->softDeletes();
+            });
+        }
+        Schema::create('service_order_sequences', function (Blueprint $table): void {
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedSmallInteger('year');
+            $table->unsignedBigInteger('last_number');
+            $table->timestamps();
+            $table->primary(['tenant_id', 'year']);
+        });
+        (require database_path('migrations/2026_11_22_130000_create_released_service_order_numbers.php'))->up();
+    }
+
     private function execution(float $quantity, float $customerRate, ?float $providerRate): array
     {
         Schema::getConnection()->table('tenants')->insert(['id' => 1, 'created_at' => now(), 'updated_at' => now()]);

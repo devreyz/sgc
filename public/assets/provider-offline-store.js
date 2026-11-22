@@ -3,7 +3,7 @@ const MAX_AGE = 10 * 60 * 1000;
 const page = document.querySelector('[data-provider-offline-url]');
 const signal = typeof BroadcastChannel === 'function' ? new BroadcastChannel(DB_NAME) : null;
 const signedOutKey = 'sgc-provider-offline-signed-out';
-let opening, busy, renewedAt = 0;
+let opening, busy;
 
 export function requestedTenant() {
     if (page) return null;
@@ -100,8 +100,21 @@ window.addEventListener('storage', event => {
     if (event.key === signedOutKey) window.dispatchEvent(new Event('sgc-provider-data'));
 });
 
+function offlineRetryKey(endpoint) {
+    return DB_NAME + ':retry:' + new URL(endpoint, location.href).pathname;
+}
+
+function checkRateLimit(response, endpoint) {
+    if (response.status !== 429) return;
+    const retryAfter = response.headers.get('Retry-After');
+    const retryAt = /^\d+$/.test(retryAfter) ? Date.now() + Number(retryAfter) * 1000 : Date.parse(retryAfter);
+    localStorage.setItem(offlineRetryKey(endpoint), String(retryAt > Date.now() ? retryAt : Date.now() + 60_000));
+    throw new Error('Aguarde um pouco antes de sincronizar novamente. Os registros pendentes continuam na fila.');
+}
+
 async function download(endpoint) {
     const response = await fetch(endpoint, {cache: 'no-store', credentials: 'same-origin', globalLoader: false, headers: {Accept: 'application/json'}});
+    checkRateLimit(response, endpoint);
     if ([401, 403, 419, 404].includes(response.status) || response.redirected) {
         await setProfile(null);
         notify();
@@ -134,7 +147,8 @@ async function send(bundle, row) {
         return true;
     }
     if ([401, 403, 419].includes(response.status) || response.redirected) throw new Error('Entre novamente para sincronizar.');
-    if (response.status === 429 || response.status >= 500) throw new Error('O servidor está ocupado. Os registros continuam na fila.');
+    checkRateLimit(response, bundle.endpoint);
+    if (response.status >= 500) throw new Error('O servidor está ocupado. Os registros continuam na fila.');
     const result = await response.json().catch(() => ({}));
     await saveOperation({...row, sent: false, rejected: true, conflict: response.status === 409 || response.status === 404,
         error: Object.values(result.errors || {}).flat().join(' ') || result.message || 'Confira os dados antes de reenviar.'});
@@ -148,8 +162,16 @@ export async function refreshBundle({force = false, sync = true} = {}) {
     const endpoint = page?.dataset.providerOfflineUrl || (tenant && '/'+tenant+'/provider/offline/data') || current?.endpoint;
     if (!endpoint || !navigator.onLine) return current;
     if (busy) return busy;
-    if (!force && Date.now() - renewedAt < MAX_AGE) return current;
     const update = async () => {
+        const cached = await getBundle();
+        const age = Date.now() - Date.parse(cached?.issuedAt);
+        if (!force && cached?.endpoint === endpoint && (!page || cached.user === page.dataset.providerOfflineUser)
+            && age >= 0 && age < MAX_AGE && (!sync || (await queued(cached.scope)).every(row => row.rejected))) {
+            return cached;
+        }
+        if (Number(localStorage.getItem(offlineRetryKey(endpoint))) > Date.now()) {
+            throw new Error('Aguarde um pouco antes de sincronizar novamente. Os registros pendentes continuam na fila.');
+        }
         refreshOfflineShell().catch(() => {});
         const bundle = await download(endpoint);
         if (!bundle) return null;
@@ -170,7 +192,6 @@ export async function refreshBundle({force = false, sync = true} = {}) {
                 await publish();
             }
         }
-        renewedAt = Date.now();
         return getBundle();
     };
     busy = (navigator.locks?.request(DB_NAME, update) || update()).finally(() => { busy = null; });

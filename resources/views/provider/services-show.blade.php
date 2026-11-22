@@ -2447,24 +2447,39 @@
         };
         let timer;
         let pending;
+        let requestedData;
+        let retryAt = 0;
 
-        const updatePreview = () => {
+        const updatePreview = (force = false) => {
+            const data = new URLSearchParams();
+            for (const [key, value] of new FormData(previewForm)) {
+                if (key === '_token' || (key.startsWith('values[') && typeof value === 'string')) data.append(key, value);
+            }
+            const payload = data.toString();
+            if (!force && requestedData === payload) return;
+            requestedData = payload;
             clearTimeout(timer);
             pending?.abort();
             const request = pending = new AbortController();
-            status.textContent = 'Atualizando a estimativa…';
+            const waiting = 'Aguarde um pouco para atualizar a estimativa. Você pode continuar preenchendo.';
+            status.textContent = retryAt > Date.now() ? waiting : 'Atualizando a estimativa…';
             timer = setTimeout(async () => {
-                const data = new URLSearchParams();
-                for (const [key, value] of new FormData(previewForm)) {
-                    if (key === '_token' || (key.startsWith('values[') && typeof value === 'string')) data.append(key, value);
-                }
-
+                status.textContent = 'Atualizando a estimativa…';
                 try {
                     const response = await fetch(previewForm.dataset.previewUrl, {
                         method: 'POST', body: data, signal: request.signal, globalLoader: false,
                         headers: {'Accept': 'application/json'},
                     });
                     if (request.signal.aborted) return;
+                    if (response.status === 429) {
+                        const retryAfter = response.headers.get('Retry-After');
+                        retryAt = /^\d+$/.test(retryAfter) ? Date.now() + Number(retryAfter) * 1000 : Date.parse(retryAfter);
+                        if (!(retryAt > Date.now())) retryAt = Date.now() + 60_000;
+                        requestedData = undefined;
+                        showTotals();
+                        status.textContent = waiting;
+                        return;
+                    }
                     if (response.status === 422) {
                         showTotals();
                         status.textContent = 'Confira os dados do serviço para calcular a estimativa.';
@@ -2477,18 +2492,19 @@
                     status.textContent = 'Estimativa com os dados desta tela.';
                 } catch {
                     if (!request.signal.aborted) {
+                        requestedData = undefined;
                         showTotals();
                         status.textContent = 'Prévia indisponível. Altere um campo para tentar novamente.';
                     }
                 }
-            }, 450);
+            }, Math.max(450, retryAt - Date.now()));
         };
 
         ['input', 'change'].forEach(event => previewForm.addEventListener(event, ({target}) => {
             if (target.name?.startsWith('values[')) updatePreview();
         }));
-        window.addEventListener('pageshow', event => { if (event.persisted) updatePreview(); });
-        window.addEventListener('load', updatePreview, {once: true});
+        window.addEventListener('pageshow', event => { if (event.persisted) updatePreview(true); });
+        window.addEventListener('load', () => updatePreview(), {once: true});
     }
 
     const serviceReloadOverlay =

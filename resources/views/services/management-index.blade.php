@@ -270,6 +270,7 @@
 .cm-dialog h3 { margin: 0; font-size: 1.05rem; font-weight: 830; color: var(--cm-heading); }
 .cm-dialog p { margin: -.5rem 0 0; color: var(--cm-muted); font-size: .78rem; line-height: 1.5; }
 .cm-dialog label { display: grid; gap: .36rem; color: var(--cm-ink); font-size: .74rem; font-weight: 750; }
+.cm-dialog label[hidden] { display: none; }
 .cm-dialog textarea { min-height: 92px; resize: vertical; }
 .cm-dialog-actions { display: flex; gap: .55rem; justify-content: flex-end; padding-top: .45rem; border-top: 1px solid var(--cm-line); }
 .cm-dialog-actions .cm-btn { border-color: var(--cm-line); }
@@ -753,6 +754,7 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
         const form = dialog.querySelector('form');
         const orderInput = form.elements.removal_order;
         const retryOrder = orderInput.value;
+        const requestedOrder = new URLSearchParams(window.location.search).get('order_options');
         const confirmation = form.querySelector('[data-purge-confirmation]');
         const descriptions = {
             reopen: 'A ordem volta para edição com o mesmo número. Finalize novamente depois de corrigir.',
@@ -792,6 +794,7 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
             }
             button.addEventListener('click', () => showRemoval());
             if (retryOrder === button.dataset.orderId) showRemoval(true);
+            else if (!retryOrder && requestedOrder === button.dataset.orderId) showRemoval();
         });
     }
 })();

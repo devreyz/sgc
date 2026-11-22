@@ -1852,7 +1852,7 @@
 
         <div class="ds-doc-actions" style="margin:.6rem 0">
             @if(auth()->user()->checkPermissionTo('edit_service_order') && in_array($execution?->status, ['validated', 'cancelled'], true))
-                <a class="ds-button secondary" href="{{ route('services.management.index', ['tenant' => $tenantSlug, 'q' => $order->number, 'status' => $order->operational_status]) }}">
+                <a class="ds-button secondary" href="{{ route('services.management.index', ['tenant' => $tenantSlug, 'q' => $order->number, 'status' => $order->operational_status, 'order_options' => $order->id]) }}">
                     <i class="ph ph-pencil-simple" aria-hidden="true"></i>{{ $execution->status === 'cancelled' ? 'Reabrir ou excluir ordem' : 'Corrigir execução' }}
                 </a>
             @endif

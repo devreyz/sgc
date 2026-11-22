@@ -32,7 +32,8 @@ class ServiceOrderCorrection
 
             $obligations = $execution->obligations()->where('tenant_id', $order->tenant_id)->orderBy('id')->lockForUpdate()->get();
             $ids = $obligations->modelKeys();
-            if ($order->paid || $order->payments()->exists() || $order->ledgerEntries()->exists()
+            if ($order->paid || $order->paid_date || $order->associate_paid_at || $order->provider_paid_at
+                || $order->payments()->exists() || $order->ledgerEntries()->withTrashed()->exists()
                 || DB::table('provider_payment_requests')->where('service_order_id', $order->id)->exists()
                 || $obligations->contains(fn ($item) => $item->allocations()->exists() || $item->adjustments()->exists())
                 || DB::table('service_payment_plan_obligations')->whereIn('service_obligation_id', $ids)->exists()
@@ -87,7 +88,7 @@ class ServiceOrderCorrection
     {
         if ($order->expenses()->withTrashed()->exists() || $order->additions()->exists()
             || $execution->evidences()->exists() || $execution->resources()->exists()
-            || $order->works()->exists()
+            || $order->works()->withTrashed()->exists()
             || Expense::withTrashed()->where('tenant_id', $order->tenant_id)
                 ->where('expenseable_type', $execution->getMorphClass())->where('expenseable_id', $execution->id)->exists()) {
             return true;
