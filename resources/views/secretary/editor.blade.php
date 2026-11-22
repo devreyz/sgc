@@ -42,6 +42,21 @@
         'imageUrl' => route('secretary.images.store', ['tenant' => $tenant->slug]),
         'csrf' => csrf_token(),
         'variables' => $variables,
+        'templateOptions' => $mode === 'document' && !$isOfficialDocument
+            ? collect($templates)->map(static function ($template) {
+                // The list may be fetched with only id/name; missing content is handled in the UI.
+                $attributes = method_exists($template, 'getAttributes') ? $template->getAttributes() : (array) $template;
+                return [
+                    'id' => (string) $template->id,
+                    'name' => (string) $template->name,
+                    'content' => array_key_exists('content', $attributes) ? $template->content : null,
+                    'paper_size' => $attributes['paper_size'] ?? null,
+                    'paper_orientation' => $attributes['paper_orientation'] ?? null,
+                    'header_layout_id' => $attributes['header_layout_id'] ?? null,
+                    'footer_layout_id' => $attributes['footer_layout_id'] ?? null,
+                ];
+            })->values()->all()
+            : [],
         'official' => $isOfficialDocument,
         'revision' => $record['revision'] ?? 0,
         'recoveryKey' => $isOfficialDocument && !$closed ? 'sgc-secretary:'.auth()->id().':'.$tenant->id.':'.($recordId ?? 'new-'.substr(sha1(request()->getRequestUri()), 0, 12)) : null,
@@ -350,6 +365,104 @@ html[data-theme="dark"] .se-head .se-btn-primary{background:var(--se-accent);bor
     .se-document-paper :is(input,textarea){color:#151515}
     .se-layout-paper{max-width:100%}
 
+
+
+/* Editor v3: formatting directly below header, no bottom toolbar. */
+.se-shell{padding-bottom:1rem!important}
+body:has(.se-shell) .bento-container{padding-bottom:1rem!important}
+.se-toolbar{
+  position:sticky!important;top:var(--se-header-offset,66px)!important;inset:auto!important;
+  z-index:59!important;display:flex!important;flex-flow:row wrap!important;align-items:center!important;
+  justify-content:flex-start!important;gap:5px 9px!important;width:100%;min-height:0;
+  max-height:none!important;padding:7px clamp(.5rem,1.3vw,1.05rem)!important;
+  overflow:visible!important;border:0;border-bottom:1px solid var(--se-border)!important;
+  border-radius:0!important;background:var(--se-surface)!important;
+  box-shadow:0 3px 13px #0000000a!important;overscroll-behavior:auto;
+}
+.se-toolbar-primary,.se-toolbar-extra{display:flex!important;flex-wrap:wrap!important;align-items:center!important;justify-content:flex-start!important;gap:4px!important;width:auto!important;margin:0!important;padding:0!important;max-height:none!important;overflow:visible!important}
+.se-toolbar-primary{flex:0 0 auto!important}
+.se-toolbar-extra{flex:1 1 520px!important;min-width:0!important}
+.se-toolbar .se-tool{width:38px!important;min-width:38px!important;height:40px!important;min-height:40px!important;flex:0 0 38px!important;padding:0!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;border-radius:8px!important}
+.se-toolbar .se-tool-label,.se-toolbar-more{display:none!important}
+.se-toolbar .se-select{min-height:40px!important;height:40px!important;max-width:148px!important;font-size:.76rem!important;border:1px solid var(--se-border)!important;background:var(--se-subtle)!important;color:var(--se-text)!important;box-shadow:none!important;margin:0!important;border-radius:8px!important}
+.se-toolbar .se-divider{display:block!important;align-self:center;width:1px;min-width:1px;height:22px;margin:0 2px}
+body:has(.se-shell) .se-paper-controls:not(.se-paper-controls-inline){display:none!important}
+.se-toolbar .se-paper-controls-inline{display:contents!important}
+.se-toolbar .se-paper-options{display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:5px!important;justify-content:flex-start!important}
+.se-toolbar .se-paper-controls-inline :is(button,select,input){flex:0 0 auto}
+.se-toolbar #se-paper-dimensions{display:none!important}
+.se-toolbar-hint{display:none;color:var(--se-muted);font-size:.7rem;font-weight:720}
+.se-main{min-height:0}
+.se-page-wrap,.se-document-stage{overscroll-behavior:contain}
+.se-template-field{gap:.44rem}
+.se-template-field .se-help{margin:.1rem 0;font-size:.75rem}
+.se-template-apply{width:max-content;max-width:100%;justify-content:flex-start;white-space:normal;min-height:43px}
+/* Modal with a dedicated scroll viewport (wheel, touchpad, touch and keyboard). */
+dialog.se-sheet:is(#se-settings,#se-letter-data)[open]{display:flex!important;flex-direction:column;position:fixed!important;inset:0!important;overflow:hidden!important;
+   width:min(100% - 36px,700px)!important;max-width:700px!important;
+   max-height:calc(100dvh - 36px)!important;margin:auto!important;
+   padding:0!important;border:1px solid var(--se-border);border-radius:16px!important;
+   background:var(--se-surface);box-shadow:0 24px 70px #0004}
+.se-sheet .se-settings-head{position:relative!important;top:auto!important;z-index:4;flex:0 0 auto;min-height:64px;
+   margin:0!important;padding:12px 16px!important;border-bottom:1px solid var(--se-border)!important;background:var(--se-surface)!important}
+.se-sheet .se-settings-head h2{font-size:1rem!important}
+.se-sheet-scroll{display:block!important;flex:1 1 auto!important;min-height:0!important;min-width:0!important;
+   overflow-x:hidden!important;overflow-y:auto!important;overscroll-behavior:contain!important;touch-action:pan-y!important;
+   -webkit-overflow-scrolling:touch;scrollbar-gutter:stable;padding:15px 16px 20px}
+.se-sheet-scroll:focus-visible{outline:2px solid var(--se-focus);outline-offset:-2px}
+.se-sheet-scroll .se-side{display:grid!important;min-height:0!important;overflow:visible!important}
+.se-sheet-foot{display:flex;flex:0 0 auto;align-items:center;justify-content:space-between;gap:12px;
+  min-height:64px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--se-border);background:var(--se-surface)}
+.se-sheet-foot-hint{display:inline-flex;align-items:center;gap:6px;color:var(--se-muted);font-size:.73rem;line-height:1.3}
+.se-sheet-foot .se-btn{min-height:43px;flex:0 0 auto}
+.se-sheet .se-panel{overflow:clip}
+.se-sheet .se-panel>summary{min-height:51px;padding:12px 14px;font-size:.84rem}
+.se-sheet .se-panel-body{padding:13px 14px 16px;gap:12px}
+.se-sheet .se-field-grid{gap:11px}
+.se-sheet .se-field label{font-size:.75rem}
+.se-sheet .se-settings-actions .se-btn{white-space:normal}
+@media(min-width:1024px){
+ .se-toolbar{top:var(--se-header-offset,69px)!important}
+ .se-toolbar-primary,.se-toolbar-extra{flex:0 1 auto!important}
+ .se-toolbar .se-tool{width:39px!important;min-width:39px!important;flex-basis:39px!important}
+ .se-sheet-scroll{padding:18px 20px 24px}
+ .se-sheet-foot{padding-inline:20px}
+}
+@media(max-width:1023px){
+ .se-toolbar{top:var(--se-header-offset,60px)!important;padding:6px max(7px,env(safe-area-inset-right)) 6px max(7px,env(safe-area-inset-left))!important;gap:4px 7px!important}
+ .se-toolbar-primary{flex:0 0 auto!important;display:flex!important;gap:3px!important}
+ .se-toolbar-extra{display:flex!important;flex:1 1 320px!important;flex-wrap:wrap!important;gap:3px!important}
+ .se-toolbar .se-tool{width:37px!important;min-width:37px!important;min-height:39px!important;height:39px!important;flex:0 0 37px!important}
+ .se-toolbar .se-select{height:39px!important;min-height:39px!important;max-width:128px!important}
+ .se-toolbar .se-divider{display:none!important}
+ .se-page-wrap,.se-document-stage{padding:clamp(.4rem,1.8vw,1rem)}
+ .se-toast{bottom:calc(1rem + env(safe-area-inset-bottom))}
+}
+@media(max-width:700px){
+ dialog.se-sheet:is(#se-settings,#se-letter-data)[open]{inset:auto 0 0!important;width:100%!important;max-width:none!important;
+   max-height:min(94dvh,980px)!important;margin:0!important;border-radius:18px 18px 0 0!important;border-width:1px 0 0}
+ .se-sheet .se-settings-head{min-height:60px;padding:10px 14px!important}
+ .se-sheet-scroll{padding:12px 14px 22px}
+ .se-sheet-foot{flex-wrap:wrap;padding:10px 14px calc(10px + env(safe-area-inset-bottom))}
+ .se-sheet-foot-hint{flex:1 1 170px}
+ .se-sheet-foot .se-btn{flex:1 1 170px}
+ .se-toolbar{align-items:flex-start!important;gap:4px!important}
+ .se-toolbar-primary{width:100%!important;justify-content:flex-start!important;flex-wrap:nowrap!important;gap:4px!important;border-bottom:1px solid var(--se-border);padding-bottom:4px!important}
+ .se-toolbar-primary .se-tool{width:44px!important;min-width:44px!important;flex-basis:44px!important}
+ .se-toolbar-extra{width:100%!important;flex:1 1 100%!important;justify-content:flex-start!important;gap:3px!important}
+ .se-toolbar-extra .se-tool{width:38px!important;min-width:38px!important;flex-basis:38px!important}
+ .se-toolbar :is(.se-paper-options,.se-paper-controls-inline){max-width:100%}
+ .se-toolbar .se-select{max-width:116px!important}
+}
+@media(max-width:390px){
+ .se-toolbar .se-tool{width:35px!important;min-width:35px!important;height:38px!important;min-height:38px!important;flex-basis:35px!important}
+ .se-toolbar-primary .se-tool{width:43px!important;min-width:43px!important;flex-basis:43px!important}
+ .se-toolbar{padding:5px!important;gap:3px!important}
+ .se-toolbar-extra{gap:2px!important}
+ .se-sheet .se-letter-details .se-field-grid{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){.se-sheet-scroll{scroll-behavior:auto}}
+
 </style>
 @endpush
 
@@ -387,16 +500,17 @@ html[data-theme="dark"] .se-head .se-btn-primary{background:var(--se-accent);bor
                 </div>
             @else
                 @if(!$closed)<div class="se-toolbar" id="se-format-toolbar" role="group" aria-label="Formatação de texto">
-                    <div class="se-toolbar-primary">
+                    <div class="se-toolbar-primary" aria-label="Ações rápidas">
                         <button class="se-tool" type="button" data-command="undo" title="Desfazer" aria-label="Desfazer"><i class="ph ph-arrow-counter-clockwise" aria-hidden="true"></i><span class="se-tool-label" aria-hidden="true">Desfazer</span></button>
+                        <button class="se-tool" type="button" data-command="redo" title="Refazer" aria-label="Refazer"><i class="ph ph-arrow-clockwise" aria-hidden="true"></i><span class="se-tool-label" aria-hidden="true">Refazer</span></button>
                         <button class="se-tool" type="button" data-command="bold" title="Negrito" aria-label="Negrito"><i class="ph ph-text-b" aria-hidden="true"></i><span class="se-tool-label" aria-hidden="true">Negrito</span></button>
                         <button class="se-tool" type="button" data-command="italic" title="Itálico" aria-label="Itálico"><i class="ph ph-text-italic" aria-hidden="true"></i><span class="se-tool-label" aria-hidden="true">Itálico</span></button>
                         <button class="se-tool" type="button" data-command="insertUnorderedList" title="Lista" aria-label="Lista com marcadores"><i class="ph ph-list-bullets" aria-hidden="true"></i><span class="se-tool-label" aria-hidden="true">Lista</span></button>
-                        <button class="se-tool se-toolbar-more" id="se-toolbar-more" type="button" title="Mais ferramentas" aria-label="Mais ferramentas" aria-expanded="false" aria-controls="se-toolbar-extra"><i class="ph ph-text-aa" aria-hidden="true"></i><span class="se-tool-label" aria-hidden="true">Formato</span></button>
+
                     </div>
-                    <div class="se-toolbar-extra" id="se-toolbar-extra">
+                    <div class="se-toolbar-extra" id="se-toolbar-extra" aria-label="Todas as ferramentas">
                     <button class="se-tool" type="button" data-command="underline" title="Sublinhado" aria-label="Sublinhado"><i class="ph ph-text-underline" aria-hidden="true"></i></button>
-                    <button class="se-tool" type="button" data-command="redo" title="Refazer"><i class="ph ph-arrow-clockwise" aria-hidden="true"></i></button><span class="se-divider"></span>
+<span class="se-divider" aria-hidden="true"></span>
                     <select class="se-select" id="se-format" aria-label="Estilo do texto"><option value="p">Texto</option><option value="h1">Título 1</option><option value="h2">Título 2</option><option value="h3">Título 3</option></select>
                     <button class="se-tool" type="button" data-command="strikeThrough" title="Tachado"><i class="ph ph-text-strikethrough" aria-hidden="true"></i></button><span class="se-divider"></span>
                     <button class="se-tool" type="button" data-command="justifyLeft" title="Alinhar à esquerda"><i class="ph ph-text-align-left" aria-hidden="true"></i></button>
@@ -445,7 +559,9 @@ html[data-theme="dark"] .se-head .se-btn-primary{background:var(--se-accent);bor
                 <h2 id="se-letter-data-title">Dados do ofício</h2>
                 <form method="dialog"><button class="se-icon-btn" aria-label="Fechar dados do ofício"><i class="ph ph-x" aria-hidden="true"></i></button></form>
             </div>
-            @include('secretary.official-letter-fields', ['letterFieldsOnly' => true, 'expandLetterFields' => true])
+            <div class="se-sheet-scroll" tabindex="0" aria-label="Campos do ofício; role para ver mais opções">
+                @include('secretary.official-letter-fields', ['letterFieldsOnly' => true, 'expandLetterFields' => true])
+            </div>
         </dialog>
     @endif
     <dialog id="se-settings" class="se-sheet" aria-labelledby="se-settings-title">
@@ -453,11 +569,26 @@ html[data-theme="dark"] .se-head .se-btn-primary{background:var(--se-accent);bor
             <h2 id="se-settings-title">Configurações e ações</h2>
             <form method="dialog"><button class="se-icon-btn" aria-label="Fechar configurações"><i class="ph ph-x" aria-hidden="true"></i></button></form>
         </div>
+        <div class="se-sheet-scroll" tabindex="0" aria-label="Configurações; role para ver todas as opções">
         <div class="se-side">
             <details class="se-panel" open><summary>Documento <i class="ph ph-caret-down" aria-hidden="true" style="width:15px"></i></summary><div class="se-panel-body">
                 @if($isTemplate)<div class="se-field"><label for="se-type">Tipo</label><select id="se-type" class="se-control">@foreach(\App\Models\DocumentTemplate::TYPES as $value => $label)<option value="{{ $value }}" @selected(($record['type'] ?? 'minutes') === $value)>{{ $label }}</option>@endforeach</select></div>@endif
                 @if($isLayout)<div class="se-field"><label for="se-layout-type">Aplicação</label><select id="se-layout-type" class="se-control">@foreach(\App\Models\PdfLayoutTemplate::LAYOUT_TYPES as $value => $label)<option value="{{ $value }}" @selected(($record['layout_type'] ?? 'header') === $value)>{{ $label }}</option>@endforeach</select></div><div class="se-field"><label for="se-layout-height">Altura reservada (mm)</label><input id="se-layout-height" class="se-control" type="number" min="8" max="100" value="{{ $record['estimated_height_mm'] ?? 22 }}"></div>@endif
-                @if(!$isTemplate && !$isLayout)<div class="se-field"><label for="se-template">Modelo de origem</label><select id="se-template" class="se-control" @disabled($closed || $isOfficialDocument)><option value="">{{ $isOfficialDocument ? 'Ofício institucional' : 'Documento avulso' }}</option>@foreach($templates as $template)<option value="{{ $template->id }}" @selected((int)($record['template_id'] ?? 0) === (int)$template->id)>{{ $template->name }}</option>@endforeach</select></div>@endif
+                @if(!$isTemplate && !$isLayout)<div class="se-field se-template-field">
+                    <label for="se-template">Modelo de origem</label>
+                    <select id="se-template" class="se-control" @disabled($closed || $isOfficialDocument)>
+                        <option value="">{{ $isOfficialDocument ? 'Ofício institucional' : 'Documento avulso (sem modelo)' }}</option>
+                        @foreach($templates as $template)
+                            <option value="{{ $template->id }}" @selected((string)($record['template_id'] ?? '') === (string)$template->id)>{{ $template->name }}</option>
+                        @endforeach
+                    </select>
+                    @if($isOfficialDocument)
+                        <p class="se-help">O ofício institucional utiliza a estrutura oficial do documento.</p>
+                    @elseif(!$closed)
+                        <p class="se-help" id="se-template-help">Mudar o modelo altera a referência de origem; o texto atual permanece até você aplicar o conteúdo.</p>
+                        <button type="button" class="se-btn se-template-apply" id="se-template-apply" disabled><i class="ph ph-file-arrow-down" aria-hidden="true"></i> Usar conteúdo do modelo</button>
+                    @endif
+                </div>@endif
                 @if($isTemplate)<div class="se-field"><label for="se-description">Descrição</label><textarea id="se-description" class="se-control" rows="3" maxlength="500">{{ $record['description'] ?? '' }}</textarea></div>@endif
                 @if($isTemplate || $isLayout)<label class="se-check"><input id="se-active" type="checkbox" @checked($record['is_active'] ?? true)> {{ $isLayout ? 'Layout ativo' : 'Modelo ativo' }}</label>@endif
             </div></details>
@@ -499,6 +630,8 @@ html[data-theme="dark"] .se-head .se-btn-primary{background:var(--se-accent);bor
                 <button type="button" class="se-btn" data-sgc-theme-toggle aria-pressed="false"><i class="ph ph-moon" data-sgc-theme-icon aria-hidden="true"></i><span>Alternar tema</span></button>
             </div>
         </div>
+        </div>
+        <footer class="se-sheet-foot"><span class="se-sheet-foot-hint"><i class="ph ph-info" aria-hidden="true"></i> As alterações são aplicadas ao editor.</span><button type="button" class="se-btn se-btn-primary" data-se-close="se-settings"><i class="ph ph-check" aria-hidden="true"></i> Voltar ao documento</button></footer>
     </dialog>
 
 <input id="se-image-input" type="file" accept="image/png,image/jpeg,image/webp" hidden>
@@ -549,8 +682,6 @@ html[data-theme="dark"] .se-head .se-btn-primary{background:var(--se-accent);bor
     const loading = document.getElementById('se-loading');
     const state = document.getElementById('se-state');
     const toolbar = document.getElementById('se-format-toolbar');
-    const moreTools = document.getElementById('se-toolbar-more');
-    const mobileEditor = matchMedia('(max-width:1023px)');
     const settingsDialog = document.getElementById('se-settings');
     const header = document.querySelector('.se-head');
     if (header && 'ResizeObserver' in window) {
@@ -567,8 +698,10 @@ html[data-theme="dark"] .se-head .se-btn-primary{background:var(--se-accent);bor
         if (pageTouchY === null || event.touches.length !== 1 || !event.cancelable) return;
         const dy = event.touches[0].clientY - pageTouchY;
         if (dy <= 8 || window.scrollY > 0) return;
-        if (!event.target.closest('.se-shell,.se-head,.se-sheet,.se-dialog')) return;
-        const scrollable = event.target.closest('.se-sheet,.se-dialog,.se-document-stage,.se-page-wrap,.se-suggest');
+        if (!event.target.closest('.se-shell,.se-head')) return;
+        // Native dialog scrolling (mouse, touchpad, touch) must not be intercepted.
+        if (event.target.closest('dialog,[role="dialog"],.se-sheet-scroll')) return;
+        const scrollable = event.target.closest('.se-document-stage,.se-page-wrap,.se-suggest');
         if (scrollable && scrollable.scrollTop > 0) return;
         if (event.target.closest('[contenteditable="true"],input,textarea,select')) return;
         event.preventDefault();
@@ -601,33 +734,29 @@ html[data-theme="dark"] .se-head .se-btn-primary{background:var(--se-accent);bor
         new MutationObserver(updatePlaceholder).observe(editor, {subtree:true, childList:true, characterData:true});
         updatePlaceholder();
     }
-    if (toolbar && moreTools) {
-        const expandToolbar = expanded => {
-            toolbar.dataset.expanded = String(expanded);
-            moreTools.setAttribute('aria-expanded', String(expanded));
-        };
-        moreTools.addEventListener('click', () => expandToolbar(toolbar.dataset.expanded !== 'true'));
-        document.addEventListener('pointerdown', event => {
-            if (mobileEditor.matches && !toolbar.contains(event.target)) expandToolbar(false);
-        });
-        toolbar.addEventListener('keydown', event => {
-            if (event.key === 'Escape' && toolbar.dataset.expanded === 'true') {
-                expandToolbar(false);
-                moreTools.focus();
-            }
-        });
-        const viewport = window.visualViewport;
-        if (viewport) {
-            const positionToolbar = () => {
-                const inset = viewport.scale === 1
-                    ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0;
-                toolbar.style.setProperty('--se-keyboard-inset', `${inset}px`);
-            };
-            viewport.addEventListener('resize', positionToolbar);
-            viewport.addEventListener('scroll', positionToolbar);
-            positionToolbar();
-        }
+    // Toolbar permanently visible under the editor header; no hidden formatting mode.
+    // Controls of the included letter-paper partial join the same toolbar at runtime.
+    const paperControls = document.querySelector('.se-paper-controls');
+    if (toolbar && paperControls) {
+        paperControls.classList.add('se-paper-controls-inline');
+        toolbar.append(paperControls);
     }
+    // Dialogs have their own scroll viewport; close actions must work with mouse and touch.
+    document.querySelectorAll('[data-se-close]').forEach(button => button.addEventListener('click', () => {
+        document.getElementById(button.dataset.seClose)?.close();
+    }));
+    document.querySelectorAll('dialog.se-sheet').forEach(sheet => {
+        sheet.addEventListener('click', event => {
+            if (event.target === sheet) sheet.close();
+        });
+        sheet.addEventListener('close', () => document.activeElement?.blur?.());
+    });
+    const shortcutHint = document.createElement('span');
+    shortcutHint.className = 'se-toolbar-hint';
+    shortcutHint.textContent = 'Formatação';
+    shortcutHint.setAttribute('aria-hidden', 'true');
+    toolbar?.prepend(shortcutHint);
+
     function checkpoint() {
         if (!config.recoveryKey) return;
         try {
@@ -781,6 +910,57 @@ html[data-theme="dark"] .se-head .se-btn-primary{background:var(--se-accent);bor
         if (input.id === 'se-orientation' && editor) editor.dataset.paper = input.value;
     }));
     document.getElementById('se-title').addEventListener('input', markDirty);
+    // Origin reference and document body are separate operations.
+    // Applying a model is opt-in and never silently erases unsaved writing.
+    const templateSelect = document.getElementById('se-template');
+    const templateApply = document.getElementById('se-template-apply');
+    const templateHelp = document.getElementById('se-template-help');
+    const templateCatalog = new Map((config.templateOptions || []).map(item => [String(item.id), item]));
+    function updateTemplateChoice() {
+        if (!templateSelect) return;
+        const choice = templateCatalog.get(String(templateSelect.value));
+        const available = Boolean(choice && typeof choice.content === 'string' && choice.content.trim());
+        if (templateApply) {
+            templateApply.disabled = !available || config.signed;
+            templateApply.title = available ? 'Substituir o corpo do documento após confirmação' : 'Este modelo não teve seu conteúdo enviado pela página';
+        }
+        if (templateHelp) templateHelp.textContent = !templateSelect.value
+            ? 'Documento avulso: sem modelo vinculado. O texto atual será mantido.'
+            : available
+                ? 'Modelo vinculado. Se quiser substituir o texto atual, use “Usar conteúdo do modelo”.'
+                : 'Modelo vinculado, mas o servidor enviou apenas seus dados de identificação. O texto atual será mantido.';
+    }
+    templateSelect?.addEventListener('change', updateTemplateChoice);
+    templateApply?.addEventListener('click', () => {
+        const choice = templateCatalog.get(String(templateSelect.value));
+        if (!choice?.content || config.signed || !editor?.isContentEditable) return;
+        const existing = editor.textContent?.trim() || editor.querySelector('img,table,hr');
+        if (existing && !window.confirm(`Aplicar o conteúdo de “${choice.name}”? O texto atual será substituído. Você pode desfazer logo após aplicar.`)) return;
+        const sanitized = cleanPastedHtml(choice.content, true);
+        if (!sanitized.trim()) { toast('O conteúdo deste modelo está vazio ou não pode ser aplicado.', true); return; }
+        settingsDialog?.close();
+        editor.focus();
+        // execCommand preserves the native undo stack of the contenteditable where supported.
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(editor);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        const applied = document.execCommand('insertHTML', false, sanitized);
+        if (!applied) editor.innerHTML = sanitized;
+        lastRange = null;
+        for (const [id, key] of [['se-paper','paper_size'],['se-orientation','paper_orientation'],['se-header','header_layout_id'],['se-footer','footer_layout_id']]) {
+            const field = document.getElementById(id);
+            const value = choice[key];
+            if (field && value != null && [...field.options].some(option => String(option.value) === String(value))) {
+                field.value = String(value);
+                field.dispatchEvent(new Event('change', {bubbles:true}));
+            }
+        }
+        markDirty();
+        toast('Conteúdo do modelo aplicado. Salve para confirmar.');
+    });
+    updateTemplateChoice();
     document.querySelectorAll('[data-letter], [data-layout]').forEach(input => input.addEventListener('input', markDirty));
     editor?.addEventListener('input', () => { markDirty(); rememberSelection(); showVariableSuggestions(); });
     document.querySelectorAll('.se-mini-editor').forEach(element => element.addEventListener('input', markDirty));
