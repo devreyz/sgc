@@ -11,10 +11,8 @@
     $isOfficialDocument = $mode === 'document' && !empty($record['official']);
     $closed = (bool) ($record['signed'] ?? false);
     $archiveOnly = $isOfficialDocument && in_array($record['status'] ?? '', ['issued', 'cancelled'], true);
-    $isSystem = $isTemplate && (($record['template_category'] ?? 'custom') === 'system');
-    $isDossierReport = $isSystem && \App\Services\Accounting\BillingDossierReportService::isReportKey($record['system_template_key'] ?? null);
     $editing = $recordId !== null;
-    $bentoNavigation = \App\Support\PortalNavigation::make('secretary', 'documents', $tenant->slug);
+    $bentoNavigation = \App\Support\PortalNavigation::make('secretary', $isLayout ? 'layouts' : ($isTemplate ? 'templates' : 'documents'), $tenant->slug);
     $saveUrl = $isLayout
         ? ($editing ? route('secretary.layouts.update', ['tenant' => $tenant->slug, 'layout' => $recordId]) : route('secretary.layouts.store', ['tenant' => $tenant->slug]))
         : ($isTemplate
@@ -34,7 +32,6 @@
         : null;
     $editorClientConfig = [
         'mode' => $mode,
-        'system' => $isSystem,
         'editing' => $editing,
         'signed' => (bool) ($record['signed'] ?? false),
         'saveUrl' => $saveUrl,
@@ -49,7 +46,7 @@
         'issueUrl' => $isOfficialDocument && $editing ? route('secretary.documents.issue', ['tenant' => $tenant->slug, 'document' => $recordId]) : null,
         'cancelUrl' => $isOfficialDocument && $editing ? route('secretary.documents.cancel', ['tenant' => $tenant->slug, 'document' => $recordId]) : null,
         'markdownUrl' => route('secretary.markdown', ['tenant' => $tenant->slug]),
-        'letterPreview' => (!$archiveOnly && $isOfficialDocument) || ($isTemplate && !$isSystem) ? [
+        'letterPreview' => (!$archiveOnly && $isOfficialDocument) || ($isTemplate) ? [
             'branding' => $branding,
             'logo' => $letterLogo,
             'number' => $record['number'] ?? null,
@@ -94,27 +91,33 @@
     .se-editor-notice { padding:.7rem 1rem;border:1px solid var(--color-border);border-radius:8px;background:var(--color-surface) }
     .se-page-wrap { min-width:0 }
     .se-side { max-height:calc(100dvh - 150px);overflow:auto }
-    .se-document-paper { width:min(100%,var(--paper-width,210mm));min-height:min(var(--paper-height,297mm),125vw);margin-inline:auto;padding:var(--paper-top,20mm) var(--paper-right,15mm) var(--paper-bottom,20mm) var(--paper-left,30mm);background:#fff;color:#151515;box-shadow:0 3px 18px rgb(0 0 0 / .12);display:flex;flex-direction:column;overflow-wrap:anywhere;font:var(--letter-size,12pt)/var(--letter-line,1) var(--letter-font,Calibri,Carlito,Arial,sans-serif) }
+    .se-document-stage { overflow:auto; }
+    .se-toolbar .se-select { flex:none; width:auto; }
+    .se-paper-controls { display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.35rem .6rem;border-bottom:1px solid var(--color-border);font-size:.75rem;color:var(--color-text-secondary); }
+    .se-document-paper { box-sizing:border-box;width:var(--paper-width,210mm);min-height:var(--paper-height,297mm);margin-inline:auto;padding:var(--paper-top,20mm) var(--paper-right,15mm) var(--paper-bottom,20mm) var(--paper-left,30mm);background:#fff;color:#151515;border:1px solid #e0e4df;box-shadow:0 2px 10px rgb(0 0 0 / .08);display:flex;flex-direction:column;overflow-wrap:break-word;font:var(--letter-size,12pt)/var(--letter-line,1.25) var(--letter-font,Calibri,Carlito,Arial,sans-serif) }
     .se-document-paper[data-enabled="0"] .se-letter-chrome { display:none }
     .se-document-paper[data-enabled="0"] { font:14px/1.6 Arial,sans-serif }
     .se-document-paper [hidden] { display:none }
-    .se-paper-header { font-size:.85em;margin-bottom:var(--paper-header-spacing,7mm) }
+    .se-paper-header { font-size:10pt;line-height:1.25;margin-bottom:var(--paper-header-spacing,7mm) }
     .se-layout-paper { display:flex;flex-direction:column }
     .se-layout-paper [data-layout-position="footer"] { margin-top:auto }
     .se-layout-region { border:1px dashed #9bb2a0;padding:.55rem;text-align:initial;outline:none }
     .se-layout-region:focus-visible { outline:2px solid #53795a;outline-offset:1px }
     .se-layout-reference { margin:1rem 0;color:#526559;font-size:.78rem }
     .se-paper-brand { display:inline-flex;align-items:center;gap:4mm;text-align:left;max-width:100% }
-    .se-paper-brand img { width:auto;max-width:min(var(--paper-logo-width,18mm),17vw);max-height:17mm;object-fit:contain }
+    .se-paper-brand img { width:auto;max-width:var(--paper-logo-width,18mm);max-height:17mm;object-fit:contain }
+    .se-paper-brand small { display:block;font-size:8.5pt;color:#526057;margin-top:1mm }
     .se-paper-header.has-rule { border-bottom:1px solid #737a75;padding-bottom:2mm }
     .se-paper-number,.se-paper-subject { font-weight:700 }
     .se-paper-date { text-align:right;margin-top:4mm }
     .se-paper-recipient { margin:5mm 0;white-space:pre-line }
+    .se-paper-recipient:empty { display:none; }
     .se-paper-recipient p { margin:0 0 var(--letter-spacing,6pt) }
     .se-paper-subject { margin:0 0 5mm }
     .se-paper-paragraph,.se-document-paper[data-enabled="1"] .se-paper-body > p { text-indent:var(--letter-indent,25mm) }
-    .se-paper-body { min-height:10rem;outline:none;line-height:inherit;text-align:justify;max-width:100% }
-    .se-paper-body:focus-visible { outline:1px dashed #9bb2a0;outline-offset:5px }
+    .se-paper-body { min-height:2em;outline:none;line-height:inherit;text-align:left;max-width:100% }
+    .se-paper-body:empty::before { content:attr(data-empty-label);color:#526057; }
+    .se-paper-body:focus-visible { outline:1px dashed #9bb2a0;outline-offset:4px }
     .se-paper-body p,.se-paper-paragraph { margin:0 0 var(--letter-spacing,6pt) }
     .se-paper-body h1 { font-size:1.55em;font-weight:700 }.se-paper-body h2 { font-size:1.35em;font-weight:700 }.se-paper-body h3 { font-size:1.15em;font-weight:700 }
     .se-paper-body ul { list-style:disc }.se-paper-body ol { list-style:decimal }.se-paper-body ul,.se-paper-body ol { padding-left:1.5em }
@@ -132,8 +135,7 @@
     @media(max-width:900px) {
         .se-side { position:static;max-height:none;overflow:visible }
         .se-letter-details .se-field-grid { gap:.4rem;grid-template-columns:repeat(2,minmax(0,1fr)) }
-        .se-document-paper { padding:min(var(--paper-top,20mm),7vw) min(var(--paper-right,15mm),5vw) min(var(--paper-bottom,20mm),7vw) min(var(--paper-left,30mm),7vw) }
-        .se-paper-paragraph,.se-document-paper[data-enabled="1"] .se-paper-body > p { text-indent:min(var(--letter-indent,25mm),8vw) }
+        .se-page-wrap.se-document-stage { overflow:auto; }
     }
     @media(max-width:600px) {
         .se-head { align-items:center }
@@ -145,14 +147,14 @@
 <main class="se-shell">
     <header class="se-head">
         <div class="se-title-wrap">
-            <a class="se-icon-btn" href="{{ route('secretary.index', ['tenant' => $tenant->slug, 'section' => $isLayout ? 'layouts' : ($isSystem ? 'system' : ($isTemplate ? 'templates' : 'documents'))]) }}" title="Voltar" aria-label="Voltar"><i class="ph ph-arrow-left" aria-hidden="true"></i></a>
+            <a class="se-icon-btn" href="{{ route('secretary.index', ['tenant' => $tenant->slug, 'section' => $isLayout ? 'layouts' : ($isTemplate ? 'templates' : 'documents')]) }}" title="Voltar" aria-label="Voltar"><i class="ph ph-arrow-left" aria-hidden="true"></i></a>
             <div style="min-width:0;flex:1">
                 <input id="se-title" class="se-title" maxlength="220" value="{{ ($isTemplate || $isLayout) ? ($record['name'] ?? '') : ($record['title'] ?? '') }}" aria-label="Título do documento" @readonly($closed)>
                 <div class="se-state" id="se-state" role="status">{{ match($record['status'] ?? null) { 'issued' => 'Emitido', 'cancelled' => 'Cancelado', default => $editing ? 'Salvo' : 'Novo rascunho' } }}{{ !empty($record['number']) ? ' · '.$record['number'] : '' }}</div>
             </div>
         </div>
         <div class="se-actions">
-            @if(!$isSystem && !$isLayout && !$archiveOnly)<button class="se-btn" id="se-preview" type="button" @disabled(!$editing && !$isOfficialDocument) title="Visualizar PDF" aria-label="Visualizar PDF"><i class="ph ph-file-pdf" aria-hidden="true"></i><span>Prévia PDF</span></button>@endif
+            @if(!$isLayout && !$archiveOnly)<button class="se-btn" id="se-preview" type="button" @disabled(!$editing && !$isOfficialDocument) title="Visualizar PDF" aria-label="Visualizar PDF"><i class="ph ph-file-pdf" aria-hidden="true"></i><span>Prévia PDF</span></button>@endif
             @if(!$closed)<button class="se-btn se-btn-primary" id="se-save" type="button" aria-label="Salvar" title="Salvar"><i class="ph ph-floppy-disk" aria-hidden="true"></i><span>Salvar</span></button>@endif
             @if($isOfficialDocument && $editing && ($record['status'] ?? '') === 'draft' && $abilities['issue'])
                 <button class="se-btn se-btn-primary" type="button" id="se-issue" aria-label="Emitir ofício" title="Emitir ofício"><i class="ph ph-stamp" aria-hidden="true"></i><span>Emitir</span></button>
@@ -169,7 +171,7 @@
             @if(($record['status'] ?? '') === 'issued' && $abilities['cancel'])<button type="button" class="se-btn se-btn-danger" id="se-cancel">Cancelar ofício</button>@endif
             @if(!empty($record['cancellation']))<p>{{ $record['cancellation'] }}</p>@endif
         </div>
-    @elseif($isTemplate && !$isSystem && $editing && $abilities['templates'])
+    @elseif($isTemplate && $editing && $abilities['templates'])
         <a class="se-btn" href="{{ route('secretary.templates.create', ['tenant' => $tenant->slug, 'from' => $recordId]) }}">Duplicar modelo</a>
     @endif
     @if($isOfficialDocument)
@@ -183,7 +185,7 @@
                     <p class="se-help">Abra o documento emitido para conferir o cabeçalho, o corpo e o rodapé registrados na emissão.</p>
                     <a class="se-btn" href="{{ $previewUrl }}" target="_blank" rel="noopener"><i class="ph ph-file-pdf" aria-hidden="true"></i> Abrir PDF arquivado</a>
                 </div>
-            @elseif(!$isSystem)
+            @else
                 @if(!$closed)<div class="se-toolbar" role="toolbar" aria-label="Formatação de texto">
                     <button class="se-tool" type="button" data-command="undo" title="Desfazer"><i data-lucide="undo-2"></i></button>
                     <button class="se-tool" type="button" data-command="redo" title="Refazer"><i data-lucide="redo-2"></i></button><span class="se-divider"></span>
@@ -211,9 +213,11 @@
                     <input id="se-color" type="color" value="#17392b" class="se-tool" aria-label="Cor do texto" title="Cor do texto">
                     <button class="se-tool" type="button" id="se-image-library" title="Biblioteca de imagens"><i class="ph ph-images"></i></button>
                     <button class="se-tool" type="button" id="se-markdown" title="Importar Markdown"><i class="ph ph-markdown-logo"></i></button>
-                    <select id="se-zoom" class="se-select" aria-label="Zoom da edição"><option value="1">Ajustado</option><option value=".85">85%</option><option value=".7">70%</option><option value=".55">55%</option></select>
+                    @unless($isOfficialDocument || $isTemplate)
+                        <select id="se-zoom" class="se-select" aria-label="Zoom da edição"><option value="fit">Ajustar folha</option><option value=".75">75%</option><option value="1">100%</option><option value="1.25">125%</option></select>
+                    @endunless
                 </div>@endif
-                @if($isOfficialDocument || ($isTemplate && !$isSystem))
+                @if($isOfficialDocument || ($isTemplate))
                     @include('secretary.letter-paper')
                 @elseif($isLayout)
                     <div class="se-page-wrap"><article class="se-page se-layout-paper">
@@ -225,15 +229,12 @@
                 @else
                     <div class="se-page-wrap"><div id="se-editor" class="se-page" data-paper="{{ $record['paper_orientation'] ?? 'portrait' }}" contenteditable="{{ $closed ? 'false' : 'true' }}" spellcheck="true" autocapitalize="sentences" role="textbox" aria-label="Conteúdo do documento" aria-multiline="true">{!! $record['content'] ?? '<p><br></p>' !!}</div></div>
                 @endif
-            @else
-                <div class="se-page-wrap"><div class="se-page" style="min-height:480px"><h2>{{ $record['name'] }}</h2><p>Configure as seções e colunas deste PDF na lateral. O conteúdo é produzido pelo fluxo correspondente do sistema.</p></div></div>
             @endif
         </section>
 
         <aside class="se-side">
             <details class="se-panel" open><summary>Documento <i data-lucide="chevron-down" style="width:15px"></i></summary><div class="se-panel-body">
-                @if($isTemplate)<div class="se-field"><label for="se-type">Tipo</label><select id="se-type" class="se-control" @disabled($isSystem)>@foreach(\App\Models\DocumentTemplate::TYPES as $value => $label)<option value="{{ $value }}" @selected(($record['type'] ?? 'minutes') === $value)>{{ $label }}</option>@endforeach</select></div>@endif
-                @if($isSystem)<div class="se-field"><label for="se-project-type">Tipo de projeto</label><input id="se-project-type" class="se-control" maxlength="80" value="{{ $record['project_type'] ?? '' }}" placeholder="Todos os tipos"></div>@endif
+                @if($isTemplate)<div class="se-field"><label for="se-type">Tipo</label><select id="se-type" class="se-control">@foreach(\App\Models\DocumentTemplate::TYPES as $value => $label)<option value="{{ $value }}" @selected(($record['type'] ?? 'minutes') === $value)>{{ $label }}</option>@endforeach</select></div>@endif
                 @if($isLayout)<div class="se-field"><label for="se-layout-type">Aplicação</label><select id="se-layout-type" class="se-control">@foreach(\App\Models\PdfLayoutTemplate::LAYOUT_TYPES as $value => $label)<option value="{{ $value }}" @selected(($record['layout_type'] ?? 'header') === $value)>{{ $label }}</option>@endforeach</select></div><div class="se-field"><label for="se-layout-height">Altura reservada (mm)</label><input id="se-layout-height" class="se-control" type="number" min="8" max="100" value="{{ $record['estimated_height_mm'] ?? 22 }}"></div>@endif
                 @if(!$isTemplate && !$isLayout)<div class="se-field"><label for="se-template">Modelo de origem</label><select id="se-template" class="se-control" @disabled($closed || $isOfficialDocument)><option value="">{{ $isOfficialDocument ? 'Ofício institucional' : 'Documento avulso' }}</option>@foreach($templates as $template)<option value="{{ $template->id }}" @selected((int)($record['template_id'] ?? 0) === (int)$template->id)>{{ $template->name }}</option>@endforeach</select></div>@endif
                 @if($isTemplate)<div class="se-field"><label for="se-description">Descrição</label><textarea id="se-description" class="se-control" rows="3" maxlength="500">{{ $record['description'] ?? '' }}</textarea></div>@endif
@@ -242,11 +243,10 @@
             @if(!$isLayout)<details class="se-panel"><summary>Página <i data-lucide="chevron-down" style="width:15px"></i></summary><div class="se-panel-body">
                 <div class="se-field"><label for="se-paper">Papel</label><select id="se-paper" class="se-control" @disabled($closed)>@foreach(\App\Models\DocumentTemplate::PAPER_SIZES as $value => $label)<option value="{{ $value }}" @selected(($record['paper_size'] ?? 'a4') === $value)>{{ $label }}</option>@endforeach</select></div>
                 <div class="se-field"><label for="se-orientation">Orientação</label><select id="se-orientation" class="se-control" @disabled($closed)>@foreach(\App\Models\DocumentTemplate::PAPER_ORIENTATIONS as $value => $label)<option value="{{ $value }}" @selected(($record['paper_orientation'] ?? 'portrait') === $value)>{{ $label }}</option>@endforeach</select></div>
-                @if($isSystem)<div class="se-field"><label for="se-scale">Escala da tabela</label><select id="se-scale" class="se-control">@foreach([70,80,90,100] as $scale)<option value="{{ $scale }}" @selected((int)($record['table_scale'] ?? 100) === $scale)>{{ $scale }}%</option>@endforeach</select></div>@endif
                 <div class="se-field"><label for="se-header">Modelo de cabeçalho</label><select id="se-header" class="se-control" @disabled($closed)><option value="">Padrão do documento</option>@foreach(($layouts['header'] ?? collect()) as $layout)<option value="{{ $layout->id }}" @selected((int)($record['header_layout_id'] ?? 0) === (int)$layout->id)>{{ $layout->name }}</option>@endforeach</select></div>
                 <div class="se-field"><label for="se-footer">Modelo de rodapé</label><select id="se-footer" class="se-control" @disabled($closed)><option value="">Padrão do documento</option>@foreach(($layouts['footer'] ?? collect()) as $layout)<option value="{{ $layout->id }}" @selected((int)($record['footer_layout_id'] ?? 0) === (int)$layout->id)>{{ $layout->name }}</option>@endforeach</select></div>
             </div></details>@endif
-            @if(!$isSystem && !$isLayout)
+            @if(!$isLayout)
                 @include('secretary.official-letter-fields')
             @endif
             @if(!empty($record['history']) && count($record['history']))
@@ -259,35 +259,7 @@
                     </ul>
                 </details>
             @endif
-            @if($isSystem)
-                @if($isDossierReport)
-                <details class="se-panel" open><summary>Relatório do dossiê · personalização</summary><div class="se-panel-body">
-                    <p class="se-help">Contexto opcional. Projeto e destinatário específicos prevalecem sobre o modelo padrão. Os relatórios são informativos.</p>
-                    @foreach(['sales_project_id' => 'Projeto específico', 'customer_id' => 'Cliente específico', 'organization_id' => 'Organização compradora específica'] as $field => $label)
-                        <div class="se-field"><label for="se-scope-{{ $field }}">{{ $label }}</label><select id="se-scope-{{ $field }}" class="se-control" data-report-scope="{{ $field }}"><option value="">Todos (padrão)</option>@foreach(($reportScopes[$field] ?? []) as $id => $name)<option value="{{ $id }}" @selected((int)($record[$field] ?? 0) === (int)$id)>{{ $name }}</option>@endforeach</select></div>
-                    @endforeach
-                    <div class="se-field"><label>Ordem das seções (separadas por vírgula)</label><input id="se-report-order" class="se-control" value="{{ implode(', ', $record['section_order'] ?? []) }}" placeholder="{{ implode(', ', array_keys($definition['sections'])) }}"></div>
-                    @foreach(\App\Services\Accounting\BillingDossierReportService::CONTENT_SLOTS as $slot => $label)
-                        <div class="se-field"><span class="se-label">{{ $label }}</span><div class="se-mini-editor" data-report-content="{{ $slot }}" contenteditable="true" spellcheck="true">{!! data_get($record, 'report_contents.'.$slot, '') !!}</div></div>
-                    @endforeach
-                    <p class="se-help">É possível colar conteúdo formatado. Use os tokens abaixo e as variáveis gerais da organização e data.</p>
-                    @foreach(\App\Services\Accounting\BillingReportContentRenderer::availableVariables() as $token => $label)<div class="se-help"><code>{{ $token }}</code> · {{ $label }}</div>@endforeach
-                    <details><summary>Variáveis gerais da organização e data</summary>@foreach($variables as $group => $items)<strong>{{ $group }}</strong>@foreach($items as $token => $label)<div class="se-help"><code>{{ $token }}</code> · {{ $label }}</div>@endforeach @endforeach</details>
-                </div></details>
-                @endif
-                <details class="se-panel" open><summary>Seções <i data-lucide="chevron-down" style="width:15px"></i></summary><div class="se-panel-body"><div class="se-checks">@foreach(($definition['sections'] ?? []) as $key => $label)<label class="se-check"><input type="checkbox" name="sections" value="{{ $key }}" @checked(in_array($key, $record['visible_sections'] ?? array_keys($definition['sections'] ?? []), true))> {{ $label }}</label>@endforeach</div></div></details>
-                <details class="se-panel" open><summary>Colunas <i data-lucide="chevron-down" style="width:15px"></i></summary><div class="se-panel-body"><div class="se-checks">@foreach(($definition['columns'] ?? []) as $key => $label)<label class="se-check"><input type="checkbox" name="columns" value="{{ $key }}" @checked(in_array($key, $record['visible_columns'] ?? ($definition['default_columns'] ?? array_keys($definition['columns'] ?? [])), true))> {{ $label }}</label>@endforeach</div></div></details>
-                <details class="se-panel"><summary>Mensagem e assinaturas <i data-lucide="chevron-down" style="width:15px"></i></summary><div class="se-panel-body">
-                    <label class="se-check"><input id="se-consent-enabled" type="checkbox" @checked($record['consent_enabled'] ?? true)> Exibir declaração e assinaturas</label>
-                    <p class="se-help">A declaração confirma o fato descrito no comprovante; não representa consentimento geral para tratamento de dados pessoais.</p>
-                    <label class="se-check"><input id="se-recipient-signature" type="checkbox" @checked($record['show_recipient_signature'] ?? true)> Assinatura do destinatário</label>
-                    <label class="se-check"><input id="se-representative-signature" type="checkbox" @checked($record['show_representative_signature'] ?? true)> Assinatura do representante</label>
-                    <div class="se-field"><label for="se-consent-position">Posição</label><select id="se-consent-position" class="se-control"><option value="before" @selected(($record['consent_position'] ?? 'after') === 'before')>Antes da tabela</option><option value="after" @selected(($record['consent_position'] ?? 'after') === 'after')>Depois da tabela</option><option value="both" @selected(($record['consent_position'] ?? 'after') === 'both')>Antes e depois</option></select></div>
-                    <div class="se-field"><span class="se-label">Mensagem antes da tabela</span><div id="se-consent-before" class="se-mini-editor" contenteditable="true" spellcheck="true">{!! $record['consent_content_before'] ?? '' !!}</div></div>
-                    <div class="se-field"><span class="se-label">Mensagem depois da tabela</span><div id="se-consent-after" class="se-mini-editor" contenteditable="true" spellcheck="true">{!! $record['consent_content'] ?? '' !!}</div></div>
-                    <div class="se-field"><label for="se-color-theme">Tema de cor</label><select id="se-color-theme" class="se-control">@foreach(\App\Models\DocumentTemplate::COLOR_THEMES as $value => $label)<option value="{{ $value }}" @selected(($record['color_theme'] ?? 'org') === $value)>{{ $label }}</option>@endforeach</select></div>
-                </div></details>
-            @elseif(!$closed)
+            @if(!$closed)
                 <details class="se-panel"><summary>Variáveis <i data-lucide="chevron-down" style="width:15px"></i></summary><div class="se-panel-body"><div class="se-vars">@foreach($variables as $group => $items)<div class="se-var-group"><strong>{{ $group }}</strong><div class="se-var-list">@foreach($items as $token => $label)<button class="se-var" type="button" data-variable="{{ $token }}" title="{{ $label }}">{{ $token }}</button>@endforeach</div></div>@endforeach</div></div></details>
             @endif
             @if($deleteUrl && !($record['signed'] ?? false))<div id="se-delete-wrap"><button class="se-btn se-btn-danger" id="se-delete-open" type="button" style="width:100%"><i data-lucide="trash-2"></i> Excluir</button></div>@endif
@@ -375,18 +347,12 @@
         ]));
     }
     function toast(message, error = false) { const el = document.createElement('div'); el.className = `se-toast${error ? ' error' : ''}`; el.textContent = message; document.body.appendChild(el); setTimeout(() => el.remove(), 3800); }
-    function selectedValues(name) { return [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(input => input.value); }
     function nullableValue(id) { const value = document.getElementById(id)?.value; return value ? Number(value) : null; }
     function payload() {
         if (config.mode === 'layout') return {name:document.getElementById('se-title').value.trim(),layout_type:document.getElementById('se-layout-type').value,content:editor.innerHTML,estimated_height_mm:Number(document.getElementById('se-layout-height').value),is_active:document.getElementById('se-active').checked};
         const common = {paper_size:document.getElementById('se-paper').value,paper_orientation:document.getElementById('se-orientation').value,header_layout_id:nullableValue('se-header'),footer_layout_id:nullableValue('se-footer')};
         if (config.mode === 'document') return {...common,title:document.getElementById('se-title').value.trim(),content:editor.innerHTML || '<p><br></p>',template_id:nullableValue('se-template'),
             ...(config.official ? {letter:readFields('letter'),layout:readFields('layout'),revision} : {})};
-        if (config.system) return {...common,...(document.getElementById('se-report-order') ? {
-            ...Object.fromEntries([...document.querySelectorAll('[data-report-scope]')].map(input=>[input.dataset.reportScope,Number(input.value)||null])),
-            report_contents:Object.fromEntries([...document.querySelectorAll('[data-report-content]')].map(editor=>[editor.dataset.reportContent,editor.innerHTML])),
-            section_order:document.getElementById('se-report-order').value.split(',').map(key=>key.trim()).filter(Boolean)
-        } : {}),name:document.getElementById('se-title').value.trim(),description:document.getElementById('se-description').value.trim(),project_type:document.getElementById('se-project-type').value.trim()||null,is_active:document.getElementById('se-active').checked,visible_sections:selectedValues('sections'),visible_columns:selectedValues('columns'),table_scale:Number(document.getElementById('se-scale').value),consent_enabled:document.getElementById('se-consent-enabled').checked,consent_position:document.getElementById('se-consent-position').value,consent_content_before:document.getElementById('se-consent-before').innerHTML,consent_content:document.getElementById('se-consent-after').innerHTML,show_recipient_signature:document.getElementById('se-recipient-signature').checked,show_representative_signature:document.getElementById('se-representative-signature').checked,color_theme:document.getElementById('se-color-theme').value};
         const type = document.getElementById('se-type').value;
         return {...common,name:document.getElementById('se-title').value.trim(),description:document.getElementById('se-description').value.trim(),is_active:document.getElementById('se-active').checked,type,content:editor.innerHTML || '<p><br></p>',
             ...(type === 'official_letter' ? {layout:readFields('layout')} : {})};
@@ -644,7 +610,7 @@
         document.execCommand('foreColor', false, event.target.value);
         markDirty();
     });
-    byId('se-zoom')?.addEventListener('change', event => { (byId('se-paper-preview') || editor).style.zoom = event.target.value; });
+    byId('se-zoom')?.addEventListener('change', event => { if (!byId('se-paper-preview')) editor.style.zoom = event.target.value === 'fit' ? '1' : event.target.value; });
     byId('se-signatory')?.addEventListener('click', event => {
         byId('letter-signatory').value = event.currentTarget.dataset.name;
         byId('letter-signatory_position').value = event.currentTarget.dataset.position;
@@ -677,8 +643,17 @@
         const branding = config.letterPreview.branding;
         const fixedNumber = config.letterPreview.number;
         const fragments = new Map();
-        const dimensions = {a4:[210,297],a3:[297,420],letter:[216,279],legal:[216,356]};
+        const dimensions = {a4:[210,297],a3:[297,420],letter:[215.9,279.4],legal:[215.9,355.6]};
+        const stage = paper.closest('.se-document-stage');
         let layoutRequest = 0;
+        function fitPaper() {
+            const [short, long] = dimensions[byId('se-paper').value] || dimensions.a4;
+            const width = byId('se-orientation').value === 'landscape' ? long : short;
+            const style = getComputedStyle(stage);
+            const available = stage.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+            const zoom = byId('se-zoom')?.value || 'fit';
+            if (available > 0) paper.style.zoom = zoom === 'fit' ? Math.min(1, available / (width * 96 / 25.4)) : Number(zoom);
+        }
         function element(tag, text = '', className = '') {
             const node = document.createElement(tag);
             if (text) node.textContent = text;
@@ -719,10 +694,14 @@
             const size = byId('se-paper').value;
             const orientation = byId('se-orientation').value;
             const [short, long] = dimensions[size] || dimensions.a4;
+            const width = orientation === 'landscape' ? long : short;
+            const height = orientation === 'landscape' ? short : long;
             paper.dataset.enabled = config.official || byId('se-type')?.value === 'official_letter' ? '1' : '0';
             paper.dataset.orientation = orientation;
-            paper.style.setProperty('--paper-width', `${orientation === 'landscape' ? long : short}mm`);
-            paper.style.setProperty('--paper-height', `${orientation === 'landscape' ? short : long}mm`);
+            paper.style.setProperty('--paper-width', `${width}mm`);
+            paper.style.setProperty('--paper-height', `${height}mm`);
+            byId('se-paper-dimensions').textContent = `${byId('se-paper').selectedOptions[0].textContent} · ${width.toLocaleString('pt-BR')} × ${height.toLocaleString('pt-BR')} mm`;
+            fitPaper();
             for (const side of ['top','right','bottom','left']) paper.style.setProperty(`--paper-${side}`, `${Number(layout[side])}mm`);
             paper.style.setProperty('--letter-indent', `${Number(layout.indent)}mm`);
             paper.style.setProperty('--letter-spacing', `${Number(layout.spacing)}pt`);
@@ -753,15 +732,17 @@
             } else {
                 const brand = element('div', '', 'se-paper-brand');
                 const lines = element('div');
-                lines.append(element('strong', [name, layout.acronym].filter(Boolean).join(' · ')));
+                const acronym = layout.acronym && !name.toLocaleUpperCase('pt-BR').includes(layout.acronym.toLocaleUpperCase('pt-BR')) ? layout.acronym : '';
+                lines.append(element('strong', [name, acronym].filter(Boolean).join(' · ')));
                 if (layout.department) lines.append(element('br'), document.createTextNode(layout.department));
+                if (branding.registration) lines.append(element('small', branding.registration));
                 if (showLogo) brand.append(logo());
                 brand.append(lines);
                 header.replaceChildren(brand);
             }
-            setLine('se-paper-number', fixedNumber ? 'OFÍCIO Nº ' + fixedNumber : 'OFÍCIO · RASCUNHO');
+            setLine('se-paper-number', fixedNumber ? 'OFÍCIO Nº ' + fixedNumber : '');
             const cityDate = [letter.city,date].filter(Boolean).join(', ');
-            setLine('se-paper-date', cityDate ? cityDate + '.' : '');
+            setLine('se-paper-date', date ? cityDate + '.' : cityDate);
             byId('se-paper-recipient').replaceChildren(...['recipient','recipient_position','institution','recipient_address']
                 .map(key => letter[key]).filter(Boolean).map(text => element('p',text)));
             setLine('se-paper-subject', letter.subject ? 'Assunto: ' + letter.subject : '');
@@ -796,6 +777,9 @@
         });
         for (const id of ['se-header','se-footer']) byId(id).addEventListener('change', updateFragments);
         byId('se-signatory')?.addEventListener('click', drawPaper);
+        byId('se-zoom')?.addEventListener('change', fitPaper);
+        if ('ResizeObserver' in window) new ResizeObserver(fitPaper).observe(stage);
+        else window.addEventListener('resize', fitPaper);
         updateFragments();
     }
 

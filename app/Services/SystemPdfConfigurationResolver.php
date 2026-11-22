@@ -21,7 +21,13 @@ class SystemPdfConfigurationResolver
         }
 
         $template = $this->templateForKey($definition['key'], $tenantId, $projectType, $context);
+        $tenant = Tenant::withoutGlobalScopes()->find($tenantId);
 
+        return $this->describe($definition, $tenant, $template);
+    }
+
+    public function describe(array $definition, ?Tenant $tenant, ?DocumentTemplate $template): array
+    {
         $sections = $this->allowedSelection(
             $template?->visible_sections,
             $definition['sections'] ?? [],
@@ -32,7 +38,6 @@ class SystemPdfConfigurationResolver
             $definition['columns'] ?? [],
             $definition['default_columns'] ?? null,
         );
-        $tenant = Tenant::withoutGlobalScopes()->find($tenantId);
         $colors = $template
             ? DocumentTemplate::getThemeColors($template->color_theme ?? 'org', $tenant?->primary_color, $tenant?->accent_color)
             : ['primary' => '#374151', 'accent' => '#64748b'];

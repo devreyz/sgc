@@ -83,6 +83,13 @@ class SecretaryPortalSecurityTest extends TestCase
             $table->string('paper_size')->default('a4');
             $table->string('paper_orientation')->default('portrait');
             $table->unsignedInteger('table_scale')->default(100);
+            $table->string('color_theme')->nullable();
+            $table->boolean('consent_enabled')->default(false);
+            $table->string('consent_position')->nullable();
+            $table->text('consent_content_before')->nullable();
+            $table->text('consent_content')->nullable();
+            $table->boolean('show_recipient_signature')->default(true);
+            $table->boolean('show_representative_signature')->default(true);
             $table->unsignedBigInteger('header_layout_id')->nullable();
             $table->unsignedBigInteger('footer_layout_id')->nullable();
             $table->unsignedBigInteger('cover_layout_id')->nullable();
@@ -141,6 +148,35 @@ class SecretaryPortalSecurityTest extends TestCase
             ['tenant_id' => 1, 'template_id' => 10, 'title' => 'Reunião A', 'created_at' => now(), 'updated_at' => now()],
             ['tenant_id' => 2, 'template_id' => 20, 'title' => 'Reunião Privada B', 'created_at' => now(), 'updated_at' => now()],
         ]);
+    }
+
+    public function test_system_pdf_configuration_has_its_own_catalog_and_preview(): void
+    {
+        $this->actingAs(User::query()->findOrFail(1))->withSession(['tenant_id' => 1]);
+        $payload = [
+            'name' => 'Recibo específico', 'paper_size' => 'a4', 'paper_orientation' => 'portrait',
+            'is_active' => true, 'visible_sections' => ['items', 'invalid'], 'visible_columns' => ['description'],
+            'table_scale' => 90, 'consent_enabled' => false, 'consent_position' => 'after',
+            'show_recipient_signature' => true, 'show_representative_signature' => false, 'color_theme' => 'org',
+        ];
+        $base = '/tenant-a/secretary/system-pdfs';
+        $key = '/financial_receipt';
+        $this->get($base)->assertOk()->assertSee('Comprovantes e recibos')->assertDontSee('Ata Tenant A');
+        $this->get($base.$key.'/edit')->assertOk()->assertSee('Abrir amostra em PDF')->assertSee('id="system-pdf-form"', false);
+        $this->postJson($base.$key.'/preview', $payload)->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        foreach (['deliveries_associate', 'deliveries_product'] as $report) {
+            $this->postJson($base.'/'.$report.'/preview', array_replace($payload, [
+                'visible_sections' => ['filters', 'summary_cards', 'deliveries', 'totals'],
+                'visible_columns' => \App\Models\DocumentTemplate::getSystemTemplateDefinitions()[$report]['default_columns'],
+            ]))->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        }
+        $this->assertDatabaseMissing('document_templates', ['name' => $payload['name']]);
+        $this->postJson($base.$key, $payload)->assertCreated();
+        $template = \App\Models\DocumentTemplate::query()->where('name', $payload['name'])->firstOrFail();
+        $this->assertSame(['items'], $template->visible_sections);
+        $this->get('/tenant-a/secretary/templates/'.$template->id.'/edit')->assertOk()->assertSee('id="system-pdf-form"', false);
+        $this->getJson('/tenant-a/secretary/data?kind=templates')->assertOk()->assertJsonMissing(['name' => $payload['name']]);
+        $this->postJson($base.$key, $payload)->assertConflict();
     }
 
     public function test_secretary_data_never_returns_another_tenant_documents(): void

@@ -6,7 +6,8 @@
 @section('user-role', 'Secretaria')
 
 @php
-    $bentoNavigation = \App\Support\PortalNavigation::make('secretary', 'documents', $tenant->slug);
+    $section = in_array(request('section'), ['templates', 'layouts'], true) ? request('section') : 'documents';
+    $bentoNavigation = \App\Support\PortalNavigation::make('secretary', $section, $tenant->slug);
 @endphp
 
 @section('content')
@@ -47,17 +48,18 @@
 
 <main class="sec-shell">
     <header class="sec-head">
-        <div><h1>Documentos da Secretaria</h1></div>
+        <div><h1>{{ ['documents' => 'Acervo', 'templates' => 'Modelos de documentos', 'layouts' => 'Cabeçalhos e rodapés'][$section] }}</h1></div>
         <div class="sec-actions">
-            @if($canCreate)
+            @if($canCreate && $section === 'documents')
                 <a class="sec-btn sec-btn-primary" href="{{ route('secretary.documents.create', ['tenant' => $tenant->slug]) }}"><i class="ph ph-file-plus"></i><span>Novo ofício</span></a>
             @endif
         </div>
     </header>
     <nav class="sec-tabs" aria-label="Seções da Secretaria">
-        @foreach (['documents' => 'Acervo', 'templates' => 'Modelos', 'layouts' => 'Cabeçalhos e rodapés', 'system' => 'PDFs do sistema'] as $key => $label)
-            <button type="button" class="sec-btn" data-sec-tab="{{ $key }}" aria-pressed="{{ $key === 'documents' ? 'true' : 'false' }}">{{ $label }}</button>
-        @endforeach
+        <a class="sec-btn" href="{{ route('secretary.index', ['tenant' => $tenant->slug]) }}" @if($section === 'documents') aria-current="page" @endif>Acervo</a>
+        <a class="sec-btn" href="{{ route('secretary.index', ['tenant' => $tenant->slug, 'section' => 'templates']) }}" @if($section === 'templates') aria-current="page" @endif>Modelos</a>
+        <a class="sec-btn" href="{{ route('secretary.index', ['tenant' => $tenant->slug, 'section' => 'layouts']) }}" @if($section === 'layouts') aria-current="page" @endif>Layouts</a>
+        <a class="sec-btn" href="{{ route('secretary.system.index', ['tenant' => $tenant->slug]) }}">PDFs do sistema</a>
     </nav>
     <div class="sec-toolbar">
         <input class="sec-control" id="sec-search" type="search" maxlength="120" placeholder="Buscar assunto, número ou destinatário" aria-label="Buscar documentos e modelos" autocomplete="off">
@@ -96,7 +98,7 @@
     .sec-control { min-width:0 }
     .sec-shell [hidden] { display:none }
     .sec-tabs { display:flex;flex-wrap:wrap;gap:.4rem }
-    .sec-tabs [aria-pressed="true"], .sec-btn-primary { background:var(--campo-lime,#d6ef74);border-color:transparent;color:#203519 }
+    .sec-tabs [aria-current="page"], .sec-btn-primary { background:var(--campo-lime,#d6ef74);border-color:transparent;color:#203519 }
     .sec-section-actions { justify-content:flex-end;flex-wrap:wrap }
     .sec-document-table { width:100%;border-collapse:collapse;text-align:left }
     .sec-document-table th,.sec-document-table td { padding:.7rem .75rem;vertical-align:top }
@@ -106,6 +108,7 @@
     .sec-document-table small { margin-top:.25rem;color:var(--color-text-secondary) }
     .sec-document-table .ph,.sec-actions .ph { font-size:1.05rem }
     @media(max-width:720px) {
+        .sec-tabs { display:none }
         .sec-toolbar { display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) }
         #sec-search { grid-column:1 / -1 }
         .sec-document-table,.sec-document-table tbody,.sec-document-table tr { display:block }
@@ -123,10 +126,7 @@
 (() => {
     const endpoint = @js(route('secretary.data', ['tenant' => $tenant->slug]));
     const search = document.getElementById('sec-search');
-    const tabs = [...document.querySelectorAll('[data-sec-tab]')];
-    const sections = tabs.map(tab => tab.dataset.secTab);
-    let kind = new URLSearchParams(location.search).get('section');
-    if (!sections.includes(kind)) kind = 'documents';
+    const kind = @js($section);
     const status = document.getElementById('sec-status');
     const type = document.getElementById('sec-type');
     const canCreate = @js($canCreate);
@@ -138,7 +138,6 @@
     let request = null;
     function displaySection() {
         const showDocuments = kind === 'documents';
-        for (const tab of tabs) tab.setAttribute('aria-pressed', String(tab.dataset.secTab === kind));
         status.hidden = type.hidden = !showDocuments;
         search.placeholder = showDocuments ? 'Buscar assunto, número ou destinatário' : 'Buscar por nome';
         search.setAttribute('aria-label', showDocuments ? 'Buscar no acervo' : 'Buscar modelos e layouts');
@@ -197,17 +196,6 @@
     }
 
     search.addEventListener('input', () => { clearTimeout(timer); page = 1; timer = setTimeout(load, 280); });
-    for (const tab of tabs) tab.addEventListener('click', () => {
-        kind = tab.dataset.secTab;
-        const url = new URL(location.href);
-        url.searchParams.set('section', kind);
-        history.replaceState(null, '', url);
-        clearTimeout(timer);
-        page = 1;
-        search.value = '';
-        displaySection();
-        load();
-    });
     for (const filter of [status, type]) filter.addEventListener('change', () => { page = 1; load(); });
     document.getElementById('sec-pages').addEventListener('click', event => { const button = event.target.closest('[data-page]'); if (!button || button.disabled) return; page = Number(button.dataset.page); load(); });
     displaySection();

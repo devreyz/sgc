@@ -1,4 +1,13 @@
-<div class="se-page-wrap">
+<div class="se-paper-controls">
+    <span id="se-paper-dimensions"></span>
+    <select id="se-zoom" class="se-select" aria-label="Zoom da folha">
+        <option value="fit">Ajustar folha</option>
+        <option value=".75">75%</option>
+        <option value="1">100%</option>
+        <option value="1.25">125%</option>
+    </select>
+</div>
+<div class="se-page-wrap se-document-stage">
     <article class="se-document-paper" id="se-paper-preview"
         data-enabled="{{ $isOfficialDocument || ($record['type'] ?? null) === 'official_letter' ? '1' : '0' }}"
         data-orientation="{{ $record['paper_orientation'] ?? 'portrait' }}" data-format="{{ $record['paper_size'] ?? 'a4' }}">

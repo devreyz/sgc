@@ -397,7 +397,7 @@ HTML;
      *                          'accent_color'     => string,
      *                          ]
      */
-    public function generateSystemPdf(string $view, array $viewData, array $options = []): DomPDF
+    public function generateSystemPdf(string $view, array $viewData, array $options = [], ?DocumentTemplate $previewTemplate = null): DomPDF
     {
         $renderedAt = now();
         // The canvas footer owns generation time. Keep issue/receipt dates in the document.
@@ -412,6 +412,12 @@ HTML;
                 ? $this->systemPdfConfiguration->resolveForContext($configurationView, $tenantId, $projectType, $options['report_context'])
                 : $this->systemPdfConfiguration->resolve($configurationView, $tenantId, $projectType))
             : [];
+        if ($previewTemplate && $tenant && (int) $previewTemplate->tenant_id === (int) $tenant->id) {
+            $definition = $previewTemplate->getSystemDefinition();
+            if (($definition['blade_view'] ?? null) === $configurationView) {
+                $configured = $this->systemPdfConfiguration->describe($definition, $tenant, $previewTemplate);
+            }
+        }
 
         // The active system template is authoritative. Call-site options may
         // still provide a title, but cannot silently replace persisted layout.

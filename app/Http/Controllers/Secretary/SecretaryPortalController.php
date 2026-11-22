@@ -32,13 +32,132 @@ class SecretaryPortalController extends Controller
         private readonly SecretaryAccess $access,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): View|\Illuminate\Http\RedirectResponse
     {
         $tenant = $this->tenant($request);
+        if ($request->query('section') === 'system') {
+            return redirect()->route('secretary.system.index', ['tenant' => $tenant->slug]);
+        }
 
         return view('secretary.index', ['tenant' => $tenant,
             'canCreate' => $this->access->allows($request->user(), $tenant, 'create'),
             'canManageTemplates' => $this->access->allows($request->user(), $tenant, 'templates'),
+        ]);
+    }
+
+    public function systemIndex(Request $request): View
+    {
+        $tenant = $this->tenant($request);
+        $definitions = DocumentTemplate::getSystemTemplateDefinitions();
+        $configured = DocumentTemplate::query()->where('tenant_id', $tenant->id)
+            ->where('template_category', 'system')->orderByDesc('is_active')->latest('updated_at')
+            ->get()->groupBy('system_template_key');
+
+        return view('secretary.system-index', [
+            'tenant' => $tenant, 'definitions' => $definitions, 'configured' => $configured,
+            'canManage' => $this->access->allows($request->user(), $tenant, 'templates'),
+        ]);
+    }
+
+    public function editSystemDefault(Request $request, Tenant $routeTenant, string $key): View
+    {
+        $tenant = $this->tenant($request);
+        $definition = $this->systemDefinition($key);
+        $template = new DocumentTemplate([
+            'name' => $definition['label'], 'description' => $definition['description'] ?? null,
+            'type' => $definition['type'], 'template_category' => 'system', 'system_template_key' => $key,
+            'paper_size' => 'a4', 'paper_orientation' => $definition['paper_orientation'] ?? 'portrait',
+            'show_recipient_signature' => true, 'show_representative_signature' => true, 'is_active' => true,
+        ]);
+
+        return $this->systemEditor($tenant, $template, $definition);
+    }
+
+    public function storeSystemDefault(Request $request, Tenant $routeTenant, string $key): JsonResponse
+    {
+        $tenant = $this->tenant($request);
+        $definition = $this->systemDefinition($key);
+        $settings = $this->systemSettings($request, $tenant, $definition);
+        $template = DB::transaction(function () use ($tenant, $key, $definition, $settings, $request): DocumentTemplate {
+            Tenant::query()->whereKey($tenant->id)->lockForUpdate()->firstOrFail();
+            $identity = [
+                'tenant_id' => $tenant->id, 'template_category' => 'system', 'system_template_key' => $key,
+                'project_type' => $settings['project_type'] ?? null,
+            ];
+            foreach (['sales_project_id', 'customer_id', 'organization_id'] as $scope) {
+                if (Schema::hasColumn('document_templates', $scope)) {
+                    $identity[$scope] = $settings[$scope] ?? null;
+                }
+            }
+            $template = DocumentTemplate::query()->where($identity)->orderByDesc('is_active')->latest('id')->first();
+            abort_if($template, 409, 'Já existe uma configuração com esse contexto. Abra-a pelo catálogo.');
+
+            return DocumentTemplate::query()->create($identity + $settings + [
+                'type' => $definition['type'], 'content' => '', 'created_by' => $request->user()->id,
+            ]);
+        });
+        $this->audit($request, $template, 'Configuração de PDF criada');
+
+        return response()->json(['message' => 'Configuração salva.', 'redirect_url' => route('secretary.templates.edit', [
+            'tenant' => $tenant->slug, 'template' => $template,
+        ])], 201);
+    }
+
+    public function previewSystem(Request $request, Tenant $routeTenant, string $key, \App\Services\SecretarySystemPdfSample $sample, TemplatedPdfService $pdfs)
+    {
+        $tenant = $this->tenant($request);
+        abort_unless(in_array($key, $sample::SUPPORTED, true), 404);
+        $definition = $this->systemDefinition($key);
+        $template = new DocumentTemplate([
+            'tenant_id' => $tenant->id, 'system_template_key' => $key, 'template_category' => 'system',
+        ] + $this->systemSettings($request, $tenant, $definition));
+        $pdf = $pdfs->generateSystemPdf($definition['blade_view'], ['tenant' => $tenant] + $sample->data($key), [
+            'tenant' => $tenant, 'title' => $definition['label'], 'footer_prefix' => 'Amostra sem valor documental',
+        ], $template);
+
+        return $this->inlinePdf($pdf, 'amostra-'.$key.'.pdf');
+    }
+
+    private function systemDefinition(?string $key): array
+    {
+        $definition = DocumentTemplate::getSystemTemplateDefinitions()[$key] ?? null;
+        abort_unless($definition, 404);
+
+        return $definition;
+    }
+
+    private function systemSettings(Request $request, Tenant $tenant, array $definition): array
+    {
+        $settings = $this->validateTemplate($request, $tenant, true);
+        foreach (['consent_content_before', 'consent_content'] as $field) {
+            $value = trim((string) ($settings[$field] ?? ''));
+            $settings[$field] = $value === '' ? null : $this->sanitizer->sanitize($value);
+        }
+        foreach (['sections', 'columns'] as $kind) {
+            $field = 'visible_'.$kind;
+            $settings[$field] = array_values(array_intersect($settings[$field] ?? [], array_keys($definition[$kind] ?? [])));
+        }
+        abort_if(!empty($settings['customer_id']) && !empty($settings['organization_id']), 422, 'Selecione apenas um tipo de destinatário.');
+
+        return $settings;
+    }
+
+    private function systemEditor(Tenant $tenant, DocumentTemplate $template, array $definition): View
+    {
+        $selected = array_filter([$template->header_layout_id, $template->footer_layout_id]);
+        $layouts = PdfLayoutTemplate::query()->where('tenant_id', $tenant->id)
+            ->where(fn ($query) => $query->where('is_active', true)->orWhereIn('id', $selected))
+            ->whereIn('layout_type', ['header', 'footer', 'both'])->orderBy('name')->get(['id', 'name', 'layout_type']);
+        $reportScopes = [];
+        if (\App\Services\Accounting\BillingDossierReportService::isReportKey($template->system_template_key)) {
+            foreach (['sales_project_id' => \App\Models\SalesProject::class, 'customer_id' => \App\Models\Customer::class, 'organization_id' => \App\Models\Organization::class] as $field => $model) {
+                $reportScopes[$field] = $model::query()->where('tenant_id', $tenant->id)->pluck($field === 'sales_project_id' ? 'title' : 'name', 'id');
+            }
+        }
+        $reportContents = collect($template->report_contents ?? [])->map(fn ($html) => $this->sanitizer->sanitize((string) $html))->all();
+
+        return view('secretary.system-editor', compact('tenant', 'template', 'definition', 'layouts', 'reportScopes', 'reportContents') + [
+            'branding' => $this->letters->branding($tenant), 'logo' => $this->assets->logo($tenant),
         ]);
     }
 
@@ -60,8 +179,7 @@ class SecretaryPortalController extends Controller
                 ->where('tenant_id', $tenant->id)
                 ->whereNot(fn ($query) => $query->where('type', OfficialLetterService::TYPE)
                     ->where('name', OfficialLetterService::STANDARD_TEMPLATE)->where('is_active', false))
-                ->when($kind === 'templates', fn ($query) => $query->where('template_category', 'custom'))
-                ->when($kind === 'system', fn ($query) => $query->where('template_category', 'system'))
+                ->where('template_category', $kind === 'system' ? 'system' : 'custom')
                 ->when($search !== '', fn ($query) => $query->where(function ($query) use ($search): void {
                     $query->where('name', 'like', "%{$search}%")->orWhere('description', 'like', "%{$search}%");
                 }))
@@ -91,6 +209,7 @@ class SecretaryPortalController extends Controller
             $documents = GeneratedDocument::query()
                 ->where('tenant_id', $tenant->id)
                 ->whereNull('documentable_type')
+                ->whereDoesntHave('template', fn ($query) => $query->where('template_category', 'system'))
                 ->with(['template:id,tenant_id,name,type', 'generator:id,name'])
                 ->when($validated['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
                 ->when($validated['type'] ?? null, fn ($query, $type) => $query->whereHas('template', fn ($template) => $template->where('type', $type)))
@@ -143,22 +262,15 @@ class SecretaryPortalController extends Controller
         $tenant = $this->tenant($request);
         $this->assertTenantRecord($template, $tenant);
 
+        if ($template->template_category === 'system') {
+            return $this->systemEditor($tenant, $template, $this->systemDefinition($template->system_template_key));
+        }
+
         return $this->editorView($tenant, 'template', $template->id, [
             'name' => $template->name, 'description' => $template->description, 'type' => $template->type,
-            'template_category' => $template->template_category, 'system_template_key' => $template->system_template_key,
-            'project_type' => $template->project_type,
-            'sales_project_id' => $template->sales_project_id, 'customer_id' => $template->customer_id,
-            'organization_id' => $template->organization_id, 'report_contents' => $template->report_contents ?? [],
-            'section_order' => $template->section_order ?? [],
             'content' => $template->content, 'paper_size' => $template->paper_size ?: 'a4',
-            'paper_orientation' => $template->paper_orientation ?: 'portrait', 'table_scale' => $template->table_scale ?: 100,
+            'paper_orientation' => $template->paper_orientation ?: 'portrait',
             'header_layout_id' => $template->header_layout_id, 'footer_layout_id' => $template->footer_layout_id,
-            'visible_sections' => $template->visible_sections ?: [], 'visible_columns' => $template->visible_columns ?: [],
-            'consent_enabled' => (bool) $template->consent_enabled, 'consent_position' => $template->consent_position ?: 'after',
-            'consent_content_before' => $template->consent_content_before, 'consent_content' => $template->consent_content,
-            'show_recipient_signature' => (bool) $template->show_recipient_signature,
-            'show_representative_signature' => (bool) $template->show_representative_signature,
-            'color_theme' => $template->color_theme ?: 'org',
             'is_active' => (bool) $template->is_active,
             'layout' => $template->institutional_settings ?? [],
         ]);
@@ -189,19 +301,16 @@ class SecretaryPortalController extends Controller
     {
         $tenant = $this->tenant($request);
         $this->assertTenantRecord($template, $tenant);
-        $validated = $this->validateTemplate($request, $tenant, $template->template_category === 'system');
+        if ($template->template_category === 'system') {
+            $template->update($this->systemSettings($request, $tenant, $this->systemDefinition($template->system_template_key)));
+            $this->audit($request, $template, 'Configuração de PDF atualizada');
+
+            return response()->json(['message' => 'Configuração salva.']);
+        }
+        $validated = $this->validateTemplate($request, $tenant, false);
         if ($template->template_category === 'custom') {
             $validated['content'] = $this->assets->clean($tenant, $validated['content'], previousHtml: $template->content);
             abort_if($template->type !== $validated['type'] && $template->generatedDocuments()->withTrashed()->exists(), 409, 'Duplique o modelo para alterar o tipo.');
-        } else {
-            unset($validated['content'], $validated['type']);
-            foreach (['consent_content_before', 'consent_content'] as $field) {
-                $value = trim((string) ($validated[$field] ?? ''));
-                $validated[$field] = $value === '' ? null : $this->sanitizer->sanitize($value);
-            }
-            $definition = $template->getSystemDefinition() ?? [];
-            $validated['visible_sections'] = array_values(array_intersect($validated['visible_sections'] ?? [], array_keys($definition['sections'] ?? [])));
-            $validated['visible_columns'] = array_values(array_intersect($validated['visible_columns'] ?? [], array_keys($definition['columns'] ?? [])));
         }
         if (($validated['type'] ?? null) === OfficialLetterService::TYPE) {
             $this->letters->setDefault($template, $validated, $tenant);
@@ -689,12 +798,10 @@ class SecretaryPortalController extends Controller
 
     private function editorView(Tenant $tenant, string $mode, ?int $recordId, array $record): View
     {
-        foreach (['content', 'consent_content_before', 'consent_content'] as $htmlField) {
-            if (! empty($record[$htmlField])) {
-                $record[$htmlField] = $this->assets->clean($tenant, (string) $record[$htmlField], previousHtml: $recordId ? (string) $record[$htmlField] : null);
-            }
+        if (! empty($record['content'])) {
+            $content = (string) $record['content'];
+            $record['content'] = $this->assets->clean($tenant, $content, previousHtml: $recordId ? $content : null);
         }
-        $record['report_contents'] = collect($record['report_contents'] ?? [])->map(fn ($html) => $this->sanitizer->sanitize((string) $html))->all();
         $layoutIds = array_filter([$record['header_layout_id'] ?? null, $record['footer_layout_id'] ?? null]);
         $layouts = PdfLayoutTemplate::query()->where('tenant_id', $tenant->id)
             ->where(fn ($query) => $query->where('is_active', true)->orWhereIn('id', $layoutIds))
@@ -704,26 +811,15 @@ class SecretaryPortalController extends Controller
         }
         $templates = DocumentTemplate::query()->where('tenant_id', $tenant->id)->where('template_category', 'custom')
             ->where('is_active', true)->orderBy('name')->get(['id', 'name']);
-        $definition = ! empty($record['system_template_key'])
-            ? (DocumentTemplate::getSystemTemplateDefinitions()[$record['system_template_key']] ?? []) : [];
-
         $variables = DocumentTemplate::getAvailableVariables();
         $variables['Layout e página'] = PdfLayoutTemplate::getAvailableVariables();
         if (! empty($record['official']) || ($record['type'] ?? null) === OfficialLetterService::TYPE) {
             $variables = ['Ofício' => collect(OfficialLetterService::VARIABLES)->mapWithKeys(fn ($key) => ['{{'.$key.'}}' => $key])->all()];
         }
-        $reportScopes = [];
-        if (\App\Services\Accounting\BillingDossierReportService::isReportKey($record['system_template_key'] ?? null)) {
-            foreach (['sales_project_id' => \App\Models\SalesProject::class, 'customer_id' => \App\Models\Customer::class, 'organization_id' => \App\Models\Organization::class] as $field => $model) {
-                $column = $field === 'sales_project_id' ? 'title' : 'name';
-                $reportScopes[$field] = $model::query()->where('tenant_id', $tenant->id)->orderBy($column)->pluck($column, 'id');
-            }
-        }
-
-        return view('secretary.editor', compact('tenant', 'mode', 'recordId', 'record', 'layouts', 'templates', 'definition') + [
-            'variables' => $variables, 'reportScopes' => $reportScopes,
+        return view('secretary.editor', compact('tenant', 'mode', 'recordId', 'record', 'layouts', 'templates') + [
+            'variables' => $variables,
             'branding' => $this->letters->branding($tenant),
-            'letterLogo' => !empty($record['official']) || $mode === 'template' && ($record['template_category'] ?? 'custom') === 'custom'
+            'letterLogo' => !empty($record['official']) || $mode === 'template'
                 ? $this->assets->logo($tenant) : null,
             'abilities' => collect(array_keys(SecretaryAccess::PERMISSIONS))->mapWithKeys(fn ($action) => [$action => $this->access->allows(request()->user(), $tenant, $action)])->all(),
         ]);
@@ -829,7 +925,7 @@ class SecretaryPortalController extends Controller
         abort_unless($user && $this->access->allows($user, $tenant), 403);
         $action = match (true) {
             $request->routeIs('secretary.templates.preview', 'secretary.layouts.fragment') => 'view',
-            $request->routeIs('secretary.templates.*', 'secretary.layouts.*') => 'templates',
+            $request->routeIs('secretary.templates.*', 'secretary.layouts.*', 'secretary.system.edit', 'secretary.system.store', 'secretary.system.preview') => 'templates',
             $request->routeIs('secretary.documents.create', 'secretary.documents.store') => 'create',
             $request->routeIs('secretary.documents.update', 'secretary.documents.destroy') => 'edit',
             $request->routeIs('secretary.documents.issue') => 'issue',

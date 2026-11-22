@@ -233,7 +233,7 @@ class OfficialLetterService
             $partials[$kind] = $partial ? $resolve($this->assets->clean($tenant, $partial->content, true, $partial->content)) : null;
         }
         $contacts = array_filter(array_intersect_key($branding, array_filter(array_intersect_key($layout, array_flip(['address', 'registration', 'phone', 'email', 'website'])))));
-        $pdf = Pdf::loadView('pdf.secretary-official-letter', compact('document', 'layout', 'letter', 'number', 'date', 'name', 'logo', 'contacts', 'content', 'partials'))
+        $pdf = Pdf::loadView('pdf.secretary-official-letter', compact('document', 'layout', 'letter', 'number', 'date', 'name', 'logo', 'contacts', 'content', 'partials', 'branding'))
             ->setOption(['isRemoteEnabled' => false, 'isPhpEnabled' => false])
             ->setPaper($settings['paper_size'] ?? 'a4', $settings['paper_orientation'] ?? 'portrait');
         $pdf->render();

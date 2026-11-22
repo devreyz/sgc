@@ -12,17 +12,18 @@
             color: #151515;
         }
         p { margin: 0 0 {{ $layout['spacing'] }}pt; }
-        .institution { text-align: {{ $layout['header_alignment'] }}; margin-bottom: {{ $layout['header_spacing'] }}mm; font-size: 10pt; page-break-inside: avoid; }
+        .institution { text-align: {{ $layout['header_alignment'] }}; margin-bottom: {{ $layout['header_spacing'] }}mm; font-size: 10pt; line-height: 1.25; page-break-inside: avoid; }
         .institution.repeat { position: fixed; top: -26mm; left: 0; right: 0; max-height: 23mm; overflow: hidden; }
         .institution.border { border-bottom: 1px solid #737a75; padding-bottom: 2mm; }
         .letterhead { display: inline-table; width: auto; }
         .letterhead td { padding: 0; vertical-align: middle; }
         .letterhead img { max-width: {{ $layout['logo_width'] }}mm; max-height: 17mm; margin-right: 4mm; }
+        .letterhead small { display: block; font-size: 8.5pt; color: #526057; margin-top: 1mm; }
         .date { text-align: right; margin-top: 4mm; }
         .recipient { margin: 5mm 0; white-space: pre-line; }
         .subject { margin-bottom: 5mm; }
         .salutation, .closing, .body > p { text-indent: {{ $layout['indent'] }}mm; }
-        .body { text-align: justify; overflow-wrap: break-word; }
+        .body { text-align: left; overflow-wrap: break-word; }
         .body table { width: 100%; border-collapse: collapse; margin: 2mm 0; }
         .body td, .body th { border: 1px solid #737a75; padding: 1.5mm; text-indent: 0; }
         .body img { max-width: 100%; max-height: 190mm; }
@@ -43,8 +44,9 @@
             <table class="letterhead"><tr>
                 @if ($logo)<td><img src="{{ $logo }}" alt=""></td>@endif
                 <td>
-                    <strong>{{ $name }}{{ $layout['acronym'] ? ' · '.$layout['acronym'] : '' }}</strong>
+                    <strong>{{ $name }}{{ $layout['acronym'] && !\Illuminate\Support\Str::contains($name, $layout['acronym'], ignoreCase: true) ? ' · '.$layout['acronym'] : '' }}</strong>
                     @if ($layout['department'])<br>{{ $layout['department'] }}@endif
+                    @if ($branding['registration'])<small>{{ $branding['registration'] }}</small>@endif
                 </td>
             </tr></table>
         @endif
@@ -56,9 +58,9 @@
             @if ($contacts)<p>{{ implode(' · ', $contacts) }}</p>@endif
         </footer>
     @endif
-    <strong>{{ $number ? 'OFÍCIO Nº '.$number : 'OFÍCIO · RASCUNHO' }}</strong>
+    @if ($number)<strong>OFÍCIO Nº {{ $number }}</strong>@endif
     @if (!empty($letter['city']) || $date)
-        <p class="date">{{ implode(', ', array_filter([$letter['city'] ?? '', $date])) }}.</p>
+        <p class="date">{{ implode(', ', array_filter([$letter['city'] ?? '', $date])) }}{{ $date ? '.' : '' }}</p>
     @endif
     <div class="recipient">
         @foreach (['recipient', 'recipient_position', 'institution', 'recipient_address'] as $field)

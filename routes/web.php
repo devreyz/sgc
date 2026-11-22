@@ -468,6 +468,10 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
     Route::prefix('secretary')->name('secretary.')->group(function () {
         Route::get('/', [SecretaryPortalController::class, 'index'])->name('index');
         Route::get('/data', [SecretaryPortalController::class, 'data'])->name('data');
+        Route::get('/system-pdfs', [SecretaryPortalController::class, 'systemIndex'])->name('system.index');
+        Route::get('/system-pdfs/{key}/edit', [SecretaryPortalController::class, 'editSystemDefault'])->name('system.edit');
+        Route::post('/system-pdfs/{key}/preview', [SecretaryPortalController::class, 'previewSystem'])->middleware('throttle:20,1')->name('system.preview');
+        Route::post('/system-pdfs/{key}', [SecretaryPortalController::class, 'storeSystemDefault'])->middleware('throttle:30,1')->name('system.store');
         Route::get('/templates/create', [SecretaryPortalController::class, 'createTemplate'])->name('templates.create');
         Route::post('/templates', [SecretaryPortalController::class, 'storeTemplate'])->middleware('throttle:30,1')->name('templates.store');
         Route::get('/templates/{template}/edit', [SecretaryPortalController::class, 'editTemplate'])->name('templates.edit');

@@ -72,8 +72,10 @@ class PortalNavigation
                     : []),
             ],
             'secretary' => [
-                ['key' => 'documents', 'label' => 'Secretaria', 'route' => 'secretary.index', 'icon' => 'files'],
-                ['key' => 'home', 'label' => 'Painéis', 'route' => 'home', 'icon' => 'squares-four'],
+                ['key' => 'documents', 'label' => 'Acervo', 'route' => 'secretary.index', 'icon' => 'files'],
+                ['key' => 'templates', 'label' => 'Modelos', 'route' => 'secretary.index', 'parameters' => ['section' => 'templates'], 'icon' => 'file-text'],
+                ['key' => 'layouts', 'label' => 'Layouts', 'route' => 'secretary.index', 'parameters' => ['section' => 'layouts'], 'icon' => 'layout'],
+                ['key' => 'system', 'label' => 'PDFs', 'route' => 'secretary.system.index', 'icon' => 'file-pdf'],
             ],
             'buyer' => [
                 ['key' => 'dashboard', 'label' => 'Inicio', 'route' => 'buyer.dashboard', 'icon' => 'house'],
