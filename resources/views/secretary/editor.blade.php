@@ -12,7 +12,7 @@
     $closed = (bool) ($record['signed'] ?? false);
     $archiveOnly = $isOfficialDocument && in_array($record['status'] ?? '', ['issued', 'cancelled'], true);
     $editing = $recordId !== null;
-    $bentoNavigation = \App\Support\PortalNavigation::make('secretary', $isLayout ? 'layouts' : ($isTemplate ? 'templates' : 'documents'), $tenant->slug);
+    $bentoNavigation = [];
     $saveUrl = $isLayout
         ? ($editing ? route('secretary.layouts.update', ['tenant' => $tenant->slug, 'layout' => $recordId]) : route('secretary.layouts.store', ['tenant' => $tenant->slug]))
         : ($isTemplate
@@ -60,13 +60,14 @@
     ];
 @endphp
 
-@section('content')
+@push('styles')
 <style>
     .se-shell{width:min(1440px,100%);margin:0 auto;display:grid;gap:.7rem;color:var(--color-text)}
-    .se-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.65rem .75rem;border:1px solid var(--color-border);border-radius:8px;background:var(--color-surface);position:sticky;top:calc(var(--header-height,64px) + .4rem);z-index:25}
+    .se-head{position:sticky;top:0;z-index:41;background:var(--color-surface);border-bottom:1px solid var(--color-border);padding-top:env(safe-area-inset-top)}
+    .se-head-inner{max-width:1440px;margin-inline:auto;min-height:58px;display:flex;align-items:center;justify-content:space-between;gap:.45rem;padding:.35rem .75rem}
     .se-title-wrap{display:flex;align-items:center;gap:.55rem;min-width:0;flex:1}.se-icon-btn,.se-btn{min-height:38px;border:1px solid var(--color-border);border-radius:6px;background:var(--color-bg);color:inherit;display:inline-flex;align-items:center;justify-content:center;gap:.38rem;cursor:pointer;font:inherit;font-size:.78rem;font-weight:700}.se-icon-btn{width:38px;padding:0;flex:0 0 38px}.se-btn{padding:.45rem .7rem}.se-btn-primary{background:var(--color-primary);border-color:var(--color-primary);color:#fff}.se-btn-danger{color:var(--color-danger);border-color:color-mix(in srgb,var(--color-danger) 35%,var(--color-border))}.se-btn:disabled,.se-icon-btn:disabled{opacity:.48;cursor:not-allowed}
     .se-title{width:100%;max-width:560px;border:0;background:transparent;color:inherit;font:700 .98rem/1.2 inherit;outline:none;padding:.35rem}.se-state{font-size:.7rem;color:var(--color-text-secondary);white-space:nowrap}.se-actions{display:flex;align-items:center;gap:.4rem}
-    .se-workspace{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:.7rem;align-items:start}.se-main{min-width:0;border:1px solid var(--color-border);border-radius:8px;background:var(--color-surface);overflow:visible}.se-toolbar{display:flex;align-items:center;gap:.22rem;padding:.45rem;overflow-x:auto;border-bottom:1px solid var(--color-border);position:sticky;top:calc(var(--header-height,64px) + 4.9rem);z-index:20;background:color-mix(in srgb,var(--color-surface) 94%,transparent);backdrop-filter:blur(12px)}
+    .se-workspace{display:grid;grid-template-columns:minmax(0,1fr)}.se-main{min-width:0;border:1px solid var(--color-border);border-radius:8px;background:var(--color-surface);overflow:visible}.se-toolbar{display:flex;align-items:center;gap:.22rem;padding:.45rem;overflow-x:auto;border-bottom:1px solid var(--color-border);position:sticky;top:var(--app-header-rendered-height,58px);z-index:20;background:color-mix(in srgb,var(--color-surface) 94%,transparent);backdrop-filter:blur(12px)}
     .se-tool{width:34px;height:34px;flex:0 0 34px;border:0;border-radius:5px;background:transparent;color:inherit;display:grid;place-items:center;cursor:pointer}.se-tool:hover,.se-tool:focus-visible{background:var(--color-bg)}.se-tool i,.se-icon-btn i,.se-btn i{width:16px;height:16px}.se-divider{width:1px;height:22px;background:var(--color-border);margin:0 .15rem;flex:0 0 1px}.se-select{height:34px;border:1px solid var(--color-border);border-radius:5px;background:var(--color-bg);color:inherit;padding:0 .45rem;font-size:.75rem}
     .se-page-wrap{padding:1.1rem;background:var(--color-bg);overflow:auto}.se-page{box-sizing:border-box;width:min(210mm,100%);min-height:297mm;margin:0 auto;padding:20mm 18mm;background:#fff;color:#20242a;box-shadow:0 3px 18px rgba(0,0,0,.12);font:14px/1.58 Arial,sans-serif;outline:none}.se-page[data-paper="landscape"]{width:min(297mm,100%);min-height:210mm}.se-page h1{font-size:24px}.se-page h2{font-size:20px}.se-page h3{font-size:17px}.se-page table{width:100%;border-collapse:collapse}.se-page td,.se-page th{border:1px solid #999;padding:5px}.se-page img{max-width:100%;height:auto}.se-page:empty:before{content:'Comece a escrever...';color:#8a9099}
     .se-side{display:grid;gap:.6rem;position:sticky;top:calc(var(--header-height,64px) + 4.9rem)}.se-panel{border:1px solid var(--color-border);border-radius:8px;background:var(--color-surface);overflow:hidden}.se-panel summary{cursor:pointer;list-style:none;padding:.72rem .8rem;font-weight:800;font-size:.78rem;display:flex;align-items:center;justify-content:space-between}.se-panel summary::-webkit-details-marker{display:none}.se-panel-body{display:grid;gap:.62rem;padding:0 .8rem .8rem;border-top:1px solid var(--color-border)}.se-field{display:grid;gap:.28rem;padding-top:.6rem}.se-field label,.se-label{font-size:.7rem;font-weight:750;color:var(--color-text-secondary)}.se-control{width:100%;min-height:38px;border:1px solid var(--color-border);border-radius:6px;background:var(--color-bg);color:inherit;padding:.45rem .55rem;font:inherit;font-size:.78rem}.se-checks{display:grid;gap:.3rem;max-height:245px;overflow:auto}.se-check{display:flex;align-items:flex-start;gap:.48rem;padding:.38rem;border-radius:5px;font-size:.75rem}.se-check:hover{background:var(--color-bg)}.se-check input{margin-top:.1rem}
@@ -95,7 +96,17 @@
     .se-page figcaption { font-size:.85em }
     .se-editor-notice { padding:.7rem 1rem;border:1px solid var(--color-border);border-radius:8px;background:var(--color-surface) }
     .se-page-wrap { min-width:0 }
-    .se-side { max-height:calc(100dvh - 150px);overflow:auto }
+    .se-side { position:static; }
+    .se-title { font-family:inherit;font-size:.95rem;font-weight:750;line-height:1.2; }
+    .se-settings-head { position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.65rem;background:var(--color-surface); }
+    .se-settings-head h2 { margin:0; }
+    .se-settings-head form { margin:0; }
+    #se-letter-data,#se-settings { overscroll-behavior:contain; }
+    html:has(#se-letter-data[open],#se-settings[open]) { overflow:hidden; }
+    .se-settings-actions { display:grid;gap:.4rem; }
+    .se-settings-actions > :is(button,a) { justify-content:flex-start; }
+    .se-toolbar-primary .se-tool-label { display:none; }
+    .se-settings-actions > .se-compact-preview { display:none; }
     .se-document-stage { overflow:auto; }
     .se-toolbar .se-select { flex:none; width:auto; }
     .se-toolbar-primary, .se-toolbar-extra { display:contents; }
@@ -159,10 +170,12 @@
     .se-paper-footer { margin-top:auto;padding-top:5mm;text-align:center;font-size:.72em;color:#333 }
     .se-paper-footer p + p { margin-top:2mm }
     @media(max-width:1023px) {
-        body:has(#se-format-toolbar) #app-portal-navigation { display:none; }
-        body:has(#se-format-toolbar) .bento-container { padding-bottom:calc(5rem + env(safe-area-inset-bottom)); }
-        #se-format-toolbar { position:fixed;inset:auto 0 var(--se-keyboard-inset,0px);z-index:100;display:flex;flex-direction:column;gap:0;max-height:min(50dvh,18rem);padding:0 0 env(safe-area-inset-bottom);overflow:auto;border:1px solid var(--color-border);border-radius:.85rem .85rem 0 0;background:var(--color-surface);box-shadow:0 -3px 18px #0002; }
-        .se-toolbar-primary { display:grid;grid-template-columns:repeat(6,minmax(0,1fr));padding:.3rem;gap:.15rem; }
+        body:has(#se-format-toolbar) .bento-container { padding-bottom:calc(4.5rem + env(safe-area-inset-bottom)); }
+        #se-format-toolbar { position:fixed;inset:auto 0 var(--se-keyboard-inset,0px);z-index:100;display:flex;flex-direction:column;gap:0;max-height:min(50dvh,18rem);padding:0 0 env(safe-area-inset-bottom);overflow:auto;border:0;border-top:1px solid var(--color-border);background:var(--color-surface);box-shadow:0 -3px 18px #0002; }
+        .se-toolbar-primary { display:grid;grid-template-columns:repeat(5,minmax(0,1fr));width:min(100%,38rem);margin:auto;padding:.2rem max(.25rem,env(safe-area-inset-right)) .25rem max(.25rem,env(safe-area-inset-left));gap:.12rem; }
+        .se-toolbar-primary .se-tool-label { display:block;font-size:.64rem;line-height:1.05; }
+        #se-format-toolbar .se-toolbar-primary .se-tool { grid-template-rows:auto auto;align-content:center;gap:.2rem;height:50px;border-radius:.55rem; }
+        .se-toolbar-primary .se-tool svg,.se-toolbar-primary .se-tool i { width:18px;height:18px;font-size:1.1rem; }
         .se-toolbar-more { display:grid; }
         .se-toolbar-extra { display:none; }
         #se-format-toolbar[data-expanded="true"] .se-toolbar-extra { order:-1;display:flex;flex-wrap:wrap;gap:.25rem;padding:.5rem;border-bottom:1px solid var(--color-border); }
@@ -178,14 +191,25 @@
         .se-page-wrap.se-document-stage { overflow:auto; }
     }
     @media(max-width:600px) {
-        .se-head { align-items:center }
-        .se-actions { flex-wrap:wrap;justify-content:flex-end }
+        .se-head { top:0; }
+        .se-head-inner { padding-inline:max(.4rem,env(safe-area-inset-left)); }
+        .se-actions { flex-wrap:nowrap;gap:.18rem; }
+        .se-actions .se-btn,.se-title-wrap .se-icon-btn { width:44px;min-height:44px;flex-basis:44px; }
+        .se-title-wrap { gap:.2rem; }
+        .se-title { padding:.2rem; }
+        .se-state { font-size:.62rem; }
         .se-sheet { width:100%;max-width:100%;margin:auto 0 0;border-radius:16px 16px 0 0;padding-bottom:calc(1rem + env(safe-area-inset-bottom)) }
     }
+    @media(max-width:380px) {
+        .se-actions #se-preview { display:none; }
+        .se-settings-actions > .se-compact-preview { display:inline-flex; }
+    }
 </style>
+@endpush
 
-<main class="se-shell">
-    <header class="se-head">
+@section('app-header')
+    <header class="se-head app-header" aria-label="Editor de documentos">
+        <div class="se-head-inner">
         <div class="se-title-wrap">
             <a class="se-icon-btn" href="{{ route('secretary.index', ['tenant' => $tenant->slug, 'section' => $isLayout ? 'layouts' : ($isTemplate ? 'templates' : 'documents')]) }}" title="Voltar" aria-label="Voltar"><i class="ph ph-arrow-left" aria-hidden="true"></i></a>
             <div style="min-width:0;flex:1">
@@ -196,28 +220,16 @@
         <div class="se-actions">
             @if(!$isLayout && !$archiveOnly)<button class="se-btn" id="se-preview" type="button" @disabled(!$editing && !$isOfficialDocument) title="Visualizar PDF" aria-label="Visualizar PDF"><i class="ph ph-file-pdf" aria-hidden="true"></i><span>Prévia PDF</span></button>@endif
             @if(!$closed)<button class="se-btn se-btn-primary" id="se-save" type="button" aria-label="Salvar" title="Salvar"><i class="ph ph-floppy-disk" aria-hidden="true"></i><span>Salvar</span></button>@endif
-            @if($isOfficialDocument && $editing && ($record['status'] ?? '') === 'draft' && $abilities['issue'])
-                <button class="se-btn se-btn-primary" type="button" id="se-issue" aria-label="Emitir ofício" title="Emitir ofício"><i class="ph ph-stamp" aria-hidden="true"></i><span>Emitir</span></button>
-            @endif
+            @if($isOfficialDocument)<button class="se-btn" type="button" data-se-open="se-letter-data" aria-controls="se-letter-data" aria-haspopup="dialog" title="Dados do ofício" aria-label="Dados do ofício"><i class="ph ph-identification-card" aria-hidden="true"></i><span>Dados</span></button>@endif
+            <button class="se-btn" type="button" data-se-open="se-settings" aria-controls="se-settings" aria-haspopup="dialog" title="Configurações e ações" aria-label="Configurações e ações"><i class="ph ph-sliders-horizontal" aria-hidden="true"></i><span>Opções</span></button>
+        </div>
         </div>
     </header>
+@endsection
 
-    @if($isOfficialDocument && $editing)
-        <div class="se-editor-notice se-sheet-actions">
-            @if(in_array($record['status'] ?? '', ['issued', 'cancelled']))
-                <a class="se-btn" href="{{ $previewUrl }}?download=1" download><i class="ph ph-download-simple" aria-hidden="true"></i> Baixar PDF</a>
-            @endif
-            @if($abilities['create'])<a class="se-btn" href="{{ route('secretary.documents.create', ['tenant' => $tenant->slug, 'from_document' => $recordId]) }}"><i class="ph ph-copy" aria-hidden="true"></i> Duplicar</a>@endif
-            @if(($record['status'] ?? '') === 'issued' && $abilities['cancel'])<button type="button" class="se-btn se-btn-danger" id="se-cancel">Cancelar ofício</button>@endif
-            @if($deleteUrl && !$closed)<button class="se-btn se-btn-danger" id="se-delete-open" type="button"><i class="ph ph-trash" aria-hidden="true"></i> Excluir rascunho</button>@endif
-            @if(!empty($record['cancellation']))<p>{{ $record['cancellation'] }}</p>@endif
-        </div>
-    @elseif($isTemplate && $editing && $abilities['templates'])
-        <a class="se-btn" href="{{ route('secretary.templates.create', ['tenant' => $tenant->slug, 'from' => $recordId]) }}">Duplicar modelo</a>
-    @endif
-    @if($isOfficialDocument)
-        @include('secretary.official-letter-fields', ['letterFieldsOnly' => true])
-    @endif
+@section('content')
+<div class="se-shell">
+    @if(!empty($record['cancellation']))<p class="se-editor-notice">{{ $record['cancellation'] }}</p>@endif
     <div class="se-workspace">
         <section class="se-main">
             @if($archiveOnly)
@@ -229,14 +241,14 @@
             @else
                 @if(!$closed)<div class="se-toolbar" id="se-format-toolbar" role="group" aria-label="Formatação de texto">
                     <div class="se-toolbar-primary">
-                        <button class="se-tool" type="button" data-command="bold" title="Negrito" aria-label="Negrito"><i data-lucide="bold" aria-hidden="true"></i></button>
-                        <button class="se-tool" type="button" data-command="italic" title="Itálico" aria-label="Itálico"><i data-lucide="italic" aria-hidden="true"></i></button>
-                        <button class="se-tool" type="button" data-command="underline" title="Sublinhado" aria-label="Sublinhado"><i data-lucide="underline" aria-hidden="true"></i></button>
-                        <button class="se-tool" type="button" data-command="insertUnorderedList" title="Lista" aria-label="Lista com marcadores"><i data-lucide="list" aria-hidden="true"></i></button>
-                        <button class="se-tool" type="button" data-command="undo" title="Desfazer" aria-label="Desfazer"><i data-lucide="undo-2" aria-hidden="true"></i></button>
-                        <button class="se-tool se-toolbar-more" id="se-toolbar-more" type="button" title="Mais ferramentas" aria-label="Mais ferramentas" aria-expanded="false" aria-controls="se-toolbar-extra"><i class="ph ph-dots-three" aria-hidden="true"></i></button>
+                        <button class="se-tool" type="button" data-command="undo" title="Desfazer" aria-label="Desfazer"><i class="ph ph-arrow-counter-clockwise" aria-hidden="true"></i><span class="se-tool-label" aria-hidden="true">Desfazer</span></button>
+                        <button class="se-tool" type="button" data-command="bold" title="Negrito" aria-label="Negrito"><i class="ph ph-text-b" aria-hidden="true"></i><span class="se-tool-label" aria-hidden="true">Negrito</span></button>
+                        <button class="se-tool" type="button" data-command="italic" title="Itálico" aria-label="Itálico"><i class="ph ph-text-italic" aria-hidden="true"></i><span class="se-tool-label" aria-hidden="true">Itálico</span></button>
+                        <button class="se-tool" type="button" data-command="insertUnorderedList" title="Lista" aria-label="Lista com marcadores"><i class="ph ph-list-bullets" aria-hidden="true"></i><span class="se-tool-label" aria-hidden="true">Lista</span></button>
+                        <button class="se-tool se-toolbar-more" id="se-toolbar-more" type="button" title="Mais ferramentas" aria-label="Mais ferramentas" aria-expanded="false" aria-controls="se-toolbar-extra"><i class="ph ph-text-aa" aria-hidden="true"></i><span class="se-tool-label" aria-hidden="true">Formato</span></button>
                     </div>
                     <div class="se-toolbar-extra" id="se-toolbar-extra">
+                    <button class="se-tool" type="button" data-command="underline" title="Sublinhado" aria-label="Sublinhado"><i data-lucide="underline" aria-hidden="true"></i></button>
                     <button class="se-tool" type="button" data-command="redo" title="Refazer"><i data-lucide="redo-2"></i></button><span class="se-divider"></span>
                     <select class="se-select" id="se-format" aria-label="Estilo do texto"><option value="p">Texto</option><option value="h1">Título 1</option><option value="h2">Título 2</option><option value="h3">Título 3</option></select>
                     <button class="se-tool" type="button" data-command="strikeThrough" title="Tachado"><i data-lucide="strikethrough"></i></button><span class="se-divider"></span>
@@ -277,8 +289,24 @@
                 @endif
             @endif
         </section>
+    </div>
+</div>
 
-        <aside class="se-side">
+    @if($isOfficialDocument)
+        <dialog id="se-letter-data" class="se-sheet" aria-labelledby="se-letter-data-title">
+            <div class="se-settings-head">
+                <h2 id="se-letter-data-title">Dados do ofício</h2>
+                <form method="dialog"><button class="se-icon-btn" aria-label="Fechar dados do ofício"><i class="ph ph-x" aria-hidden="true"></i></button></form>
+            </div>
+            @include('secretary.official-letter-fields', ['letterFieldsOnly' => true, 'expandLetterFields' => true])
+        </dialog>
+    @endif
+    <dialog id="se-settings" class="se-sheet" aria-labelledby="se-settings-title">
+        <div class="se-settings-head">
+            <h2 id="se-settings-title">Configurações e ações</h2>
+            <form method="dialog"><button class="se-icon-btn" aria-label="Fechar configurações"><i class="ph ph-x" aria-hidden="true"></i></button></form>
+        </div>
+        <div class="se-side">
             <details class="se-panel" open><summary>Documento <i data-lucide="chevron-down" style="width:15px"></i></summary><div class="se-panel-body">
                 @if($isTemplate)<div class="se-field"><label for="se-type">Tipo</label><select id="se-type" class="se-control">@foreach(\App\Models\DocumentTemplate::TYPES as $value => $label)<option value="{{ $value }}" @selected(($record['type'] ?? 'minutes') === $value)>{{ $label }}</option>@endforeach</select></div>@endif
                 @if($isLayout)<div class="se-field"><label for="se-layout-type">Aplicação</label><select id="se-layout-type" class="se-control">@foreach(\App\Models\PdfLayoutTemplate::LAYOUT_TYPES as $value => $label)<option value="{{ $value }}" @selected(($record['layout_type'] ?? 'header') === $value)>{{ $label }}</option>@endforeach</select></div><div class="se-field"><label for="se-layout-height">Altura reservada (mm)</label><input id="se-layout-height" class="se-control" type="number" min="8" max="100" value="{{ $record['estimated_height_mm'] ?? 22 }}"></div>@endif
@@ -308,10 +336,23 @@
             @if(!$closed)
                 <details class="se-panel"><summary>Variáveis <i data-lucide="chevron-down" style="width:15px"></i></summary><div class="se-panel-body"><div class="se-vars">@foreach($variables as $group => $items)<div class="se-var-group"><strong>{{ $group }}</strong><div class="se-var-list">@foreach($items as $token => $label)<button class="se-var" type="button" data-variable="{{ $token }}" title="{{ $label }}">{{ $token }}</button>@endforeach</div></div>@endforeach</div></div></details>
             @endif
-            @if($deleteUrl && !$closed && !$isOfficialDocument)<button class="se-btn se-btn-danger" id="se-delete-open" type="button"><i class="ph ph-trash" aria-hidden="true"></i> {{ $mode === 'document' ? 'Excluir rascunho' : 'Excluir' }}</button>@endif
-        </aside>
-    </div>
-</main>
+            <div class="se-settings-actions">
+                @if(!$isLayout && !$archiveOnly && ($editing || $isOfficialDocument))
+                    <button class="se-btn se-compact-preview" type="button" id="se-compact-preview"><i class="ph ph-file-pdf" aria-hidden="true"></i> Prévia PDF</button>
+                @endif
+                @if($isOfficialDocument && $editing)
+                    @if($archiveOnly)<a class="se-btn" href="{{ $previewUrl }}?download=1" download><i class="ph ph-download-simple" aria-hidden="true"></i> Baixar PDF</a>@endif
+                    @if(!$closed && ($record['status'] ?? '') === 'draft' && $abilities['issue'])<button class="se-btn se-btn-primary" type="button" id="se-issue"><i class="ph ph-stamp" aria-hidden="true"></i> Emitir ofício</button>@endif
+                    @if($abilities['create'])<a class="se-btn" href="{{ route('secretary.documents.create', ['tenant' => $tenant->slug, 'from_document' => $recordId]) }}"><i class="ph ph-copy" aria-hidden="true"></i> Duplicar ofício</a>@endif
+                    @if(($record['status'] ?? '') === 'issued' && $abilities['cancel'])<button type="button" class="se-btn se-btn-danger" id="se-cancel">Cancelar ofício</button>@endif
+                @elseif($isTemplate && $editing && $abilities['templates'])
+                    <a class="se-btn" href="{{ route('secretary.templates.create', ['tenant' => $tenant->slug, 'from' => $recordId]) }}">Duplicar modelo</a>
+                @endif
+                @if($deleteUrl && !$closed)<button class="se-btn se-btn-danger" id="se-delete-open" type="button"><i class="ph ph-trash" aria-hidden="true"></i> {{ $mode === 'document' ? 'Excluir rascunho' : 'Excluir' }}</button>@endif
+                <button type="button" class="se-btn" data-sgc-theme-toggle aria-pressed="false"><i class="ph ph-moon" data-sgc-theme-icon aria-hidden="true"></i><span>Alternar tema</span></button>
+            </div>
+        </div>
+    </dialog>
 
 <input id="se-image-input" type="file" accept="image/png,image/jpeg,image/webp" hidden>
 <div class="se-suggest" id="se-suggest" hidden></div>
@@ -363,6 +404,7 @@
     const toolbar = document.getElementById('se-format-toolbar');
     const moreTools = document.getElementById('se-toolbar-more');
     const mobileEditor = matchMedia('(max-width:1023px)');
+    const settingsDialog = document.getElementById('se-settings');
     const variableEntries = Object.entries(config.variables).flatMap(([group, items]) => Object.entries(items).map(([token, label]) => ({group, token, label})));
     let dirty = false;
     let saving = false;
@@ -374,6 +416,13 @@
     let onlineConflict = false;
     let activeSave = null;
 
+    document.querySelectorAll('[data-se-open]').forEach(button => {
+        button.addEventListener('click', () => document.getElementById(button.dataset.seOpen).showModal());
+    });
+    document.getElementById('se-compact-preview')?.addEventListener('click', () => {
+        settingsDialog.close();
+        previewButton.click();
+    });
     if (editor?.isContentEditable) {
         const updatePlaceholder = () => {
             const hasText = editor.textContent.replace(/[\u200B\uFEFF]/g, '').trim().length > 0;
@@ -577,7 +626,10 @@
         insertHtml('<table>' + heading + '<tbody>' + row.repeat(rows) + '</tbody></table><p><br></p>');
     });
     document.getElementById('se-pagebreak')?.addEventListener('click', () => insertHtml('<div style="page-break-after:always"><br></div><p><br></p>'));
-    document.querySelectorAll('[data-variable]').forEach(button => button.addEventListener('click', () => insertHtml(button.dataset.variable)));
+    document.querySelectorAll('[data-variable]').forEach(button => button.addEventListener('click', () => {
+        if (settingsDialog.open) settingsDialog.close();
+        insertHtml(button.dataset.variable);
+    }));
 
     const linkDialog = document.getElementById('se-link-dialog');
     document.getElementById('se-link')?.addEventListener('click', () => { rememberSelection(); document.getElementById('se-link-url').value=''; linkDialog.showModal(); });
@@ -1055,6 +1107,7 @@
     for (const [action, id] of Object.entries({issue:'se-issue',cancel:'se-cancel',delete:'se-delete-open'})) {
         byId(id)?.addEventListener('click', () => {
             letterAction = action;
+            if (settingsDialog.open) settingsDialog.close();
             const [title, description, label] = actionCopy[action];
             byId('se-letter-action-title').textContent = title;
             byId('se-letter-action-text').textContent = description;

@@ -3477,6 +3477,9 @@
             <span class="request-loader-progress" aria-hidden="true"></span>
         </div>
     </div>
+    @hasSection('app-header')
+        @yield('app-header')
+    @else
     <header class="app-header">
         <div class="app-header__content">
             <div class="app-header__left">
@@ -3521,6 +3524,7 @@
             </div>
         </div>
     </header>
+    @endif
 
     <script>
         (() => {

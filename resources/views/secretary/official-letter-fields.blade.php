@@ -24,7 +24,7 @@
 @endphp
 
 @if (!empty($letterFieldsOnly))
-    <details class="se-panel se-letter-details">
+    <details class="se-panel se-letter-details" @if(!empty($expandLetterFields)) open @endif>
         <summary>Dados do ofício <i class="ph ph-caret-down" aria-hidden="true"></i></summary>
         <div class="se-panel-body se-field-grid">
             @foreach (\App\Services\OfficialLetterService::FIELDS as $field => $label)
