@@ -761,6 +761,7 @@
                   <svg class="icon" id="retryIcon"><use href="#i-refresh"></use></svg>
                   <span id="retryLabel">Tentar novamente</span>
                 </button>
+                <a class="primary-btn" href="/provider-offline.html#inicio">Abrir portais offline</a>
               </div>
             </section>
 

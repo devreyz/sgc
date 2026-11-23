@@ -130,7 +130,8 @@ class ServiceProviderPortalController extends Controller
             : [];
         return response()->json([
             'scope' => $this->offlineScope($request, $tenant, $provider),
-            'user' => (string) $request->user()->id, 'tenant' => $tenant->slug, 'organization' => $tenant->name,
+            'user' => (string) $request->user()->id, 'accountName' => $request->user()->name,
+            'tenant' => $tenant->slug, 'organization' => $tenant->name,
             'logo' => $this->offlineLogo($tenant),
             'provider' => $provider?->name, 'providerId' => $provider?->id, 'operator' => $operator,
             'providers' => $providers->map(fn (ServiceProvider $candidate) => ['id' => $candidate->id, 'name' => $candidate->name])->values(),

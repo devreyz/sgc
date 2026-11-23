@@ -1,42 +1,54 @@
 <!doctype html>
-<html lang="pt-BR" data-theme="sgc">
+<html lang="pt-BR">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
     <meta name="theme-color" content="#173c2e">
-    <meta name="color-scheme" content="light">
     <meta name="robots" content="noindex">
-    <title>Serviços offline · SGC</title>
+    <title>SGC offline</title>
     <link rel="stylesheet" href="./assets/provider-offline.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css" crossorigin="anonymous" referrerpolicy="no-referrer">
 </head>
 <body>
 <header class="fieldwork-header">
     <div class="fieldwork-header-content">
         <img src="./assets/icons/campo-dark-192.png" width="44" height="44" alt="SGC">
-        <div class="fieldwork-identity">
-            <h1>Serviços offline</h1>
-            <p id="organization"></p>
-        </div>
+        <div class="fieldwork-identity"><h1>SGC offline</h1><p id="organization"></p></div>
         <span id="connection" role="status"></span>
     </div>
 </header>
 <main>
     <div class="fieldwork-toolbar">
-        <a id="portal" href="/app">← Portal do prestador</a>
-        <button id="refresh" type="button" hidden>Atualizar dados</button>
+        <a id="portal" href="/app"><i class="ph ph-arrow-square-out" aria-hidden="true"></i> Abrir SGC online</a>
+        <button id="refresh" type="button" hidden><i class="ph ph-arrows-clockwise" aria-hidden="true"></i> Atualizar dados</button>
     </div>
-    <p id="message" role="status">Carregando a agenda de campo…</p>
-    <section id="workspace" hidden>
-        <div id="queue-orders" class="order-list fieldwork-queue" aria-label="Registros a sincronizar" hidden></div>
-        <div class="section-head">
-            <div>
-                <h2>Agenda de campo</h2>
-                <p id="agenda-period"></p>
-            </div>
-            <button id="create" type="button" class="primary">+ Nova ordem</button>
+    <p id="message" role="status">Verificando dados deste aparelho…</p>
+    <section id="offline-home" aria-labelledby="offline-home-title">
+        <div class="offline-hero">
+            <h2 id="offline-home-title" tabindex="-1">Início offline</h2>
+            <div id="offline-account" hidden><strong id="account-name"></strong><p id="account-role"></p></div>
         </div>
-        <p id="catalog-status" hidden>Nenhum serviço disponível para criar ordens. Conecte-se e atualize o catálogo.</p>
+        <h3>Portais disponíveis</h3>
+        <a id="open-provider" class="portal-card" href="#agenda" hidden>
+            <i class="ph ph-wrench" aria-hidden="true"></i>
+            <span><strong>Prestador de serviços</strong><small>Agenda, ordens e execução em campo</small></span>
+            <i class="ph ph-caret-right" aria-hidden="true"></i>
+        </a>
+        <p id="portal-unavailable">Entre no portal do prestador com internet para preparar o aparelho.</p>
+    </section>
+    <section id="workspace" hidden>
+        <div class="section-head">
+            <div><h2 id="agenda-heading" tabindex="-1">Agenda de serviços</h2><p id="agenda-period"></p></div>
+            <button id="create" type="button" class="primary"><i class="ph ph-plus" aria-hidden="true"></i> Nova ordem</button>
+        </div>
+        <p id="agenda-summary"></p>
+        <div id="queue-orders" class="order-list fieldwork-queue" aria-label="Registros a sincronizar" hidden></div>
+        <p id="catalog-status" hidden>Nenhum serviço disponível. Conecte-se e atualize o catálogo.</p>
         <div class="agenda-tools">
+            <div class="agenda-view" aria-label="Modo de visualização">
+                <button id="view-calendar" type="button" aria-pressed="true"><i class="ph ph-calendar-blank" aria-hidden="true"></i> Calendário</button>
+                <button id="view-list" type="button" aria-pressed="false"><i class="ph ph-list-bullets" aria-hidden="true"></i> Lista</button>
+            </div>
             <label class="agenda-search" for="order-search">Buscar na agenda
                 <input type="search" id="order-search" placeholder="Nome, serviço ou número da OS" autocomplete="off">
             </label>
@@ -46,33 +58,45 @@
                 <button type="button" data-agenda-state="in_progress" aria-pressed="false">Em execução</button>
             </div>
         </div>
-        <div id="orders" class="order-list"></div>
+        <div class="agenda-panels">
+            <div id="calendar" class="calendar">
+                <div class="section-head">
+                    <button id="previous-month" type="button" aria-label="Mês anterior">‹</button>
+                    <strong id="calendar-month" aria-live="polite"></strong>
+                    <button id="next-month" type="button" aria-label="Próximo mês">›</button>
+                </div>
+                <div class="calendar-weekdays" aria-hidden="true"><span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span></div>
+                <div id="calendar-days" class="calendar-days"></div>
+                <div class="agenda-view"><button id="agenda-today" type="button">Hoje</button><button id="agenda-all" type="button">Todos os dias</button></div>
+            </div>
+            <div class="agenda-results"><h3 id="agenda-results-heading"></h3><div id="orders" class="order-list"></div></div>
+        </div>
         <p id="updated"></p>
     </section>
     <section id="editor" hidden aria-labelledby="editor-title">
         <div class="section-head">
-            <h2 id="editor-title"></h2>
-            <button id="back" type="button">← Agenda</button>
+            <h2 id="editor-title" tabindex="-1"></h2>
+            <a id="back" href="#agenda"><i class="ph ph-arrow-left" aria-hidden="true"></i> Agenda</a>
         </div>
         <p id="order-status"></p>
         <form id="order-form"></form>
         <p id="estimate" aria-live="polite"></p>
         <div id="order-actions" class="actions"></div>
     </section>
-    <details>
+    <details id="offline-help">
         <summary>O que funciona offline</summary>
         <p>Consulte ordens agendadas e em execução, dos últimos sete dias até um mês à frente. Crie ordens, registre medições e fotos e compartilhe a via do beneficiário.</p>
-        <p>As alterações salvas são sincronizadas quando a conexão voltar. Conferência e pagamentos ficam no portal online.</p>
+        <p>As alterações salvas são sincronizadas quando a conexão voltar. Conferência, recursos e pagamentos ficam no portal online.</p>
     </details>
 </main>
+<nav id="offline-nav" class="offline-nav" aria-label="Navegação offline">
+    <a href="#inicio" data-offline-link="inicio" aria-current="page"><i class="ph ph-house" aria-hidden="true"></i> Início</a>
+    <a href="#agenda" data-offline-link="agenda" hidden><i class="ph ph-calendar-blank" aria-hidden="true"></i> Agenda</a>
+    <a href="#nova" data-offline-link="nova" hidden><i class="ph ph-plus-circle" aria-hidden="true"></i> Nova ordem</a>
+</nav>
 <dialog id="field-picker" class="field-picker" aria-labelledby="field-picker-title">
-    <div class="section-head">
-        <h2 id="field-picker-title"></h2>
-        <button type="button" id="field-picker-close">Fechar</button>
-    </div>
-    <label for="field-picker-search">Buscar opção
-        <input id="field-picker-search" type="search" autocomplete="off">
-    </label>
+    <div class="section-head"><h2 id="field-picker-title"></h2><button type="button" id="field-picker-close">Fechar</button></div>
+    <label for="field-picker-search">Buscar opção<input id="field-picker-search" type="search" autocomplete="off"></label>
     <div id="field-picker-options" class="field-picker-options"></div>
 </dialog>
 <script type="module" src="./assets/provider-offline.js"></script>

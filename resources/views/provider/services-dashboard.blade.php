@@ -517,7 +517,7 @@ html:has(.svc-agenda-dialog[open]), body:has(.svc-agenda-dialog[open]) { overflo
         </a>
     </header>
     @if($provider || $operator)
-        <a class="svc-head-action" href="{{ url('/provider-offline.html').'?'.http_build_query(['tenant' => $tenantSlug]) }}" data-provider-offline-link>Modo offline</a>
+        <a class="svc-head-action" href="{{ url('/provider-offline.html').'?'.http_build_query(['tenant' => $tenantSlug, 'screen' => 'inicio']) }}" data-provider-offline-link>Modo offline</a>
     @endif
 
     <div class="svc-agenda-layout">

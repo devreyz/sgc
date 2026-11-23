@@ -19,6 +19,7 @@ function setup() {
             match: async request => contents.get(request.url || request),
             add: async request => contents.set(request.url, source.get(request.url)),
             addAll: async requests => {
+                if (fail) throw Error('Offline');
                 const values = requests.map(request => {
                     if (!source.has(request.url)) throw Error('Incomplete release');
                     return [request.url, source.get(request.url)];
@@ -26,11 +27,17 @@ function setup() {
                 for (const [url, response] of values) contents.set(url, response);
             },
             put: async (request, response) => contents.set(request.url || request, response),
+            keys: async () => [...contents.keys()],
+            delete: async key => contents.delete(key),
         };
     }
     vm.runInNewContext(script, {
         URL, URLSearchParams, Request: class { constructor(url, options) { this.url = url; this.options = options; } },
-        Date: {now: () => now}, Response: {error: () => ({status: 0}), redirect: location => ({status: 302, location})},
+        Date: {now: () => now}, Response: class {
+            constructor(value) { this.text = async () => value; }
+            static error() { return {status: 0}; }
+            static redirect(location) { return {status: 302, location}; }
+        },
         self: {
             location: {origin: 'https://sgc.test'},
             addEventListener: (event, handler) => events[event] = handler,
@@ -44,7 +51,7 @@ function setup() {
             assert.equal(options.cache, 'no-cache');
             if (fail) throw Error('Offline');
             const url = new URL(request.url);
-            return source.get(url.pathname) || {status: 404};
+            return source.get(url.href) || source.get(url.pathname) || {status: 404};
         },
     });
     function run(event, data = {}) {
@@ -54,10 +61,10 @@ function setup() {
         return {response, pending: Promise.all(pending)};
     }
     function fetchPath(url, mode = 'cors', method = 'GET') {
-        return run('fetch', {request: {url: 'https://sgc.test' + url, mode, method}});
+        return run('fetch', {request: {url: new URL(url, 'https://sgc.test').href, mode, method}});
     }
     function onlineFile(url, release) {
-        const response = {release, status: 200, ok: true, type: 'basic', headers: {get: () => ''}};
+        const response = {release, status: 200, ok: true, type: url.startsWith('https://') ? 'cors' : 'basic', headers: {get: () => ''}};
         response.clone = () => response;
         source.set(url, response);
     }
@@ -66,7 +73,7 @@ function setup() {
             '/assets/provider-offline-store.js', '/assets/provider-offline-document.js', '/assets/icons/campo-dark-192.png', '/offline']) onlineFile(url, version);
     }
     return {run, fetchPath, onlineFile, release, source, cacheContents,
-        network: online => { fail = !online; }, advanceTime: () => { now += 600001; }};
+        network: online => { fail = !online; }, advanceTime: (elapsed = 600001) => { now += elapsed; }};
 }
 
 test('public files are revalidated online and cached as a fallback only', async () => {
@@ -141,10 +148,53 @@ test('the provider offline link stays in the requested organization', async () =
     assert.equal(sw.fetchPath('/coop/provider/financial', 'navigate').response, undefined);
 });
 
+test('third-party icons are refreshed daily and unrelated CDN assets are ignored', async () => {
+    const sw = setup();
+    const icons = 'https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css';
+    sw.onlineFile(icons, 'first day');
+    assert.equal((await sw.fetchPath(icons).response).release, 'first day');
+    sw.onlineFile(icons, 'second day');
+    assert.equal((await sw.fetchPath(icons).response).release, 'first day');
+    sw.advanceTime(86400000);
+    assert.equal((await sw.fetchPath(icons).response).release, 'second day');
+    assert.equal(sw.cacheContents.has('sgc-static-day-0'), false);
+    assert.equal(sw.fetchPath('https://cdn.jsdelivr.net/npm/other/style.css').response, undefined);
+});
+
+test('an expired offline shell is removed when the app is opened', async () => {
+    const sw = setup();
+    sw.release('previous');
+    await sw.run('install').pending;
+    sw.advanceTime(8 * 86400000);
+    sw.network(false);
+    assert.equal((await sw.fetchPath('/provider-offline.html').response).status, 0);
+    assert.ok(!sw.cacheContents.get('sgc-provider-shell-6')?.has('/provider-offline.html'));
+});
+
+test('offline identity requires the same account, sign-in epoch and expiry', () => {
+    const source = readFileSync(path.join(__dirname, '../../public/assets/provider-offline-store.js'), 'utf8');
+    const values = new Map();
+    const hasAccess = vm.runInNewContext(source.slice(source.indexOf('function account()'), source.indexOf('function notify()'))
+        .replace('export function', 'function') + '\nhasOfflineAccess', {
+        localStorage: {getItem: key => values.get(key)}, accountKey: 'account', signedOutKey: 'signed-out',
+    });
+    const bundle = {user: '12', accountEpoch: 'initial', expiresAt: new Date(Date.now() + 60000).toISOString()};
+    values.set('account', JSON.stringify({user: '12', epoch: 'initial'}));
+    assert.equal(hasAccess(bundle), true);
+    assert.equal(hasAccess({...bundle, expiresAt: new Date(0).toISOString()}), false);
+    values.set('signed-out', '1');
+    assert.equal(hasAccess(bundle), false);
+    values.delete('signed-out');
+    values.set('account', JSON.stringify({user: '12', epoch: 'new-login'}));
+    assert.equal(hasAccess(bundle), false);
+    values.set('account', JSON.stringify({user: '13', epoch: 'initial'}));
+    assert.equal(hasAccess(bundle), false);
+});
+
 test('the cached fieldwork window excludes older, distant and completed orders', () => {
     const source = readFileSync(path.join(__dirname, '../../public/assets/provider-offline-store.js'), 'utf8');
     const start = source.indexOf('function fieldworkBundle(');
-    const end = source.indexOf('export function hasOfflineAccess', start);
+    const end = source.indexOf('function account()', start);
     const filter = vm.runInNewContext('(' + source.slice(start, end).trim() + ')');
     const order = (id, scheduled, state = 'scheduled', execution = 'draft') => ({id, scheduled, state, execution});
     const bundle = {orders: [

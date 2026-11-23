@@ -5,12 +5,19 @@ const get = id => document.getElementById(id);
 const message = get('message'), form = get('order-form'), actions = get('order-actions');
 let bundle, pending = [], active, syncing = false, saving = false;
 let agendaState = '';
+let agendaView = 'calendar', selectedDay = '', currentMonth, renderedRoute;
 const picker = get('field-picker');
 const pickerSearch = get('field-picker-search');
 const pickerOptions = get('field-picker-options');
 let pickerSelect, pickerButton;
-let requestedCreation = new URL(location.href).searchParams.get('new') === '1' || /\/provider\/orders\/create\/?$/.test(location.pathname);
-let requestedOrderId = new URL(location.href).searchParams.get('os') || location.pathname.match(/\/provider\/orders\/(\d+)$/)?.[1];
+const initialLink = new URL(location.href);
+const oldOrder = initialLink.searchParams.get('os') || location.pathname.match(/\/provider\/orders\/(\d+)\/?$/)?.[1];
+const initialRoute = oldOrder && /^\d+$/.test(oldOrder) ? 'os/'+oldOrder
+    : initialLink.searchParams.get('new') === '1' || /\/provider\/orders\/create\/?$/.test(location.pathname) ? 'nova'
+        : initialLink.searchParams.get('screen') !== 'inicio' && requestedTenant() ? 'agenda' : 'inicio';
+const route = () => location.hash.slice(1) || initialRoute;
+const openRoute = path => { location.hash = path; };
+if (!location.hash) history.replaceState(null, '', '#'+initialRoute);
 
 function element(tag, text) {
     const node = document.createElement(tag);
@@ -124,20 +131,86 @@ function formGroup(label) {
 
 const editableState = order => ['draft','in_progress','rejected'].includes(order.execution);
 const displayDate = value => value?.slice(0, 10).split('-').reverse().join('/');
+const orderDay = order => (order?.executionDate || order?.scheduled || '').slice(0, 10);
+const rowDay = row => orderDay(row.orderSnapshot) || row.payload.creation?.scheduled_at?.slice(0, 10) || '';
+const today = () => new Intl.DateTimeFormat('sv-SE', {timeZone:bundle.timezone || 'America/Sao_Paulo'}).format(new Date());
+const monthStart = (month, offset = 0) => {
+    const [year, number] = month.split('-').map(Number);
+    return new Date(Date.UTC(year, number - 1 + offset, 1)).toISOString().slice(0, 7);
+};
+
+function renderCalendar(orders) {
+    get('calendar').hidden = agendaView !== 'calendar';
+    get('view-calendar').setAttribute('aria-pressed', String(agendaView === 'calendar'));
+    get('view-list').setAttribute('aria-pressed', String(agendaView === 'list'));
+    const minimum = bundle.window.from.slice(0, 7), maximum = bundle.window.to.slice(0, 7);
+    const todayDate = today();
+    currentMonth = currentMonth >= minimum && currentMonth <= maximum ? currentMonth : todayDate.slice(0, 7);
+    if (selectedDay < bundle.window.from || selectedDay > bundle.window.to) selectedDay = '';
+    const date = new Date(currentMonth+'-01T00:00:00Z');
+    get('calendar-month').textContent = new Intl.DateTimeFormat('pt-BR', {month:'long',year:'numeric',timeZone:'UTC'}).format(date);
+    get('previous-month').disabled = currentMonth <= minimum;
+    get('next-month').disabled = currentMonth >= maximum;
+    const focusDay = document.activeElement?.dataset.calendarDay;
+    const grid = get('calendar-days');
+    grid.replaceChildren();
+    const counts = new Map();
+    for (const key of [...orders.map(orderDay), ...pending.map(rowDay)]) {
+        if (key) counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    for (let slot = 0; slot < date.getUTCDay(); slot++) grid.append(element('span'));
+    while (date.toISOString().slice(0, 7) === currentMonth) {
+        const day = date.toISOString().slice(0, 10);
+        const count = counts.get(day) || 0;
+        const cell = button(String(date.getUTCDate()), () => {
+            selectedDay = selectedDay === day ? '' : day;
+            renderList();
+        });
+        cell.dataset.calendarDay = day;
+        cell.disabled = day < bundle.window.from || day > bundle.window.to;
+        cell.setAttribute('aria-pressed', String(day === selectedDay));
+        cell.setAttribute('aria-label', displayDate(day) + (count ? ', '+count+' ordens' : ''));
+        if (day === todayDate) cell.setAttribute('aria-current', 'date');
+        if (count) cell.append(element('small', String(count)));
+        grid.append(cell);
+        if (focusDay === day) cell.focus({preventScroll:true});
+        date.setUTCDate(date.getUTCDate() + 1);
+    }
+    get('agenda-results-heading').textContent = agendaView === 'calendar' && selectedDay ? 'Ordens de '+displayDate(selectedDay) : 'Ordens na agenda';
+}
 const localStatus = row => ({
     schedule: 'Agendamento salvo no aparelho', draft: 'Rascunho salvo no aparelho',
     start: 'Em execução no aparelho', finish: 'Finalizado no aparelho • Aguardando envio',
 })[row.payload.action];
 
 function renderList() {
-    get('workspace').hidden = !bundle || !!active;
+    const currentRoute = route();
+    const home = !bundle || currentRoute === 'inicio';
+    get('offline-home').hidden = !home;
+    get('workspace').hidden = home || !!active;
     get('editor').hidden = !bundle || !active;
+    get('offline-help').hidden = !home;
+    get('offline-account').hidden = !bundle;
+    get('open-provider').hidden = !bundle;
+    get('portal-unavailable').hidden = !!bundle;
+    get('account-name').textContent = bundle?.accountName || bundle?.provider || '';
+    get('account-role').textContent = bundle ? (bundle.operator ? 'Operação de serviços' : 'Prestador de serviços') : '';
+    for (const link of document.querySelectorAll('[data-offline-link]')) {
+        const tab = link.dataset.offlineLink;
+        link.hidden = tab !== 'inicio' && (!bundle || (tab === 'nova' && !bundle.catalog.length));
+        if (tab === (home ? 'inicio' : currentRoute === 'nova' ? 'nova' : 'agenda')) link.setAttribute('aria-current', 'page');
+        else link.removeAttribute('aria-current');
+    }
     if (!bundle) {
         get('organization').textContent = '';
         get('orders').replaceChildren();
         get('queue-orders').replaceChildren();
         form.replaceChildren();
         actions.replaceChildren();
+        get('calendar-days').replaceChildren();
+        for (const id of ['agenda-summary', 'updated', 'agenda-period', 'editor-title']) get(id).textContent = '';
+        get('order-status').textContent = '';
+        get('estimate').textContent = '';
         get('portal').href = '/app';
         return;
     }
@@ -145,6 +218,8 @@ function renderList() {
     get('portal').href = bundle.portalUrl;
     get('updated').textContent = 'Atualizado em '+new Date(bundle.issuedAt).toLocaleString('pt-BR');
     get('agenda-period').textContent = displayDate(bundle.window.from)+' a '+displayDate(bundle.window.to);
+    const scheduled = bundle.orders.filter(order => order.state === 'scheduled').length;
+    get('agenda-summary').textContent = scheduled+' agendada(s) · '+(bundle.orders.length - scheduled)+' em execução · '+pending.length+' na fila';
     get('create').disabled = bundle.catalog.length === 0;
     get('catalog-status').hidden = bundle.catalog.length > 0;
 
@@ -160,7 +235,7 @@ function renderList() {
                 message.textContent = 'Esta ordem está fora da agenda de campo. O registro salvo continua na fila de sincronização.';
                 return;
             }
-            openOrder(order, row);
+            openRoute('registro/'+row.id);
         });
         item.className = 'order-row';
         item.append(element('small', [order?.number, row.error || localStatus(row)].filter(Boolean).join(' · ')));
@@ -171,10 +246,13 @@ function renderList() {
     root.replaceChildren();
     const query = searchable(get('order-search').value);
     const queuedIds = new Set(pending.map(row => row.payload.order_id));
-    for (const order of bundle.orders) {
-        if (queuedIds.has(order.id) || (agendaState && agendaState !== order.state)
-            || !searchable([order.number, order.beneficiary, order.service, order.location].filter(Boolean).join(' ')).includes(query)) continue;
-        const item = button(order.beneficiary || order.number, () => openOrder(order));
+    const matching = bundle.orders.filter(order => !queuedIds.has(order.id)
+        && (!agendaState || agendaState === order.state)
+        && searchable([order.number, order.beneficiary, order.service, order.location].filter(Boolean).join(' ')).includes(query));
+    renderCalendar(matching);
+    for (const order of matching) {
+        if (agendaView === 'calendar' && selectedDay && orderDay(order) !== selectedDay) continue;
+        const item = button(order.beneficiary || order.number, () => openRoute('os/'+order.id));
         item.className = 'order-row';
         item.append(element('small', [order.number, order.service, displayDate(order.executionDate || order.scheduled)].filter(Boolean).join(' · ')));
         const status = element('span', order.state === 'in_progress' ? 'Em execução' : 'Agendada');
@@ -193,15 +271,25 @@ function chosenVersion() {
 
 function renderFields(catalog, target, values, files, writable, isNew) {
     target.replaceChildren();
+    const groups = {};
     for (const item of catalog?.fields || []) {
         if (item.phase === 'review') continue;
         const editable = writable && item.editable_by_provider && (isNew || item.phase !== 'order');
-        if (['image','file','signature'].includes(item.type)) {
-            if (!editable || item.phase === 'order') continue;
-            const input = field(target,item.label,'file:'+item.key,'','file');
+        const evidence = ['image','file','signature'].includes(item.type);
+        if (evidence && (!editable || item.phase === 'order')) continue;
+        const phase = evidence ? 'evidence' : item.phase || 'execution';
+        if (!groups[phase]) {
+            const group = element('fieldset');
+            group.className = 'order-field-group';
+            group.append(element('legend', ({order:'Dados da ordem', start:'Início do serviço', finish:'Finalização', evidence:'Evidências'})[phase] || 'Medições da execução'));
+            groups[phase] = group;
+        }
+        const group = groups[phase];
+        if (evidence) {
+            const input = field(group,item.label,'file:'+item.key,'','file');
             input.accept = item.accepted_mime_types?.length ? item.accepted_mime_types.join(',') : item.type === 'file' ? 'image/*,application/pdf' : 'image/*';
             if (item.type !== 'file') input.setAttribute('capture','environment');
-            if (files[item.key] || active.order?.evidences?.includes(item.key)) target.append(element('small',files[item.key]?.name || 'Evidência já registrada no servidor'));
+            if (files[item.key] || active.order?.evidences?.includes(item.key)) group.append(element('small',files[item.key]?.name || 'Evidência já registrada no servidor'));
             continue;
         }
         let input;
@@ -209,16 +297,19 @@ function renderFields(catalog, target, values, files, writable, isNew) {
         const current = values[item.key] ?? item.default_value ?? '';
         if (item.type === 'select') {
             const choices = item.options || {};
-            input = select(target,item.label,name,Array.isArray(choices) ? choices.map(choice => [choice,choice]) : Object.entries(choices),current);
+            input = select(group,item.label,name,Array.isArray(choices) ? choices.map(choice => [choice,choice]) : Object.entries(choices),current);
         } else if (item.type === 'boolean') {
-            input = select(target,item.label,name,[['1','Sim'],['0','Não']],current === true ? '1' : current === false ? '0' : current);
+            input = select(group,item.label,name,[['1','Sim'],['0','Não']],current === true ? '1' : current === false ? '0' : current);
         } else {
             const type = {date:'date',time:'time',datetime:'datetime-local',textarea:'textarea'}[item.type] || 'text';
-            input = field(target,item.label+(item.unit ? ' ('+item.unit+')' : ''),name,current,type);
+            input = field(group,item.label+(item.unit ? ' ('+item.unit+')' : ''),name,current,type);
             if (['meter','integer','decimal','money','quantity'].includes(item.type)) input.inputMode = item.type === 'integer' ? 'numeric' : 'decimal';
         }
         input.disabled = !editable;
         if (item.required && item.phase === 'order' && !item.conditional_rule) input.required = editable;
+    }
+    for (const phase of ['order', 'start', 'execution', 'finish', 'evidence']) {
+        if (groups[phase]) target.append(groups[phase]);
     }
     const startKey = catalog?.meter_pair?.[0], endKey = catalog?.meter_pair?.[1];
     if (startKey && writable && catalog.fields.some(item => item.key === endKey && item.editable_by_provider)) {
@@ -242,7 +333,7 @@ function renderFields(catalog, target, values, files, writable, isNew) {
 }
 
 function openOrder(order, row = null) {
-    active = {order:order || null,row,scope:bundle.scope};
+    active = {order:order || null,row,scope:bundle.scope,accountEpoch:bundle.accountEpoch};
     const reference = row?.payload.creation || {};
     const writable = !row?.sent && !row?.conflict && (!order || editableState(order));
     get('editor-title').textContent = order?.number || 'Nova ordem';
@@ -284,7 +375,7 @@ function openOrder(order, row = null) {
         const whatsapp = field(contact,'WhatsApp','beneficiary_whatsapp',reference.beneficiary_whatsapp,'tel');
         whatsapp.maxLength = 25; whatsapp.disabled = !writable;
         const schedule = formGroup('Agendamento e local');
-        const scheduledDate = field(schedule,'Agendamento','scheduled_at',reference.scheduled_at,'datetime-local');
+        const scheduledDate = field(schedule,'Agendamento','scheduled_at',reference.scheduled_at || (selectedDay ? selectedDay+'T08:00' : ''),'datetime-local');
         scheduledDate.required = writable;
         scheduledDate.disabled = !writable;
         const locationField = field(schedule,'Local','location',reference.location);
@@ -324,7 +415,7 @@ function openOrder(order, row = null) {
             message.textContent = 'O registro está sendo sincronizado. Atualize a lista.';
             return;
         }
-        active = null; await redraw();
+        openRoute('agenda');
     }));
     actions.append(button('Compartilhar via em PDF', async () => {
         if (!hasOfflineAccess(bundle)) {await redraw();return;}
@@ -348,7 +439,8 @@ function openOrder(order, row = null) {
         actions.append(link);
     }
     renderList();
-    get('editor').scrollIntoView({block:'start'});
+    get('editor-title').focus({preventScroll:true});
+    window.scrollTo({top:0});
     preview();
 }
 
@@ -433,6 +525,7 @@ async function save(action) {
     try {
         if (!await guardedUpdate(next,row)) throw new Error('Este registro mudou em outra aba. Volte à lista e confira a versão mais recente.');
         active = null;
+        history.replaceState(null, '', '#agenda');
         message.textContent = model.id ? 'Registro salvo neste aparelho.' : 'Ordem salva neste aparelho. O número será atribuído após a sincronização.';
         await redraw();
         if (navigator.onLine) synchronize(true);
@@ -443,35 +536,43 @@ async function save(action) {
     }
 }
 
+let redrawVersion = 0, accessTimer;
 async function redraw() {
-    bundle = await getBundle();
-    if (!bundle || (active && active.scope !== bundle.scope)) {
+    const version = ++redrawVersion;
+    const stored = await getBundle();
+    const queue = stored ? await queued(stored.scope) : [];
+    if (version !== redrawVersion) return;
+    bundle = hasOfflineAccess(stored) ? stored : null;
+    const currentRoute = route();
+    if (!bundle || renderedRoute !== currentRoute
+        || (active && (active.scope !== bundle.scope || active.accountEpoch !== bundle.accountEpoch))) {
         if (picker.open) picker.close();
         active = null;
+        form.replaceChildren();
+        actions.replaceChildren();
     }
-    pending = bundle ? await queued(bundle.scope) : [];
+    const switched = renderedRoute !== currentRoute;
+    renderedRoute = currentRoute;
+    pending = bundle ? queue : [];
+    clearTimeout(accessTimer);
+    if (bundle) accessTimer = setTimeout(redraw, Math.max(0, Date.parse(bundle.expiresAt) - Date.now()));
     get('connection').textContent = navigator.onLine ? 'Online' : 'Sem internet';
     get('connection').dataset.online = String(navigator.onLine);
     get('refresh').hidden = !bundle;
-    if (!bundle) {
-        active = null;
-        message.textContent = 'Abra o portal do prestador com internet e entre na sua conta para baixar os dados deste aparelho.';
+    if (!bundle) message.textContent = 'Conecte-se para confirmar a sessão e carregar os portais.';
+    else if (!active) {
+        if (currentRoute === 'nova' && bundle.catalog.length) return openOrder(null);
+        const id = currentRoute.match(/^os\/(\d+)$/)?.[1];
+        const queueId = currentRoute.match(/^registro\/([a-f0-9-]+)$/i)?.[1];
+        const row = pending.find(item => queueId ? item.id === queueId : id && String(item.payload.order_id) === id);
+        const order = bundle.orders.find(item => String(item.id) === (id || String(row?.payload.order_id)));
+        if (order || row?.orderSnapshot || (row && !row.payload.order_id)) return openOrder(order || row.orderSnapshot, row);
+        if (id || queueId) message.textContent = 'Esta ordem não está disponível na agenda deste aparelho.';
     }
     renderList();
-    if (requestedCreation && bundle?.catalog.length) {
-        requestedCreation = false;
-        openOrder(null);
-        return;
-    }
-    const requestedOrder = bundle?.orders.find(order => String(order.id) === requestedOrderId);
-    if (requestedOrder) {
-        requestedOrderId = null;
-        openOrder(requestedOrder,pending.find(row => row.payload.order_id === requestedOrder.id));
-    } else if (bundle && requestedOrderId) {
-        const row = pending.find(item => String(item.payload.order_id) === requestedOrderId);
-        requestedOrderId = null;
-        if (row?.orderSnapshot) openOrder(row.orderSnapshot, row);
-        else message.textContent = 'Esta ordem não está na agenda de campo deste aparelho.';
+    if (switched) {
+        get(!bundle || currentRoute === 'inicio' ? 'offline-home-title' : 'agenda-heading').focus({preventScroll:true});
+        window.scrollTo({top:0});
     }
 }
 
@@ -511,20 +612,26 @@ document.querySelectorAll('[data-agenda-state]').forEach(filter => filter.addEve
     document.querySelectorAll('[data-agenda-state]').forEach(item => item.setAttribute('aria-pressed', String(item === filter)));
     renderList();
 }));
-get('create').addEventListener('click',() => openOrder(null));
-get('back').addEventListener('click',() => {active=null;renderList();});
+get('create').addEventListener('click',() => openRoute('nova'));
+get('view-calendar').addEventListener('click', () => {agendaView = 'calendar'; renderList();});
+get('view-list').addEventListener('click', () => {agendaView = 'list'; renderList();});
+get('previous-month').addEventListener('click', () => {currentMonth = monthStart(currentMonth, -1); selectedDay = ''; renderList();});
+get('next-month').addEventListener('click', () => {currentMonth = monthStart(currentMonth, 1); selectedDay = ''; renderList();});
+get('agenda-today').addEventListener('click', () => {selectedDay = today(); currentMonth = selectedDay.slice(0, 7); renderList();});
+get('agenda-all').addEventListener('click', () => {selectedDay = ''; renderList();});
 window.sgcOverlayBack = () => {
     if (picker.open) {
         picker.close();
         return true;
     }
     if (!active) return false;
-    active = null;
-    renderList();
+    openRoute('agenda');
     return true;
 };
 get('refresh').addEventListener('click',() => synchronize(true));
 window.addEventListener('sgc-provider-data',redraw);
+window.addEventListener('hashchange', redraw);
+window.addEventListener('pageshow', event => { if (event.persisted) redraw(); });
 window.addEventListener('online',() => synchronize(true));
 window.addEventListener('offline',redraw);
 document.addEventListener('visibilitychange',() => {

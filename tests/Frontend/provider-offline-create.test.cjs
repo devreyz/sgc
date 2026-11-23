@@ -6,7 +6,7 @@ const {randomUUID} = require('node:crypto');
 const vm = require('node:vm');
 
 const script = readFileSync(path.join(__dirname, '../../public/assets/provider-offline.js'), 'utf8');
-const saveFunction = script.slice(script.indexOf('async function save(action)'), script.indexOf('async function redraw()'));
+const saveFunction = script.slice(script.indexOf('async function save(action)'), script.indexOf('let redrawVersion'));
 
 function setup(extra = []) {
     const rows = [];
@@ -27,6 +27,7 @@ function setup(extra = []) {
         synchronize() { assert.fail('Must not sync while offline'); },
         async guardedUpdate(row) { rows.push(row); return true; },
         async redraw() {},
+        history: {replaceState() {}},
     };
     const save = vm.runInNewContext('(' + saveFunction + ')',context);
     return {save, rows, message};

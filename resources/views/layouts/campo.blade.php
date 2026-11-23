@@ -4053,6 +4053,21 @@
         }());
     </script>
     @auth
+        <script>
+            try {
+                const user = @json((string) auth()->id());
+                const accountKey = 'sgc-offline-account';
+                const signedOutKey = 'sgc-provider-offline-signed-out';
+                const previous = JSON.parse(localStorage.getItem(accountKey) || 'null');
+                if (previous?.user !== user || !previous.epoch || localStorage.getItem(signedOutKey)) {
+                    localStorage.setItem(accountKey, JSON.stringify({user, epoch: crypto.randomUUID()}));
+                }
+                localStorage.removeItem(signedOutKey);
+                document.addEventListener('submit', event => {
+                    if (/\/logout\/?$/.test(new URL(event.target.action).pathname)) localStorage.removeItem(accountKey);
+                }, true);
+            } catch {}
+        </script>
         @if($currentTenantSlug)
             <script type="module" src="{{ asset('assets/provider-offline-store.js') }}?v={{ filemtime(public_path('assets/provider-offline-store.js')) }}"
                 data-provider-offline-user="{{ auth()->id() }}"

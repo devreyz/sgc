@@ -111,10 +111,11 @@ final class NavigationWebViewClient extends BridgeWebViewClient {
         Uri.Builder local = Uri.parse(PROVIDER_OFFLINE_PAGE).buildUpon();
         if (path.equals("/app")) return local.build().toString();
         if (path.equals("/provider-offline.html")) {
-            for (String param : new String[]{"tenant", "new", "os"}) {
+            for (String param : new String[]{"tenant", "new", "os", "screen"}) {
                 String value = failedUrl.getQueryParameter(param);
                 if (value != null) local.appendQueryParameter(param, value);
             }
+            local.fragment(failedUrl.getFragment());
             return local.build().toString();
         }
         Matcher provider = PROVIDER_ROUTE.matcher(path);

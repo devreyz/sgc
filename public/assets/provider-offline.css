@@ -38,6 +38,8 @@ h3 { font-size: .93rem; }
 }
 .fieldwork-header img { display: block; border-radius: .75rem; }
 .fieldwork-identity p { margin-top: .16rem; overflow-wrap: anywhere; }
+.fieldwork-identity p:empty { display: none; }
+.ph { margin-inline-end: .25rem; }
 .fieldwork-identity p, #updated, #agenda-period, #order-status, small { color: var(--muted); font-size: .85rem; }
 #connection, .order-status {
     width: fit-content;
@@ -54,7 +56,7 @@ main {
     width: 100%;
     max-width: 58rem;
     margin: auto;
-    padding: .85rem max(.85rem, env(safe-area-inset-right)) calc(1.1rem + env(safe-area-inset-bottom)) max(.85rem, env(safe-area-inset-left));
+    padding: .85rem max(.85rem, env(safe-area-inset-right)) calc(5.4rem + env(safe-area-inset-bottom)) max(.85rem, env(safe-area-inset-left));
     display: grid;
     gap: .8rem;
 }
@@ -98,6 +100,36 @@ button.primary:hover:not(:disabled) { background: #c9e660; border-color: #c9e660
 .order-list { display: grid; gap: .5rem; }
 .fieldwork-queue { border-bottom: 1px solid var(--line); padding-bottom: .75rem; }
 .order-row { width: 100%; text-align: left; display: grid; gap: .2rem; padding: .65rem .75rem; }
+.offline-hero { display:grid; gap:.6rem; padding:clamp(1rem,4vw,1.8rem); border-radius:.8rem; color:white; background:var(--green); }
+.offline-hero h2 { font-size:clamp(1.5rem,5vw,2.1rem); letter-spacing:-.035em; }
+.offline-hero p { color:#d5e4d9; font-size:.9rem; }
+.portal-card { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:.9rem; border:1px solid var(--line); border-radius:.75rem; color:var(--green); text-decoration:none; padding:.85rem; background:var(--green-soft); }
+.portal-card > i:first-child { display:grid; place-items:center; min-width:2.5rem; min-height:2.5rem; background:var(--paper); border-radius:.6rem; font-size:1.3rem; }
+.portal-card strong, .portal-card small { display:block; }
+#agenda-summary { color:var(--green); background:var(--green-soft); border-radius:.65rem; padding:.65rem .8rem; font-size:.88rem; font-weight:700; }
+.agenda-view { display:flex; gap:.35rem; flex-wrap:wrap; }
+.agenda-view [aria-pressed=true] { background:var(--green); color:white; }
+.agenda-panels, .agenda-results { display:grid; align-content:start; gap:.65rem; min-width:0; }
+.calendar { display:grid; align-content:start; gap:.5rem; border:1px solid var(--line); border-radius:.75rem; padding:.65rem; background:var(--paper); }
+#calendar-month { text-transform:capitalize; }
+.calendar-weekdays, .calendar-days { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:.18rem; text-align:center; }
+.calendar-weekdays { color:var(--muted); font-size:.7rem; font-weight:700; }
+.calendar-weekdays span:first-child, .calendar-days span:nth-child(7n+1), .calendar-days button:nth-child(7n+1) { color:#923840; }
+.calendar-days button { justify-content:center; flex-direction:column; align-items:center; gap:0; min-width:0; padding:.14rem 0; font-size:.82rem; }
+.calendar-days button:disabled { opacity:.4; }
+.calendar-days button[aria-current=date] { border-color:var(--green); }
+.calendar-days button[aria-pressed=true] { background:var(--lime); color:var(--green); border-color:var(--green); }
+.calendar-days small { font-size:.65rem; line-height:1.05; color:var(--green); }
+#back { color:var(--green); font-weight:700; }
+.offline-nav { position:fixed; z-index:2; bottom:0; inset-inline:0; background:var(--paper); border-top:1px solid var(--line); display:flex; justify-content:center; gap:.45rem; padding:.4rem max(.5rem,env(safe-area-inset-right)) max(.45rem,env(safe-area-inset-bottom)) max(.5rem,env(safe-area-inset-left)); }
+.offline-nav a { display:grid; flex:1 1 auto; max-width:13rem; min-height:47px; place-content:center; justify-items:center; gap:.15rem; color:var(--green); text-decoration:none; border-radius:.62rem; padding:.34rem .5rem; font-size:.8rem; font-weight:700; }
+.offline-nav a i { font-size:1.15rem; margin:0; }
+.offline-nav [aria-current=page] { background:var(--green-soft); }
+#offline-home-title:focus, #agenda-heading:focus, #editor-title:focus { outline:none; }
+@media(min-width:48rem) {
+    .agenda-panels:has(.calendar:not([hidden])) { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+    .agenda-tools { align-items:end; }
+}
 .order-status { color: var(--blue); background: var(--blue-soft); }
 .order-status[data-state=in_progress] { color: var(--green); background: var(--green-soft); }
 small { overflow-wrap: anywhere; }
