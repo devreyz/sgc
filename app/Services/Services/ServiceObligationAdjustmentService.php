@@ -80,8 +80,9 @@ class ServiceObligationAdjustmentService
 
                 return $existing;
             }
-            if ($obligation->status === 'cancelled' || $obligation->execution?->order?->operational_status === 'cancelled') {
-                throw ValidationException::withMessages(['status' => 'Uma obrigação anulada não aceita ajustes.']);
+            $order = $obligation->execution?->order;
+            if ($obligation->status === 'cancelled' || $order?->operational_status === 'cancelled' || $order?->isBilled()) {
+                throw ValidationException::withMessages(['status' => 'Uma ordem faturada ou anulada não aceita ajustes.']);
             }
             if ($obligation->activePaymentPlan()
                 || \App\Models\ServicePayoutRequestItem::query()->where('service_obligation_id', $obligation->id)

@@ -1790,37 +1790,164 @@ class ServiceProviderCompensationTest extends TestCase
         $database = Schema::getConnection();
         $database->table('service_obligations')->where('id', $obligation->id)->delete();
         $database->table('service_executions')->where('id', $execution->id)->update(['status' => 'in_progress', 'started_at' => now()]);
-        $database->table('expenses')->insert(['tenant_id' => 1, 'expenseable_type' => $order->getMorphClass(), 'expenseable_id' => $order->id]);
+        $expense = $database->table('expenses')->insertGetId(['tenant_id' => 1, 'expenseable_type' => $order->getMorphClass(), 'expenseable_id' => $order->id]);
+        $generatedExpense = $database->table('expenses')->insertGetId([
+            'tenant_id' => 1, 'expenseable_type' => $execution->getMorphClass(), 'expenseable_id' => $execution->id,
+        ]);
+        $database->table('service_execution_resources')->insert([
+            'tenant_id' => 1, 'service_execution_id' => $execution->id, 'resource_key' => 'fuel',
+            'description' => 'Combustível', 'effect' => 'create_association_expense',
+            'operation_key' => (string) Str::uuid(), 'expense_id' => $generatedExpense,
+        ]);
         $correction = app(\App\Services\Services\ServiceOrderCorrection::class);
-
-        try {
-            $correction->handle($order, 'purge', 'Cadastro duplicado', $actor);
-            $this->fail('A linked expense must block permanent removal.');
-        } catch (\Illuminate\Validation\ValidationException $exception) {
-            $this->assertArrayHasKey('reason', $exception->errors());
-        }
-        $this->assertSame('in_progress', $execution->fresh()->status);
-        $database->table('expenses')->delete();
 
         $correction->handle($order, 'purge', 'Cadastro duplicado', $actor);
 
+        $this->assertDatabaseHas('expenses', ['id' => $expense, 'status' => 'pending', 'expenseable_type' => null, 'expenseable_id' => null]);
+        $this->assertDatabaseHas('expenses', ['id' => $generatedExpense, 'status' => 'cancelled', 'expenseable_id' => null]);
+        $this->assertDatabaseMissing('service_execution_resources', ['service_execution_id' => $execution->id]);
         $this->assertDatabaseMissing('service_executions', ['id' => $execution->id]);
         $this->assertDatabaseMissing('service_orders', ['id' => $order->id]);
         $this->assertDatabaseHas('released_service_order_numbers', ['tenant_id' => 1, 'year' => 2026, 'number' => 1]);
     }
 
+    public function test_billing_closes_a_validated_order_without_registering_a_payment(): void
+    {
+        [$obligation, , $actor] = $this->payable();
+        $this->prepareRateAdjustment($obligation);
+        $this->prepareOrderCorrection();
+        $execution = $obligation->execution;
+        $order = $execution->order;
+        $correction = app(\App\Services\Services\ServiceOrderCorrection::class);
+
+        $correction->bill($order, $actor, $execution->lock_version);
+        $this->assertTrue($order->fresh()->isBilled());
+        $this->assertFalse(\App\Services\Services\ServiceOrderDetails::editable($order->fresh()));
+        $this->assertSame('validated', $execution->fresh()->status);
+        $this->assertSame(900.0, $obligation->fresh()->balance);
+
+        $this->expectException(ValidationException::class);
+        $correction->handle($order, 'purge', 'Teste de exclusão', $actor, true);
+    }
+
+    public function test_removal_keeps_an_order_with_a_payment_plan(): void
+    {
+        [$obligation, , $actor] = $this->payable();
+        $this->prepareRateAdjustment($obligation);
+        $this->prepareOrderCorrection();
+        Schema::getConnection()->table('service_payment_plan_obligations')->insert([
+            'service_payment_plan_id' => 1, 'service_obligation_id' => $obligation->id, 'included_amount' => 900,
+        ]);
+        $order = $obligation->execution->order;
+        try {
+            app(\App\Services\Services\ServiceOrderCorrection::class)->handle($order, 'purge', 'Teste de exclusão', $actor, true);
+            $this->fail('A payment plan must prevent removal.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('reason', $exception->errors());
+        }
+        $this->assertNotNull($order->fresh());
+        $this->assertDatabaseCount('released_service_order_numbers', 0);
+    }
+
+    public function test_removing_an_unbilled_order_reverses_a_standalone_payment_and_keeps_its_audit_trail(): void
+    {
+        [$obligation, $account, $actor] = $this->payable();
+        $this->prepareRateAdjustment($obligation);
+        $this->prepareOrderCorrection();
+        $actor = \Mockery::mock($actor);
+        $actor->shouldReceive('checkPermissionTo')->with('manage_service_payables')->andReturn(true);
+        $order = $obligation->execution->order;
+        $payment = app(ServicePaymentService::class)->record(
+            $obligation, 100, 'pix', '2026-09-09', $account->id, (string) Str::uuid(), $actor,
+        );
+
+        $removed = app(\App\Services\Services\ServiceOrderCorrection::class)
+            ->handle($order, 'purge', 'Cadastro duplicado', $actor, true);
+
+        $this->assertFalse($removed);
+        $this->assertSoftDeleted('service_orders', ['id' => $order->id]);
+        $this->assertSame('reversed', $payment->fresh()->status);
+        $this->assertSame('cancelled', $obligation->fresh()->status);
+        $this->assertSame(0.0, $obligation->fresh()->paid_amount);
+        $this->assertSame(900.0, (float) $account->fresh()->current_balance);
+        $this->assertDatabaseCount('released_service_order_numbers', 0);
+    }
+
+    public function test_provider_can_edit_a_resource_after_review_and_attach_a_photo_after_billing(): void
+    {
+        [$obligation, , $actor] = $this->payable();
+        $this->prepareRateAdjustment($obligation);
+        $this->prepareOrderCorrection();
+        Schema::table('documents', function (Blueprint $table): void {
+            $table->timestamps();
+            foreach (['name', 'original_name', 'path', 'disk', 'mime_type', 'extension', 'category'] as $column) {
+                $table->string($column);
+            }
+            $table->unsignedInteger('size');
+            $table->date('document_date');
+            $table->unsignedBigInteger('uploaded_by');
+        });
+        Schema::table('service_execution_evidences', function (Blueprint $table): void {
+            foreach (['evidence_type', 'phase', 'sha256', 'metadata'] as $column) {
+                $table->string($column);
+            }
+            $table->unsignedBigInteger('uploaded_by');
+        });
+        \Illuminate\Support\Facades\Storage::fake('local');
+        $execution = $obligation->execution;
+        $database = Schema::getConnection();
+        $database->table('service_executions')->where('id', $execution->id)->update(['status' => 'draft']);
+        $resources = app(\App\Services\Services\ServiceResourceService::class);
+        $resources->saveReport($execution, [
+            'operation_key' => (string) Str::uuid(), 'description' => 'Combustível', 'amount' => '25.00',
+            'effect' => 'add_to_receivable',
+        ], $actor, (int) $execution->service_provider_id);
+        $resource = $execution->resources()->sole();
+        $this->assertSame('information_only', $resource->effect);
+        $database->table('service_executions')->where('id', $execution->id)->update(['status' => 'validated']);
+        $resources->saveReport($execution, [
+            'operation_key' => (string) Str::uuid(), 'resource_id' => $resource->id, 'description' => 'Diesel', 'amount' => '30.00',
+        ], $actor, (int) $execution->service_provider_id);
+        $this->assertSame('Diesel', $resource->fresh()->description);
+        $this->assertSame('30.00', $resource->fresh()->amount);
+        app(\App\Services\Services\ServiceOrderCorrection::class)->bill($execution->order, $actor, $execution->lock_version);
+        $photo = \Illuminate\Http\UploadedFile::fake()->createWithContent('nota.png', base64_decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jB2QAAAAASUVORK5CYII=',
+        ));
+        $resources->saveReport($execution, [
+            'operation_key' => (string) Str::uuid(), 'resource_id' => $resource->id,
+            'description' => 'Não alterar após faturamento', 'photos' => [$photo],
+        ], $actor, (int) $execution->service_provider_id);
+        $this->assertSame('Diesel', $resource->fresh()->description);
+        $photo = $execution->evidences()->where('field_key', $resource->evidenceKey())->sole();
+        \Illuminate\Support\Facades\Storage::disk('local')->assertExists($photo->document->path);
+        $this->assertSame(900.0, $obligation->fresh()->balance);
+        $this->actingAs($actor);
+        $html = view('services._resource-wizard', [
+            'order' => $execution->order->fresh(), 'execution' => $execution->fresh(['resources', 'evidences']),
+            'tenantSlug' => 'cooperativa', 'errors' => new \Illuminate\Support\ViewErrorBag,
+        ])->render();
+        $this->assertStringContainsString('Anexar fotos', $html);
+        $this->assertStringContainsString('capture="environment"', $html);
+        $this->assertStringNotContainsString('name="description"', $html);
+    }
+
     private function prepareOrderCorrection(): void
     {
         Schema::table('service_orders', function (Blueprint $table): void {
+            $table->timestamp('billed_at')->nullable();
+            $table->unsignedBigInteger('billed_by')->nullable();
             $table->timestamp('cancelled_at')->nullable();
             $table->unsignedBigInteger('cancelled_by')->nullable();
             $table->text('cancellation_reason')->nullable();
         });
         foreach (['provider_payment_requests', 'service_order_payments', 'service_order_additions', 'service_provider_works'] as $name) {
             Schema::create($name, function (Blueprint $table): void {
+                $table->timestamps();
                 $table->unsignedBigInteger('service_order_id');
                 $table->unsignedBigInteger('tenant_id');
                 $table->softDeletes();
+                $table->string('payment_status')->default('pendente');
             });
         }
         Schema::create('associate_ledgers', function (Blueprint $table): void {
@@ -1829,8 +1956,12 @@ class ServiceProviderCompensationTest extends TestCase
             $table->softDeletes();
         });
         Schema::create('expenses', function (Blueprint $table): void {
+            $table->id();
+            $table->timestamps();
             $table->unsignedBigInteger('tenant_id');
-            $table->morphs('expenseable');
+            $table->nullableMorphs('expenseable');
+            $table->string('status')->default('pending');
+            $table->decimal('paid_amount', 12, 2)->nullable();
             $table->softDeletes();
         });
         foreach (['generated_documents', 'cloud_documents', 'documents'] as $name) {

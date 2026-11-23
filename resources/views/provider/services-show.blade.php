@@ -1224,6 +1224,9 @@
                         <span class="svc-hero-number">{{ $order->number }}</span>
                     </div>
                     <h1>{{ $order->service->name }}</h1>
+                    @if($execution && (!($operator ?? false) || $provider || auth()->user()->checkPermissionTo('manage_service_resources')))
+                        <a href="#recursos-da-ordem">Recursos da ordem</a>
+                    @endif
                     @if(($provider || ($operator ?? false)) && !($managementExecution ?? false))
                         <a href="{{ route('provider.orders.beneficiary-copy', [$tenantSlug, $order]) }}" target="_blank" rel="noopener" data-sgc-pdf>OS · Via do beneficiário</a>
                         <a href="{{ url('/provider-offline.html').'?'.http_build_query(['tenant' => $tenantSlug, 'os' => $order->id]) }}">Abrir no modo offline</a>
@@ -2386,6 +2389,10 @@
         </div>
     </dialog>
 
+
+    @if($execution && (!($operator ?? false) || $provider || auth()->user()->checkPermissionTo('manage_service_resources')))
+        @include('services._resource-wizard', ['resourceManagement' => ($operator ?? false) && auth()->user()->checkPermissionTo('manage_service_resources')])
+    @endif
 
     <div
         class="svc-reload-overlay"

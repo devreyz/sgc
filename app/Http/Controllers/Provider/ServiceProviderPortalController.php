@@ -431,6 +431,19 @@ class ServiceProviderPortalController extends Controller
         return back()->with('success', 'Evidência anexada.');
     }
 
+    public function resource(Request $request, Tenant $tenant, int $order, \App\Services\Services\ServiceResourceService $resources): RedirectResponse
+    {
+        [$provider, $operator] = $this->access($request, $tenant);
+        $record = $this->order($tenant, $provider, $operator, $order);
+        abort_unless($record->execution, 404);
+        $manager = $operator && $request->user()->checkPermissionTo('manage_service_resources');
+        abort_unless($manager || ($provider && (int) $record->service_provider_id === (int) $provider->id), 403);
+        $resources->saveReport($record->execution, $request->validate(\App\Services\Services\ServiceResourceService::formRules()),
+            $request->user(), $manager ? null : $provider->id);
+
+        return back()->with('success', 'Recurso salvo na ordem.');
+    }
+
     public function approve(Request $request, Tenant $tenant, int $order, ServiceExecutionWorkflow $workflow): RedirectResponse|JsonResponse
     {
         [$provider, $operator] = $this->access($request, $tenant);

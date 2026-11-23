@@ -431,6 +431,8 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                     @foreach($states as $key => $label)
                         <option value="{{ $key }}" @selected(request('status') === $key)>{{ $label }}</option>
                     @endforeach
+                    <option value="awaiting_billing" @selected(request('status') === 'awaiting_billing')>Aguardando faturamento</option>
+                    <option value="billed" @selected(request('status') === 'billed')>Faturadas</option>
                 </select>
                 <span class="cm-filter-icon" aria-hidden="true"><i class="ph-duotone ph-caret-down"></i></span>
             </span>
@@ -500,7 +502,7 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                             $canEditExecution = $canEdit && in_array($order->execution?->status, ['draft', 'in_progress', 'submitted', 'rejected'], true);
                             $canValidateOrder = $canApprove && $order->execution?->status === 'submitted';
                             $executionStatus = $order->execution?->status;
-                            $canRemoveOrder = $canEdit && in_array($executionStatus, ['draft', 'in_progress', 'submitted', 'rejected', 'validated', 'cancelled'], true);
+                            $canRemoveOrder = $canEdit && !$order->isBilled() && in_array($executionStatus, ['draft', 'in_progress', 'submitted', 'rejected', 'validated', 'cancelled'], true);
                             $financialState = $statuses->financialState($order);
                             $executionDate = $order->execution_date ?? $order->scheduled_at ?? $order->scheduled_date;
                             $displayQuantity = $order->execution?->management_preview['primary_quantity'] ?? $order->execution?->quantity;
@@ -531,6 +533,11 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                                         @include('services._financial-status')
                                     @else
                                         <span class="cm-state" data-state="{{ $order->operational_status }}">{{ $statuses->resolve($order) }}</span>
+                                    @endif
+                                    @if($order->isBilled())
+                                        <span class="cm-state" data-state="validated">Faturada</span>
+                                    @elseif($order->operational_status === 'validated')
+                                        <span class="cm-micro">Aguardando faturamento</span>
                                     @endif
                                 </div>
                             </td>
@@ -666,7 +673,7 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                     <input type="text" name="confirmation" maxlength="64" autocomplete="off" value="{{ old('confirmation') }}">
                 </label>
                 <label data-purge-notes hidden>
-                    <input type="checkbox" name="delete_generated_notes" value="1" @checked(old('delete_generated_notes')) disabled>
+                    <input type="checkbox" name="delete_generated_notes" value="1" @checked(old('delete_generated_notes', true)) disabled>
                     Excluir também as notas e vias da OS em rascunho
                 </label>
                 <div class="cm-dialog-actions">
@@ -764,8 +771,8 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
         const confirmation = form.querySelector('[data-purge-confirmation]');
         const notes = form.querySelector('[data-purge-notes]');
         const descriptions = {
-            reopen: 'A ordem volta para edição com o mesmo número. Finalize novamente depois de corrigir.',
-            purge: 'A ordem e os dados da execução serão apagados. O número poderá ser usado em outra ordem.',
+            reopen: 'A ordem volta para edição com o mesmo número. Revise os valores e finalize novamente depois de corrigir.',
+            purge: 'Despesas e arquivos serão desvinculados. Pagamentos avulsos serão estornados no SGC e manterão o número no histórico. Sem pagamentos, o número será liberado.',
             cancel: 'A ordem fica na lista de anuladas e mantém seu número.',
             delete: 'A ordem sai da lista principal. O número fica reservado.',
             cancel_replace: 'A ordem original fica anulada e uma nova ordem é criada.',
@@ -785,7 +792,7 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                 if (!restore) {
                     form.elements.reason.value = '';
                     form.elements.confirmation.value = '';
-                    form.elements.delete_generated_notes.checked = false;
+                    form.elements.delete_generated_notes.checked = true;
                     form.querySelector('.cm-dialog-errors')?.remove();
                 }
                 orderInput.value = button.dataset.orderId;
@@ -793,9 +800,9 @@ html:has(.cm-dialog[open]) { overflow: hidden; }
                 form.querySelector('[data-order-number]').textContent = button.dataset.order;
                 const status = button.dataset.executionStatus;
                 const allowed = status === 'cancelled' ? ['reopen', 'purge']
-                    : status === 'validated' ? ['reopen', 'cancel', 'cancel_replace']
-                    : status === 'in_progress' ? ['delete', 'purge', 'cancel', 'cancel_replace']
-                    : ['cancel', 'cancel_replace', ...(['draft', 'submitted'].includes(status) ? ['delete'] : [])];
+                    : status === 'validated' ? ['reopen', 'purge', 'cancel', 'cancel_replace']
+                    : status === 'in_progress' ? ['purge', 'delete', 'cancel', 'cancel_replace']
+                    : ['cancel', 'purge', 'cancel_replace', ...(['draft', 'submitted'].includes(status) ? ['delete'] : [])];
                 for (const option of form.elements.action.options) {
                     option.hidden = option.disabled = !allowed.includes(option.value);
                 }

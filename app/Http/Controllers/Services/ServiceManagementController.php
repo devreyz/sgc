@@ -66,7 +66,11 @@ class ServiceManagementController extends Controller
             ->when($request->boolean('undated'), fn ($query) => $query->whereRaw("$serviceDate IS NULL"))
             ->when(! $request->boolean('undated') ? ($dates['from'] ?? null) : null, fn ($query, $date) => $query->whereRaw("$serviceDate >= ?", [$date]))
             ->when(! $request->boolean('undated') ? ($dates['to'] ?? null) : null, fn ($query, $date) => $query->whereRaw("$serviceDate <= ?", [$date]))
-            ->when($request->filled('status'), fn ($q) => $q->where('operational_status', $request->string('status')->toString()))
+            ->when($request->filled('status'), fn ($query) => match ($request->input('status')) {
+                'billed' => $query->where(fn ($query) => $query->whereNotNull('billed_at')->orWhere('status', ServiceOrderStatus::BILLED->value)),
+                'awaiting_billing' => $query->where('operational_status', 'validated')->whereNull('billed_at')->where('status', '!=', ServiceOrderStatus::BILLED->value),
+                default => $query->where('operational_status', $request->string('status')->toString()),
+            })
             ->when($search !== '', fn ($q) => $q->where(fn ($query) => $query
                 ->where('number', 'like', '%'.$search.'%')
                 ->orWhere('beneficiary_snapshot->name', 'like', '%'.$search.'%')
@@ -236,7 +240,7 @@ class ServiceManagementController extends Controller
             if ($data['action'] === 'purge' && $data['confirmation'] !== $order->number) {
                 throw ValidationException::withMessages(['confirmation' => 'Digite o número exato da ordem.']);
             }
-            app(\App\Services\Services\ServiceOrderCorrection::class)->handle(
+            $removed = app(\App\Services\Services\ServiceOrderCorrection::class)->handle(
                 $order, $data['action'], $data['reason'], $request->user(), $request->boolean('delete_generated_notes'),
             );
             if ($data['action'] === 'reopen') {
@@ -245,7 +249,9 @@ class ServiceManagementController extends Controller
             }
 
             return redirect()->route('services.management.index', [$tenant->slug, 'status' => $order->operational_status])
-                ->with('success', 'Ordem excluída definitivamente. O número foi liberado para reutilização no ano da ordem.');
+                ->with('success', $removed
+                    ? 'Ordem excluída definitivamente. O número foi liberado para reutilização no ano da ordem.'
+                    : 'Ordem retirada da lista. O histórico dos pagamentos e estornos foi preservado com o número original.');
         }
         if ($data['action'] === 'cancel_replace') {
             $this->allow($request, 'create_service_order');
@@ -256,7 +262,7 @@ class ServiceManagementController extends Controller
             $lockedOrder = ServiceOrder::query()->where('tenant_id', $order->tenant_id)->lockForUpdate()->findOrFail($order->id);
             $wasValidated = $execution->isFrozen();
             $obligations = $execution->obligations()->orderBy('id')->lockForUpdate()->get();
-            if (! in_array($execution->status, ['draft', 'in_progress', 'submitted', 'rejected', 'validated'], true)
+            if ($lockedOrder->isBilled() || ! in_array($execution->status, ['draft', 'in_progress', 'submitted', 'rejected', 'validated'], true)
                 || $lockedOrder->payments()->exists() || $lockedOrder->ledgerEntries()->withTrashed()->exists()
                 || $lockedOrder->paid || $lockedOrder->paid_date || $lockedOrder->associate_paid_at || $lockedOrder->provider_paid_at) {
                 throw ValidationException::withMessages(['reason' => 'Esta ordem já foi cancelada ou tem movimentação financeira anterior. Consulte o dossiê.']);
@@ -379,6 +385,16 @@ class ServiceManagementController extends Controller
         return view('services.management-show', compact('tenant', 'order', 'accounts', 'statuses'));
     }
 
+    public function bill(Request $request, Tenant $tenant, int $order, \App\Services\Services\ServiceOrderCorrection $correction): RedirectResponse
+    {
+        $this->allow($request, 'view_service_management');
+        $this->allow($request, 'manage_service_receivables');
+        $data = $request->validate(['lock_version' => 'required|integer|min:0']);
+        $correction->bill($this->order($tenant, $order), $request->user(), (int) $data['lock_version']);
+
+        return back()->with('success', 'Ordem faturada. Os saldos continuam disponíveis para recebimento e pagamento.');
+    }
+
     public function execute(Request $request, Tenant $tenant, int $order): View
     {
         $this->allow($request, 'view_service_management');
@@ -489,13 +505,9 @@ class ServiceManagementController extends Controller
         $this->allow($request, 'manage_service_resources');
         $execution = $this->order($tenant, $order)->execution;
         abort_unless($execution, 404);
-        $data = $request->validate(['operation_key' => 'required|uuid', 'resource_key' => 'nullable|string|max:80', 'description' => 'required|string|max:191', 'provided_by' => 'required|in:organization,provider,customer,third_party', 'effect' => 'required|in:information_only,deduct_from_receivable,add_to_receivable,reimburse_provider,create_association_expense', 'quantity' => 'nullable|numeric|min:0', 'unit' => 'nullable|string|max:30', 'unit_price' => 'nullable|numeric|min:0', 'amount' => 'nullable|numeric|min:0']);
-        $operationKey = $data['operation_key'];
-        unset($data['operation_key']);
-        $data['resource_key'] ??= 'manual-'.substr($operationKey, 0, 8);
-        $resources->add($execution, $data, $operationKey, $request->user());
+        $resources->saveReport($execution, $request->validate(ServiceResourceService::formRules()), $request->user());
 
-        return back()->with('success', 'Recurso registrado na ordem.');
+        return back()->with('success', 'Recurso salvo na ordem.');
     }
 
     public function updateBeneficiary(Request $request, Tenant $tenant, int $order): RedirectResponse
@@ -506,7 +518,7 @@ class ServiceManagementController extends Controller
         $data = $request->validate(['beneficiary_name' => 'required|string|max:191', 'previous_name' => 'required|string|max:191', 'reason' => 'required|string|min:5|max:500']);
         DB::transaction(function () use ($request, $tenant, $order, $data): void {
             $record = ServiceOrder::query()->where('tenant_id', $tenant->id)->whereNotNull('service_version_id')->whereKey($order)->lockForUpdate()->firstOrFail();
-            abort_if($record->operational_status === 'cancelled', 409, 'Esta ordem foi anulada.');
+            abort_if($record->isBilled() || $record->operational_status === 'cancelled', 409, 'Esta ordem está fechada para edição.');
             $snapshot = (array) $record->beneficiary_snapshot;
             if (($snapshot['name'] ?? '') !== $data['previous_name']) {
                 throw ValidationException::withMessages(['beneficiary_name' => 'O nome mudou. Reabra a ordem para conferir.']);

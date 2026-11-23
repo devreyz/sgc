@@ -524,6 +524,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::patch('/orders/{order}/execution', [ServiceManagementController::class, 'updateExecutionRow'])->whereNumber('order')->middleware('throttle:40,1,services.management.execution.row:')->name('management.execution.row');
         Route::put('/orders/{order}', [ServiceManagementController::class, 'update'])->whereNumber('order')->middleware('throttle:30,1,services.management.update:')->name('management.update');
         Route::delete('/orders/{order}', [ServiceManagementController::class, 'remove'])->whereNumber('order')->middleware('throttle:20,1,services.management.remove:')->name('management.remove');
+        Route::post('/orders/{order}/bill', [ServiceManagementController::class, 'bill'])->whereNumber('order')->middleware('throttle:20,1,services.management.bill:')->name('management.bill');
         Route::get('/expenses', [ServiceProviderPortalController::class, 'expenses'])->name('management.expenses');
         Route::post('/expenses', [ServiceProviderPortalController::class, 'storeExpense'])->middleware('throttle:20,1,services.management.expenses.store:')->name('management.expenses.store');
         Route::post('/expenses/link', [ServiceProviderPortalController::class, 'linkExpense'])->middleware('throttle:20,1,services.management.expenses.link:')->name('management.expenses.link');
@@ -603,6 +604,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::post('/orders/{order}/preview', [ServiceProviderPortalController::class, 'previewExecution'])->middleware('throttle:60,1,provider.orders.preview:')->whereNumber('order')->name('orders.preview');
         Route::post('/orders/{order}/approve', [ServiceProviderPortalController::class, 'approve'])->middleware('throttle:20,1,provider.orders.approve:')->whereNumber('order')->name('orders.approve');
         Route::post('/orders/{order}/evidences', [ServiceProviderPortalController::class, 'upload'])->middleware('throttle:20,1,provider.orders.evidences.store:')->whereNumber('order')->name('orders.evidences.store');
+        Route::post('/orders/{order}/resources', [ServiceProviderPortalController::class, 'resource'])->middleware('throttle:20,1,provider.orders.resources.store:')->whereNumber('order')->name('orders.resources.store');
         Route::get('/evidences/{evidence}', [ServiceProviderPortalController::class, 'evidence'])->whereNumber('evidence')->name('evidences.download');
         Route::get('/financial', [ServiceProviderPortalController::class, 'financial'])->name('financial');
         Route::post('/financial/payout-requests', [ServiceProviderPortalController::class, 'payout'])->middleware('throttle:10,1,provider.financial.payout:')->name('financial.payout');

@@ -18,9 +18,6 @@
     );
 
     $execution = $order->execution;
-    $canManageResources = $execution && $execution->status !== 'cancelled' && $order->operational_status !== 'cancelled'
-        && auth()->user()->checkPermissionTo('manage_service_resources');
-
     $serviceName =
         $order->service?->name
         ?? 'Serviço';
@@ -1851,15 +1848,32 @@
         @endif
 
         <div class="ds-doc-actions" style="margin:.6rem 0">
-            @if(auth()->user()->checkPermissionTo('edit_service_order') && in_array($execution?->status, ['in_progress', 'validated', 'cancelled'], true))
+            @if(!$order->isBilled() && auth()->user()->checkPermissionTo('edit_service_order') && $execution)
                 <a class="ds-button secondary" href="{{ route('services.management.index', ['tenant' => $tenantSlug, 'q' => $order->number, 'status' => $order->operational_status, 'order_options' => $order->id]) }}">
                     <i class="ph ph-dots-three" aria-hidden="true"></i>
                     {{ match($execution->status) {
                         'cancelled' => 'Reabrir ou excluir ordem',
-                        'validated' => 'Corrigir execução',
+                        'validated' => 'Corrigir ou excluir ordem',
                         default => 'Opções da ordem',
                     } }}
                 </a>
+            @endif
+            @if($order->isBilled())
+                <span class="ds-button secondary">Faturada{{ $order->billed_at ? ' em '.$order->billed_at->format('d/m/Y H:i') : '' }}</span>
+            @elseif($execution?->isFrozen() && auth()->user()->checkPermissionTo('manage_service_receivables'))
+                <button type="button" class="ds-button primary" data-open-dialog="bill-service-order"><i class="ph ph-check-circle" aria-hidden="true"></i> Faturar OS</button>
+                <dialog class="dossier-dialog ds-quick-dialog" id="bill-service-order" aria-labelledby="bill-service-order-title">
+                    <header class="ds-dialog-head">
+                        <h3 id="bill-service-order-title">Faturar {{ $order->number }}</h3>
+                        <button class="ds-dialog-close" type="button" data-close-dialog="bill-service-order" aria-label="Fechar"><i class="ph ph-x" aria-hidden="true"></i></button>
+                    </header>
+                    <form class="ds-dialog-body ds-dialog-form" method="post" action="{{ route('services.management.bill', [$tenantSlug, $order]) }}">
+                        @csrf
+                        <input type="hidden" name="lock_version" value="{{ $execution->lock_version }}">
+                        <p>Confirme se a execução e os valores estão corretos. O faturamento fecha a ordem para edição e exclusão. Recebimentos e pagamentos continuam disponíveis.</p>
+                        <button class="ds-button primary" type="submit">Confirmar faturamento</button>
+                    </form>
+                </dialog>
             @endif
             @if(\App\Services\Services\ServiceOrderDetails::editable($order) && auth()->user()->checkPermissionTo('edit_service_order'))
                 <button type="button" class="ds-button secondary" data-open-dialog="order-details">Editar detalhes</button>
@@ -2037,17 +2051,6 @@
             </div>
 
             <div style="display:flex;gap:.4rem;align-items:center">
-                @if($canManageResources)
-                    <button
-                        class="ds-button violet"
-                        type="button"
-                        data-open-dialog="resource-dialog"
-                    >
-                        <i class="ph-duotone ph-plus-circle"></i>
-                        Adicionar recurso
-                    </button>
-                @endif
-
                 @if($hasComposition)
                     <span class="ds-section-meta">
                         {{ $obligations->count() }}
@@ -2060,7 +2063,9 @@
         </header>
 
         <div class="ds-section-body">
-            @if($canManageResources || ($execution && auth()->user()->checkPermissionTo('view_service_financials')))
+            @if($execution && auth()->user()->checkPermissionTo('manage_service_resources'))
+                @include('services._resource-wizard', ['resourceManagement' => true])
+            @elseif($execution && auth()->user()->checkPermissionTo('view_service_financials'))
                 @include('services._financial-resource-history')
             @endif
             @if(!$hasComposition)
@@ -2188,7 +2193,7 @@
                                 ->ensure($obligation, auth()->user());
                         @endphp
 
-                        @if($obligation->status !== 'cancelled' && $order->operational_status !== 'cancelled'
+                        @if(!$order->isBilled() && $obligation->status !== 'cancelled' && $order->operational_status !== 'cancelled'
                             && auth()->user()->checkPermissionTo($obligation->direction === 'payable' ? 'manage_service_payables' : 'manage_service_receivables'))
                             @include('services._financial-actions')
                         @endif
@@ -2949,10 +2954,6 @@
     </dialog>
 @endif
 
-@if($canManageResources)
-    @include('services._financial-resource')
-@endif
-
 @if(\App\Services\Services\ServiceOrderDetails::editable($order) && auth()->user()->checkPermissionTo('edit_service_order'))
 <dialog class="dossier-dialog" id="order-details" aria-labelledby="details-title-{{ $order->id }}">
     @include('services._order-details-form', ['detailsClose' => true, 'detailsDossier' => true])
@@ -2980,24 +2981,6 @@ document.addEventListener('DOMContentLoaded', () => {
         syncAdjustment(form);
     });
 
-    const resource = document.getElementById('resource-form');
-    if (resource) {
-        const details = resource.querySelector('[data-resource-details]');
-        const fields = resource.querySelector('[data-resource-detail-fields]');
-        const updateFields = () => {
-            fields.hidden = !details.checked;
-            fields.querySelectorAll('input').forEach(input => { input.disabled = fields.hidden; });
-        };
-        details.addEventListener('change', updateFields);
-        updateFields();
-        resource.querySelectorAll('[data-resource-preset]').forEach(button => {
-            button.addEventListener('click', () => {
-                resource.elements.description.value = button.dataset.resourcePreset;
-                resource.elements.description.focus();
-                resource.elements.description.select();
-            });
-        });
-    }
     document.querySelectorAll('[data-order-rate-form]').forEach(form => {
         const rateInput = form.querySelector('[data-rate-input]');
         rateInput.addEventListener('input', () => {

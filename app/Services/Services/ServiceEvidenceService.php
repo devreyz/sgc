@@ -5,6 +5,7 @@ namespace App\Services\Services;
 use App\Models\Document;
 use App\Models\ServiceExecution;
 use App\Models\ServiceExecutionEvidence;
+use App\Models\ServiceExecutionResource;
 use App\Models\ServiceVersionField;
 use App\Models\Tenant;
 use App\Models\TenantCloudStorageConnection;
@@ -24,18 +25,25 @@ class ServiceEvidenceService
 {
     private const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 
-    public function upload(ServiceExecution $execution, string $fieldKey, UploadedFile $file, User $actor, ?callable $trackLocalFile = null): ServiceExecutionEvidence
+    public function upload(ServiceExecution $execution, string $fieldKey, UploadedFile $file, User $actor, ?callable $trackLocalFile = null, ?ServiceExecutionResource $resource = null): ServiceExecutionEvidence
     {
-        return DB::transaction(function () use ($execution, $fieldKey, $file, $actor, $trackLocalFile) {
+        return DB::transaction(function () use ($execution, $fieldKey, $file, $actor, $trackLocalFile, $resource) {
             $provider = $execution->service_provider_id;
             $version = $execution->service_version_id;
             $execution = ServiceExecution::query()->whereKey($execution->id)->where('tenant_id', $execution->tenant_id)->lockForUpdate()->firstOrFail();
             if ((int) $execution->service_provider_id !== (int) $provider || (int) $execution->service_version_id !== (int) $version) {
                 throw ValidationException::withMessages(['file' => 'A ordem foi corrigida. Reabra antes de anexar.']);
             }
-            if ($execution->isFrozen() || $execution->status === 'cancelled') {
+            if ($execution->status === 'cancelled' || ($execution->isFrozen() && ! $resource)) {
                 throw ValidationException::withMessages(['file' => 'Esta execução não aceita novos anexos.']);
-            }$field = collect(data_get($execution->catalog_snapshot, 'fields', []))->firstWhere('key', $fieldKey);
+            }
+            if ($resource) {
+                abort_unless((int) $resource->service_execution_id === (int) $execution->id
+                    && (int) $resource->tenant_id === (int) $execution->tenant_id && $fieldKey === $resource->evidenceKey(), 404);
+            }
+            $field = $resource
+                ? ['type' => 'image', 'label' => 'Comprovante de recurso', 'phase' => 'execution']
+                : collect(data_get($execution->catalog_snapshot, 'fields', []))->firstWhere('key', $fieldKey);
             if (! $field || ! in_array($field['type'] ?? null, ['image', 'file', 'signature'], true)) {
                 throw ValidationException::withMessages(['field_key' => 'Campo de evidência inválido.']);
             }$mime = $file->getMimeType();
@@ -55,6 +63,13 @@ class ServiceEvidenceService
             $originalSize = strlen($bytes);
             [$bytes, $mime, $extension] = (new ServiceEvidenceImageOptimizer)->optimize($bytes, $mime, 'file');
             $hash = hash('sha256', $bytes);
+            if ($resource) {
+                $existing = $execution->evidences()->where('tenant_id', $execution->tenant_id)->where('field_key', $fieldKey);
+                if ($duplicate = (clone $existing)->where('sha256', $hash)->first()) return $duplicate;
+                if ($existing->count() >= 5) {
+                    throw ValidationException::withMessages(['photos' => 'Cada recurso aceita até cinco fotos.']);
+                }
+            }
             $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME).'.'.$extension;
             $drive = $trackLocalFile === null && Schema::hasTable('tenant_cloud_storage_connections')
                 && TenantCloudStorageConnection::query()

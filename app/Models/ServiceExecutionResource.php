@@ -16,4 +16,5 @@ class ServiceExecutionResource extends Model
     public function execution(): BelongsTo { return $this->belongsTo(ServiceExecution::class, 'service_execution_id'); }
     public function expense(): BelongsTo { return $this->belongsTo(Expense::class); }
     public function product(): BelongsTo { return $this->belongsTo(Product::class); }
+    public function evidenceKey(): string { return 'resource-'.$this->id; }
 }

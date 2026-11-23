@@ -96,6 +96,7 @@ class ServiceOrder extends Model
             'scheduled_date' => 'date',
             'execution_date' => 'date',
             'paid_date' => 'date',
+            'billed_at' => 'datetime',
             'associate_paid_at' => 'datetime',
             'provider_paid_at' => 'datetime',
             'quantity' => 'decimal:2',
@@ -361,7 +362,7 @@ class ServiceOrder extends Model
      */
     public function isBilled(): bool
     {
-        return $this->status === ServiceOrderStatus::BILLED;
+        return $this->billed_at !== null || $this->status === ServiceOrderStatus::BILLED;
     }
 
     /**

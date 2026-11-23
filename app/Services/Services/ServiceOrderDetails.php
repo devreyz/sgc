@@ -20,10 +20,8 @@ class ServiceOrderDetails
 
     public static function editable(ServiceOrder $order): bool
     {
-        if ($order->operational_status === 'cancelled' || ! $order->execution) return false;
-        if (in_array($order->execution->status, ['draft', 'in_progress', 'submitted', 'rejected'], true)) return true;
-        return $order->execution->status === 'validated'
-            && $order->execution->obligations->contains(fn ($item) => in_array($item->status, ['open', 'partially_paid'], true));
+        return ! $order->isBilled() && $order->operational_status !== 'cancelled'
+            && in_array($order->execution?->status, ['draft', 'in_progress', 'submitted', 'rejected', 'validated'], true);
     }
 
     public static function token(ServiceOrder $order): string
